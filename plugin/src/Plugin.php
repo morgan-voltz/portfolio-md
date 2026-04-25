@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Voltz\PortfolioMd;
 
+use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
+use Voltz\PortfolioMd\Taxonomies\TaxonomyRegistrar;
+
 /**
  * Composition root du plugin Portfolio MD.
  *
@@ -15,37 +18,51 @@ namespace Voltz\PortfolioMd;
  * WordPress, où chaque fichier enregistre ses propres hooks globalement,
  * créant un graphe de dépendances invisible et difficile à tester.
  *
- * Quand de nouveaux services seront ajoutés (post types, taxonomies,
- * pipeline de conversion, endpoints REST, etc.), ils seront instanciés
- * dans le constructeur et leurs hooks accrochés dans boot().
+ * Quand de nouveaux services seront ajoutés (pipeline de conversion
+ * Markdown, endpoints REST, etc.), ils seront instanciés dans le
+ * constructeur et leurs hooks accrochés dans boot().
  */
 final class Plugin
 {
     /**
      * Chemin absolu du fichier portfolio-md.php (point d'entrée).
-     *
-     * Utilisé par WordPress pour identifier le plugin (notamment pour
-     * register_activation_hook et register_deactivation_hook).
      */
     private string $pluginFile;
+
+    /**
+     * Service responsable de l'enregistrement des custom post types.
+     */
+    private PostTypeRegistrar $postTypeRegistrar;
+
+    /**
+     * Service responsable de l'enregistrement des taxonomies.
+     */
+    private TaxonomyRegistrar $taxonomyRegistrar;
 
     public function __construct(string $pluginFile)
     {
         $this->pluginFile = $pluginFile;
+
+        // Instanciation des services du plugin.
+        // À mesure que de nouveaux services s'ajoutent (pipeline, REST, etc.),
+        // ils sont instanciés ici.
+        $this->postTypeRegistrar = new PostTypeRegistrar();
+        $this->taxonomyRegistrar = new TaxonomyRegistrar();
     }
 
     /**
      * Démarre le plugin : accroche les hooks WordPress vers les services.
-     *
-     * Cette méthode est appelée une seule fois, depuis portfolio-md.php.
-     * Elle ne fait pas de travail directement — elle se contente de
-     * dire à WordPress « quand tel événement arrive, appelle telle méthode ».
      */
     public function boot(): void
     {
-        // Pour l'instant, le plugin ne fait rien d'observable.
-        // Aux temps 2 et 3, on ajoutera ici l'enregistrement des
-        // post types et des taxonomies via leurs registrars dédiés.
+        // Hook 'init' : on enregistre les post types ET les taxonomies à ce
+        // moment. L'ordre d'enregistrement n'a pas d'importance dans le hook
+        // 'init' lui-même : WordPress résout la liaison post_type<->taxonomy
+        // après que tous les hooks 'init' ont été exécutés.
+        // Les deux registrars utilisent priority=10 (défaut), ce qui signifie
+        // qu'ils sont appelés dans l'ordre où ils ont été enregistrés ici.
+        add_action('init', [$this->postTypeRegistrar, 'register']);
+        add_action('init', [$this->taxonomyRegistrar, 'register']);
 
         // Hooks de cycle de vie du plugin (activation, désactivation).
         register_activation_hook($this->pluginFile, [$this, 'onActivation']);
@@ -56,22 +73,28 @@ final class Plugin
      * Appelé une fois quand l'admin clique sur "Activer" dans la liste
      * des extensions WordPress.
      *
-     * À ce stade, on se contente de flush les rewrite rules pour que
-     * les futures URLs des custom post types (à venir au temps 2) soient
-     * prises en compte sans avoir à aller cliquer manuellement dans
-     * Réglages > Permaliens.
+     * Trois étapes :
+     *   1. Enregistrer post types et taxonomies (sinon les rewrite rules
+     *      flushées juste après n'incluraient pas les nouvelles URLs).
+     *   2. Insérer les termes fermés de project_status (En cours, Stable, etc.).
+     *   3. Flush les rewrite rules pour que les URLs /articles/, /projets/,
+     *      /tag/, /statut/ soient reconnues immédiatement.
      */
     public function onActivation(): void
     {
+        $this->postTypeRegistrar->register();
+        $this->taxonomyRegistrar->register();
+        $this->taxonomyRegistrar->ensureProjectStatusTerms();
         flush_rewrite_rules();
     }
 
     /**
      * Appelé une fois quand l'admin clique sur "Désactiver".
      *
-     * On flush également les rewrite rules pour nettoyer les URLs
-     * spécifiques au plugin (custom post types) qui ne doivent plus
-     * être routées par WordPress.
+     * Note : on ne supprime pas les contenus créés (articles, projets,
+     * termes de taxonomie). La désactivation d'un plugin ne doit jamais
+     * détruire de données. Seule la désinstallation complète (uninstall.php
+     * à venir plus tard si nécessaire) le ferait.
      */
     public function onDeactivation(): void
     {
