@@ -1,39 +1,108 @@
+# docker-compose.yml — environnement de développement local du Portfolio Double
+#
+# Ce fichier définit l'ensemble des services nécessaires au développement local.
+# Il utilise des variables d'environnement définies dans un fichier .env (non versionné)
+# pour les valeurs sensibles. Voir .env.example pour la liste des variables attendues.
+#
+# Usage rapide :
+#   docker compose up -d         # démarrer
+#   docker compose down          # arrêter (les volumes persistent)
+#   docker compose down -v       # arrêter et purger les volumes nommés
+#   ./bootstrap.sh               # installer/configurer WordPress automatiquement
+#
+# Note : la directive `version:` est volontairement omise. Elle est obsolète
+# dans Docker Compose v2 et déclenche un warning si présente.
+
 services:
+  # ─── Base de données ──────────────────────────────────
+  # On utilise MariaDB 11 LTS plutôt que MySQL 5.7 (fin de vie depuis 2023).
+  # MariaDB est un fork de MySQL 100% compatible WordPress, sous licence libre,
+  # et activement maintenu. C'est aussi le choix par défaut de la plupart des
+  # hébergeurs WordPress modernes.
   db:
-    image: docker.io/library/mariadb:11.4
-    container_name: portfolio-md-db
+    image: mariadb:11
     restart: unless-stopped
     environment:
-      MARIADB_DATABASE: ${MARIADB_DATABASE}
-      MARIADB_USER: ${MARIADB_USER}
-      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
-      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - db_data:/var/lib/mysql
-    networks:
-      - portfolio_net
+      # Bind mount : les données MySQL sont stockées dans ./BDD_data sur l'hôte.
+      # Le `:z` est utile sur les systèmes avec SELinux (Fedora, RHEL).
+      - ./BDD_data:/var/lib/mysql:z
+    # Healthcheck : permet à WordPress d'attendre que MariaDB soit vraiment prête
+    # avant de démarrer (et pas seulement que le container ait démarré).
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # ─── WordPress ────────────────────────────────────────
   wordpress:
-    image: docker.io/library/wordpress:php8.3-apache
-    container_name: portfolio-md-wp
+    image: wordpress:latest
     restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
-      - "${WORDPRESS_PORT:-8080}:80"
+      - "${WP_PORT:-8000}:80"
+      # WP_PORT par défaut à 8000 si non défini dans .env.
+      # Permet de changer le port sans toucher au compose si besoin.
     environment:
       WORDPRESS_DB_HOST: db:3306
-      WORDPRESS_DB_USER: ${MARIADB_USER}
-      WORDPRESS_DB_PASSWORD: ${MARIADB_PASSWORD}
-      WORDPRESS_DB_NAME: ${MARIADB_DATABASE}
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      # WP_DEBUG en dev local : utile pour voir les erreurs PHP plutôt qu'une
+      # page blanche. À désactiver en production.
+      WORDPRESS_DEBUG: 1
     volumes:
-      - wordpress_data:/var/www/html
-    networks:
-      - portfolio_net
+      # Volume principal : l'ensemble du WordPress (core + wp-content).
+      # En production réelle, on ne monterait que wp-content pour préserver
+      # le core en lecture seule, mais en dev local, monter tout permet de
+      # facilement inspecter les fichiers.
+      - ./wordpress_data:/var/www/html:z
+      # Volume dédié au plugin du projet : monté DIRECTEMENT à son emplacement
+      # final dans wp-content/plugins/. Cela permet trois choses :
+      #   1. Le code du plugin reste dans ./plugin (versionné, propriété de
+      #      l'utilisateur hôte), pas mélangé aux données runtime de WordPress.
+      #   2. Les modifications dans ./plugin sont immédiatement reflétées dans
+      #      WordPress, sans rebuild ni copie.
+      #   3. Pas besoin de lien symbolique, qui pose des problèmes de
+      #      permissions et de portabilité selon les OS.
+      - ./plugin:/var/www/html/wp-content/plugins/portfolio-md:z
 
-volumes:
-  db_data:
-  wordpress_data:
-
-networks:
-  portfolio_net:
+  # ─── WP-CLI ───────────────────────────────────────────
+  # Service éphémère pour exécuter des commandes WP-CLI sur l'installation.
+  # Ne tourne pas en permanence. On l'invoque à la demande via :
+  #   docker compose run --rm wpcli wp <commande>
+  #
+  # Le service partage le même volume que `wordpress`, donc il agit sur la
+  # même installation. Il dépend aussi de `db` pour les commandes qui
+  # touchent à la base.
+  wpcli:
+    image: wordpress:cli
+    depends_on:
+      db:
+        condition: service_healthy
+      wordpress:
+        condition: service_started
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${DB_NAME}
+    volumes:
+      - ./wordpress_data:/var/www/html:z
+      # On monte aussi le plugin pour que WP-CLI puisse l'activer/désactiver,
+      # lister ses post types, etc.
+      - ./plugin:/var/www/html/wp-content/plugins/portfolio-md:z
+    # `user` important : WP-CLI refuse par défaut de tourner en root.
+    # On utilise l'UID www-data (33) qui est l'utilisateur WordPress standard.
+    user: "33:33"
+    # Le service ne démarre pas automatiquement avec `up`.
+    # Il est invoqué à la demande avec `run --rm`.
+    profiles:
+      - tools

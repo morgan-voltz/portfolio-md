@@ -84,4 +84,4 @@ Le chapitre sept va sortir du technique pour regarder la **méthode** qu'on appl
 **Chapitre précédent** : [05 — Un cœur, plusieurs interfaces](05-un-coeur-plusieurs-interfaces.md)
 **Chapitre suivant** : [07 — La discipline qui rend un projet durable](07-la-discipline-qui-rend-un-projet-durable.md) *(à rédiger)*
 
-**Retour à** : [documentation pédagogique](README.md) • [documentation d'architecture](../architecture/00-overview.md)
+**Retour à** : [documentation pédagogique](README.md) • [documentation d'architecture](../docs/architecture/00-overview.md)

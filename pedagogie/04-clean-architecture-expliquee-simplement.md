@@ -150,4 +150,4 @@ Le chapitre cinq développera la conséquence la plus intéressante de cette arc
 **Chapitre précédent** : [03 — Pourquoi pas juste WordPress](03-pourquoi-pas-juste-wordpress.md)
 **Chapitre suivant** : [05 — Un cœur, plusieurs interfaces](05-un-coeur-plusieurs-interfaces.md) *(à rédiger)*
 
-**Retour à** : [documentation pédagogique](README.md) • [documentation d'architecture](../architecture/00-overview.md)
+**Retour à** : [documentation pédagogique](README.md) • [documentation d'architecture](../docs/architecture/00-overview.md)

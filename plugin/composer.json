@@ -14,12 +14,12 @@
   },
   "autoload": {
     "psr-4": {
-      "Portfolio\\Md\\": "src/"
+      "Voltz\\PortfolioMd\\": "src/"
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "Portfolio\\Md\\Tests\\": "tests/"
+      "Voltz\\PortfolioMd\\Tests\\": "tests/"
     }
   },
   "config": {

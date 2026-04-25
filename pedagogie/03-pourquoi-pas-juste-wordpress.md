@@ -64,4 +64,4 @@ Le chapitre quatre entre dans le cœur technique de l'architecture : la Clean Ar
 **Chapitre précédent** : [02 — Le Markdown comme format pivot](02-le-markdown-comme-format-pivot.md)
 **Chapitre suivant** : [04 — La Clean Architecture expliquée simplement](04-clean-architecture-expliquee-simplement.md) *(à rédiger)*
 
-**Retour à** : [documentation pédagogique](README.md) • [documentation d'architecture](../architecture/00-overview.md)
+**Retour à** : [documentation pédagogique](README.md) • [documentation d'architecture](../docs/architecture/00-overview.md)
