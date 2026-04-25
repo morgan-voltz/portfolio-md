@@ -1,0 +1,57 @@
+# Git attributes — normalise le comportement de Git à travers les OS
+# Ce fichier garantit que Git traite les fichiers de la même façon
+# peu importe le système du contributeur (Linux, macOS, Windows).
+
+# ─── Normalisation par défaut ────────────────────────────
+# * text=auto signifie : Git détecte si c'est du texte, et si oui
+# normalise les fins de ligne en LF dans le repo, tout en les
+# restituant en fin de ligne native lors du checkout local.
+* text=auto eol=lf
+
+# ─── Fichiers explicitement texte avec LF forcé ──────────
+# Certains fichiers doivent garder LF même sur Windows
+# (scripts shell, fichiers de config Docker, etc.)
+*.sh   text eol=lf
+*.bash text eol=lf
+*.zsh  text eol=lf
+Dockerfile text eol=lf
+.env.example text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+
+# ─── Fichiers qui DOIVENT utiliser CRLF (Windows spécifique) ─
+# Les fichiers batch Windows exigent CRLF pour fonctionner
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# ─── Fichiers binaires (ne pas toucher) ──────────────────
+# Déclarer comme binaires évite des corruptions lors des
+# opérations de merge ou de diff
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.tar  binary
+*.gz   binary
+*.woff  binary
+*.woff2 binary
+*.ttf  binary
+*.eot  binary
+*.mp3  binary
+*.mp4  binary
+*.webm binary
+
+# ─── Langage détecté par GitHub (linguist) ───────────────
+# Aide GitHub à produire des statistiques de langage correctes
+# en excluant les fichiers générés ou vendored du calcul
+docs/**       linguist-documentation
+*.md          linguist-documentation
+plugin/vendor/**   linguist-vendored
+frontend/node_modules/**  linguist-vendored
+api/**/bin/** linguist-generated
+api/**/obj/** linguist-generated

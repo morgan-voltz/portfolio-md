@@ -1,0 +1,87 @@
+# ─── Système ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# ─── IDE et éditeurs ─────────────────────────────────────
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln.docstates
+.history/
+
+# Fichiers Zed spécifiques
+.zed/
+
+# ─── Environnement et secrets ────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+
+# ─── Logs ────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── PHP / Composer (plugin/) ────────────────────────────
+plugin/vendor/
+plugin/composer.phar
+plugin/.phpunit.result.cache
+plugin/.phpstan.result.cache
+plugin/coverage/
+plugin/coverage.xml
+
+# ─── .NET (api/) ─────────────────────────────────────────
+api/**/bin/
+api/**/obj/
+api/**/out/
+api/.vs/
+api/*.user
+api/*.suo
+api/TestResults/
+api/.idea/
+api/artifacts/
+
+# User-specific files for MSBuild
+api/**/*.rsuser
+api/**/*.userosscache
+api/**/*.sln.docstates
+
+# ─── Node.js / React / Vite (frontend/) ──────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.vite/
+frontend/coverage/
+frontend/.next/
+frontend/.turbo/
+frontend/*.local
+
+# ─── Tests et couverture (transverses) ───────────────────
+**/coverage/
+**/.nyc_output/
+**/junit.xml
+
+# ─── Builds temporaires ──────────────────────────────────
+*.tmp
+*.temp
+*.cache
+.cache/
+
+# ─── Documentation générée (ne pas commiter) ─────────────
+docs/api-generated/
+docs/build/

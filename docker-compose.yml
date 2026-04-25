@@ -1,0 +1,39 @@
+services:
+  db:
+    image: docker.io/library/mariadb:11.4
+    container_name: portfolio-md-db
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${MARIADB_DATABASE}
+      MARIADB_USER: ${MARIADB_USER}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - portfolio_net
+
+  wordpress:
+    image: docker.io/library/wordpress:php8.3-apache
+    container_name: portfolio-md-wp
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "${WORDPRESS_PORT:-8080}:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: ${MARIADB_USER}
+      WORDPRESS_DB_PASSWORD: ${MARIADB_PASSWORD}
+      WORDPRESS_DB_NAME: ${MARIADB_DATABASE}
+    volumes:
+      - wordpress_data:/var/www/html
+    networks:
+      - portfolio_net
+
+volumes:
+  db_data:
+  wordpress_data:
+
+networks:
+  portfolio_net:
