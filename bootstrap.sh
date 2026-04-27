@@ -50,7 +50,7 @@ set -a; . ./.env; set +a
 # On utilise `docker compose run --rm wpcli` pour invoquer WP-CLI sur
 # l'installation montée dans le volume.
 wp() {
-    docker compose --profile tools run --rm -T wpcli wp "$@"
+    podman compose --profile tools run --rm -T wpcli wp "$@"
 }
 
 # ─── Étape 1 : attendre que WordPress soit prêt ───────
@@ -130,8 +130,13 @@ echo "  Identifiant  : ${WP_ADMIN_USER}"
 echo "  Mot de passe : ${WP_ADMIN_PASSWORD}"
 echo ""
 echo "  Pour relancer ce script proprement :"
+echo "    # Sur Docker Desktop / dockerd natif :"
 echo "    docker compose down -v"
+echo "    # Sur Fedora + Podman (export DOCKER_HOST vers le socket Podman) :"
+echo "    docker-compose down -v"
+echo ""
 echo "    rm -rf BDD_data wordpress_data"
-echo "    docker compose up -d"
+echo "    # puis up via la même variante :"
+echo "    docker compose up -d   # ou : docker-compose up -d"
 echo "    ./bootstrap.sh"
 echo ""
