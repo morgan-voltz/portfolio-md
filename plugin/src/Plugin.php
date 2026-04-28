@@ -6,6 +6,7 @@ namespace Voltz\PortfolioMd;
 
 use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
 use Voltz\PortfolioMd\Taxonomies\TaxonomyRegistrar;
+use Voltz\PortfolioMd\Meta\CommonMetaRegistrar;
 
 /**
  * Composition root du plugin Portfolio MD.
@@ -39,6 +40,11 @@ final class Plugin
      */
     private TaxonomyRegistrar $taxonomyRegistrar;
 
+    /**
+     * Service responsable de l'enregistrement des meta communs aux articles et projets.
+     */
+    private CommonMetaRegistrar $commonMetaRegistrar;
+
     public function __construct(string $pluginFile)
     {
         $this->pluginFile = $pluginFile;
@@ -48,6 +54,7 @@ final class Plugin
         // ils sont instanciés ici.
         $this->postTypeRegistrar = new PostTypeRegistrar();
         $this->taxonomyRegistrar = new TaxonomyRegistrar();
+        $this->commonMetaRegistrar = new CommonMetaRegistrar();
     }
 
     /**
@@ -63,6 +70,7 @@ final class Plugin
         // qu'ils sont appelés dans l'ordre où ils ont été enregistrés ici.
         add_action('init', [$this->postTypeRegistrar, 'register']);
         add_action('init', [$this->taxonomyRegistrar, 'register']);
+        add_action('init', [$this->commonMetaRegistrar, 'register']);
 
         // Hooks de cycle de vie du plugin (activation, désactivation).
         register_activation_hook($this->pluginFile, [$this, 'onActivation']);
@@ -85,6 +93,11 @@ final class Plugin
         $this->postTypeRegistrar->register();
         $this->taxonomyRegistrar->register();
         $this->taxonomyRegistrar->ensureProjectStatusTerms();
+
+        // Les meta n'ont pas d'impact sur les rewrite rules, mais on les enregistre
+        // par cohérence avec les autres services.
+        $this->commonMetaRegistrar->register();
+
         flush_rewrite_rules();
     }
 
