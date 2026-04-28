@@ -84,4 +84,4 @@ Le dernier chapitre de cette documentation pédagogique va aborder un sujet qu'o
 **Chapitre précédent** : [06 — WordPress sous le capot](06-wordpress-sous-le-capot.md)
 **Chapitre suivant** : [08 — Collaborer avec une IA sans se faire remplacer](08-collaborer-avec-une-ia-sans-se-faire-remplacer.md) *(à rédiger)*
 
-**Retour à** : [documentation pédagogique](README.md) • [documentation d'architecture](../docs/architecture/00-overview.md)
+**Retour à** : [documentation pédagogique](README.md) • [documentation d'architecture](../architecture/00-overview.md)

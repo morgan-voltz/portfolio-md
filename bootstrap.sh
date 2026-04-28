@@ -9,14 +9,15 @@
 #   ./bootstrap.sh
 #
 # Pré-requis :
-#   - Docker Compose en cours d'exécution (docker compose up -d)
+#   - La stack en cours d'exécution (podman-compose up -d, ou docker compose
+#     up -d si tu utilises Docker)
 #   - Fichier .env présent à la racine
 #
 # À chaque fois que tu changes de machine, ou que tu veux remettre WordPress
 # à zéro, il suffit de :
-#   1. docker compose down -v   (purge tout)
-#   2. rm -rf BDD_data wordpress_data   (purge les bind mounts)
-#   3. docker compose up -d
+#   1. podman-compose down -v             (purge tout)
+#   2. rm -rf BDD_data wordpress_data     (purge les bind mounts)
+#   3. podman-compose up -d
 #   4. ./bootstrap.sh
 
 set -euo pipefail
@@ -47,10 +48,12 @@ fi
 set -a; . ./.env; set +a
 
 # ─── Helper : exécuter une commande WP-CLI ────────────
-# On utilise `docker compose run --rm wpcli` pour invoquer WP-CLI sur
-# l'installation montée dans le volume.
+# On utilise `podman-compose --profile tools run --rm wpcli` pour invoquer
+# WP-CLI sur l'installation montée dans le volume. Le profil `tools` doit
+# être activé explicitement, sinon le service `wpcli` reste masqué et on
+# obtient `missing services [wpcli]`.
 wp() {
-    podman compose --profile tools run --rm -T wpcli wp "$@"
+    podman-compose --profile tools run --rm wpcli wp "$@"
 }
 
 # ─── Étape 1 : attendre que WordPress soit prêt ───────
@@ -61,7 +64,7 @@ for i in {1..30}; do
         break
     fi
     if [ "$i" -eq 30 ]; then
-        log_warn "WordPress ne répond toujours pas. Vérifie 'docker compose ps'."
+        log_warn "WordPress ne répond toujours pas. Vérifie 'podman-compose ps' (ou 'docker compose ps')."
         exit 1
     fi
     sleep 2
@@ -129,14 +132,11 @@ echo "  Admin URL    : ${WP_SITE_URL}/wp-admin"
 echo "  Identifiant  : ${WP_ADMIN_USER}"
 echo "  Mot de passe : ${WP_ADMIN_PASSWORD}"
 echo ""
-echo "  Pour relancer ce script proprement :"
-echo "    # Sur Docker Desktop / dockerd natif :"
-echo "    docker compose down -v"
-echo "    # Sur Fedora + Podman (export DOCKER_HOST vers le socket Podman) :"
-echo "    docker-compose down -v"
-echo ""
+echo "  Pour relancer ce script proprement (purge totale) :"
+echo "    podman-compose down -v"
 echo "    rm -rf BDD_data wordpress_data"
-echo "    # puis up via la même variante :"
-echo "    docker compose up -d   # ou : docker-compose up -d"
+echo "    podman-compose up -d"
 echo "    ./bootstrap.sh"
+echo ""
+echo "  (Sur Docker, substitue 'docker compose' à 'podman-compose'.)"
 echo ""
