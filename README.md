@@ -32,7 +32,7 @@ The development environment runs WordPress and MariaDB in containers (Podman roo
 - PHP 8.2+ and Composer 2 (for the WordPress plugin)
 - .NET 10 SDK (for the C# API)
 - Node.js 20+ and npm (for the React frontend)
-- A `.env` file at the repository root (copy from `.env.example` if provided, otherwise set `MARIADB_DATABASE`, `MARIADB_USER`, `MARIADB_PASSWORD`, `MARIADB_ROOT_PASSWORD`, and optionally `WORDPRESS_PORT`)
+- A `.env` file at the repository root (copy from `.env.example` if provided, otherwise set `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, and optionally `WP_PORT`)
 
 ### WordPress + MariaDB (containers)
 
@@ -53,7 +53,7 @@ podman-compose down
 podman-compose down -v
 ```
 
-WordPress is then reachable at `http://localhost:8080` (or the port set via `WORDPRESS_PORT`). Substitute `docker compose` for `podman-compose` if you use Docker.
+WordPress is then reachable at `http://localhost:8000` (or the port set via `WP_PORT`). Substitute `docker compose` for `podman-compose` if you use Docker.
 
 If `up -d` fails with `container name "..." is already in use`, the stack is already running. Inspect it first, then choose whether to reuse or recreate:
 
@@ -61,7 +61,7 @@ If `up -d` fails with `container name "..." is already in use`, the stack is alr
 # Confirm the current state of the stack
 podman ps --filter "name=portfolio-md"
 
-# Reuse as-is — nothing to do, just hit http://localhost:8080
+# Reuse as-is — nothing to do, just hit http://localhost:8000
 
 # Force a clean recreate (e.g. after editing docker-compose.yml or .env)
 podman-compose up -d --force-recreate
@@ -69,6 +69,33 @@ podman-compose up -d --force-recreate
 # Or stop everything and start fresh (volumes preserved)
 podman-compose down && podman-compose up -d
 ```
+
+### WP-CLI
+
+The `wpcli` service is defined in `docker-compose.yml` under the `tools` profile, which means it does **not** start with `up -d`. It is invoked on demand via `run --rm`, runs a single command against the same WordPress install (shared volume), then exits.
+
+```bash
+# Check the WP install status
+podman-compose --profile tools run --rm wpcli wp core is-installed
+
+# List installed plugins
+podman-compose --profile tools run --rm wpcli wp plugin list
+
+# Activate the project plugin
+podman-compose --profile tools run --rm wpcli wp plugin activate portfolio-md
+
+# List custom post types registered by the plugin
+podman-compose --profile tools run --rm wpcli wp post-type list
+
+# Open an interactive WP-CLI shell (for ad-hoc commands)
+podman-compose --profile tools run --rm wpcli wp shell
+```
+
+Both Docker Compose v2 and recent `podman-compose` enforce the profile gate: without `--profile tools` (or the equivalent `COMPOSE_PROFILES=tools` env var) the service is hidden and you get `missing services [wpcli]`. Substitute `docker compose` for `podman-compose` if you use Docker — the `--profile tools` flag is identical.
+
+The container runs as UID 33 (`www-data`), matching the WordPress file ownership. If you hit permission errors on `./wordpress_data` from your host user, that is the reason — fix ownership rather than chmod-ing world-writable.
+
+For pitfalls and troubleshooting (`exec` vs `run --rm`, `podman compose` vs `podman-compose`, MariaDB lock conflicts, profile gating), see [`docs/pedagogie/containers-et-wp-cli.md`](docs/pedagogie/containers-et-wp-cli.md).
 
 ### WordPress plugin (PHP)
 
@@ -82,7 +109,7 @@ composer install
 composer test
 ```
 
-The plugin source is mounted into the WordPress container via the bind mount declared in `docker-compose.yml`. After `composer install`, activate the plugin from the WP admin (`http://localhost:8080/wp-admin`).
+The plugin source is mounted into the WordPress container via the bind mount declared in `docker-compose.yml`. After `composer install`, activate the plugin from the WP admin (`http://localhost:8000/wp-admin`).
 
 ### C# API
 
@@ -126,7 +153,7 @@ The dev server is reachable at `http://localhost:5173`. It expects the C# API to
 1. `podman-compose up -d` — bring up WordPress and MariaDB
 2. `cd api && dotnet watch --project Portfolio.Api` — start the API
 3. `cd frontend && npm run dev` — start the React dev server
-4. Browse `http://localhost:8080` (WordPress) and `http://localhost:5173` (React)
+4. Browse `http://localhost:8000` (WordPress) and `http://localhost:5173` (React)
 
 ## Documentation
 
