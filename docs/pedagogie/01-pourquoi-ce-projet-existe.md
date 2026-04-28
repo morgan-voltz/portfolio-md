@@ -61,4 +61,4 @@ Bonne lecture.
 
 **Chapitre suivant** : [02 — Le Markdown comme format pivot](02-le-markdown-comme-format-pivot.md) *(à rédiger)*
 
-**Retour à** : [documentation pédagogique](README.md) • [documentation d'architecture](architecture/00-overview.md)
+**Retour à** : [documentation pédagogique](README.md) • [documentation d'architecture](../architecture/00-overview.md)

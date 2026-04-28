@@ -100,4 +100,4 @@ Le chapitre six va s'attaquer à WordPress sous un angle qu'on a peu abordé jus
 **Chapitre précédent** : [04 — La Clean Architecture expliquée simplement](04-clean-architecture-expliquee-simplement.md)
 **Chapitre suivant** : [06 — WordPress sous le capot](06-wordpress-sous-le-capot.md) *(à rédiger)*
 
-**Retour à** : [documentation pédagogique](README.md) • [documentation d'architecture](../docs/architecture/00-overview.md)
+**Retour à** : [documentation pédagogique](README.md) • [documentation d'architecture](../architecture/00-overview.md)

@@ -96,4 +96,4 @@ Le chapitre trois va s'attaquer à une question légitime qu'on pourrait se pose
 **Chapitre précédent** : [01 — Pourquoi ce projet existe](01-pourquoi-ce-projet-existe.md)
 **Chapitre suivant** : [03 — Pourquoi pas juste WordPress](03-pourquoi-pas-juste-wordpress.md) *(à rédiger)*
 
-**Retour à** : [documentation pédagogique](README.md) • [documentation d'architecture](../docs/architecture/00-overview.md)
+**Retour à** : [documentation pédagogique](README.md) • [documentation d'architecture](../architecture/00-overview.md)
