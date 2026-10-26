@@ -82,6 +82,7 @@ final class ImportPageTest extends TestCase
         self::assertSame('dashicons-media-text', WordPressSpy::$menuPages[0]['icon']);
         self::assertSame('portfolio-md-import', WordPressSpy::$submenuPages[0]['parent']);
         self::assertSame('portfolio-md-import', WordPressSpy::$submenuPages[0]['slug']);
+        self::assertSame('edit_others_posts', WordPressSpy::$submenuPages[0]['capability']);
         self::assertCount(1, WordPressSpy::hooksOn('action', 'load-toplevel_page_portfolio-md-import'));
     }
 
@@ -201,10 +202,15 @@ final class ImportPageTest extends TestCase
         WordPressSpy::$userCanResult = false;
         $this->post(['markdown' => wp_slash(self::DOCUMENT), 'mode' => 'import']);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('wp_die: Vous n’avez pas le droit');
+        try {
+            $this->page->handleSubmission();
+            self::fail('The submission should have died.');
+        } catch (RuntimeException $died) {
+            self::assertStringContainsString('wp_die: Vous n’avez pas le droit', $died->getMessage());
+        }
 
-        $this->page->handleSubmission();
+        self::assertSame([['edit_others_posts']], WordPressSpy::$currentUserCanCalls);
+        self::assertSame([], $this->repository->saved);
     }
 
     /**

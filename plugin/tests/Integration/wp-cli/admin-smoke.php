@@ -66,8 +66,7 @@ $countBySlug = static function (string $type, string $slug): int {
 
 $meta = static fn (int $postId, string $key): mixed => get_post_meta($postId, $key, true);
 
-// The feedback a refused document leaves for its author (EditorMetaBox keeps it in this transient).
-$feedbackKey = static fn (int $postId): string => "portfolio_md_feedback_{$postId}_" . get_current_user_id();
+$feedbackKey = static fn (int $postId): string => EditorMetaBox::feedbackKey($postId, get_current_user_id());
 
 $service = new ContentImportService(
     new FrontmatterParser(),
@@ -94,6 +93,13 @@ $submit = static function (int $postId, string $markdown) use ($box): void {
     } finally {
         $_POST = [];
     }
+};
+
+$renderBox = static function (int $postId) use ($box): string {
+    ob_start();
+    $box->render(get_post($postId));
+
+    return (string) ob_get_clean();
 };
 
 $tagSlug = 'zz-smoke-admin-tag';
@@ -124,8 +130,9 @@ try {
     $check('the block editor is left on for posts', apply_filters('use_block_editor_for_post_type', true, 'post') === true);
 
     $screen->trimScreen(PostTypeRegistrar::PROJECT);
-    $check('the content editor leaves the project screen', !post_type_supports(PostTypeRegistrar::PROJECT, 'editor'));
+    $check('the content editor and the title field leave the project screen', !post_type_supports(PostTypeRegistrar::PROJECT, 'editor') && !post_type_supports(PostTypeRegistrar::PROJECT, 'title'));
     add_post_type_support(PostTypeRegistrar::PROJECT, 'editor');
+    add_post_type_support(PostTypeRegistrar::PROJECT, 'title');
 
     $shellId = wp_insert_post(['post_type' => PostTypeRegistrar::PROJECT, 'post_status' => 'publish', 'post_title' => 'Coquille', 'post_name' => 'zz-smoke-shell'], true);
     if (!is_int($shellId) || $shellId === 0) {
@@ -141,7 +148,37 @@ try {
     require_once ABSPATH . 'wp-admin/includes/post.php';
     $check('the permalink editor is hidden under the title', get_sample_permalink_html($shellId) === '');
 
+    // The real meta box registry, filled the way the edit screen fills it, then trimmed by our hooks.
+    require_once ABSPATH . 'wp-admin/includes/class-wp-screen.php';
+    require_once ABSPATH . 'wp-admin/includes/screen.php';
+    require_once ABSPATH . 'wp-admin/includes/template.php';
+    require_once ABSPATH . 'wp-admin/includes/meta-boxes.php';
+    global $wp_meta_boxes;
+    $wp_meta_boxes = [];
+    set_current_screen(PostTypeRegistrar::PROJECT);
+    register_and_do_post_meta_boxes(get_post($shellId));
+    $registered = $wp_meta_boxes[PostTypeRegistrar::PROJECT] ?? [];
+    // remove_meta_box() leaves the id in place with `false` as its value.
+    $live = static function (string $context, string $id) use ($registered): bool {
+        foreach (['high', 'core', 'default', 'low'] as $priority) {
+            if (!empty($registered[$context][$priority][$id])) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+    $check('the slug box is gone from the real registry', !$live('normal', 'slugdiv'));
+    $check('the tech tag box is gone', !$live('side', 'tagsdiv-' . TaxonomyRegistrar::TECH_TAG));
+    $check('the project status box is gone', !$live('side', 'tagsdiv-' . TaxonomyRegistrar::PROJECT_STATUS));
+    $check('the skill box is gone', !$live('side', TaxonomyRegistrar::SKILL . 'div'));
+    $check('the publish box and the featured image stay', $live('side', 'submitdiv') && $live('side', 'postimagediv'));
+    $check('the Markdown box is registered high in the main column', !empty($registered['normal']['high'][EditorMetaBox::ID]));
+
     // 2. A post just created receives its first document through the box ----------------------
+
+    $html = $renderBox($shellId);
+    $check('the box offers a dated template to a post without document', str_contains($html, 'type: &quot;project&quot;') && str_contains($html, 'date: ' . wp_date('Y-m-d')));
 
     $submit($shellId, str_replace("\n", "\r\n", $document));
     $post = get_post($shellId);
@@ -185,9 +222,17 @@ try {
     $forced = $service->import($changed, new ImportOptions(force: true), 'zz-smoke-admin');
     $check('--force overwrites it and records git', $forced->outcome === ImportOutcome::Updated && $meta($shellId, InternalMetaRegistrar::SOURCE_TYPE) === 'git', $forced->outcome->value);
 
-    // 5. The guards, through the box -------------------------------------------------------------
+    // 5. A URL slug changed behind the document's back is not a rename: the document wins ------
 
-    $other = str_replace(['zz-smoke-admin"', 'Projet de fumée (admin)'], ['zz-smoke-other"', 'Autre projet de fumée'], $changed);
+    wp_update_post(['ID' => $shellId, 'post_name' => 'zz-smoke-drifted'], true);
+    $check('WordPress let the URL slug drift', get_post($shellId)->post_name === 'zz-smoke-drifted');
+    $current = str_replace('Un paragraphe changé dans Git', 'Un paragraphe après la dérive', $changed);
+    $submit($shellId, $current);
+    $check('the next write of the document puts its slug back', get_post($shellId)->post_name === 'zz-smoke-admin' && get_transient($feedbackKey($shellId)) === false, (string) get_post($shellId)->post_name);
+
+    // 6. The guards, through the box -------------------------------------------------------------
+
+    $other = str_replace(['zz-smoke-admin"', 'Projet de fumée (admin)'], ['zz-smoke-other"', 'Autre projet de fumée'], $current);
     $otherResult = $service->import($other, new ImportOptions());
     if ($otherResult->postId !== null) {
         $createdPosts[] = $otherResult->postId;
@@ -200,9 +245,9 @@ try {
     $check('the post was not touched', get_post($shellId)->post_name === 'zz-smoke-admin' && get_post($shellId)->post_status === 'publish');
     delete_transient($feedbackKey($shellId));
 
-    $submit($shellId, str_replace('zz-smoke-admin"', 'zz-smoke-renamed"', $changed));
+    $submit($shellId, str_replace('zz-smoke-admin"', 'zz-smoke-renamed"', $current));
     $feedback = get_transient($feedbackKey($shellId));
-    $check('renaming a post that holds a document is refused', is_array($feedback) && str_contains((string) $feedback['message'], 'already holds a document under another slug'), is_array($feedback) ? (string) $feedback['message'] : 'no feedback');
+    $check('changing the slug line of a post that holds a document is refused', is_array($feedback) && str_contains((string) $feedback['message'], 'holds a document whose slug is "zz-smoke-admin" and keeps it'), is_array($feedback) ? (string) $feedback['message'] : 'no feedback');
     $check('its slug did not change', get_post($shellId)->post_name === 'zz-smoke-admin');
     delete_transient($feedbackKey($shellId));
 
@@ -225,21 +270,19 @@ try {
         $check('a fresh post can be created', false);
     }
 
-    // 6. A save that does not come from the box is left to WordPress ---------------------------
+    // 7. A save that does not come from the box is left to WordPress ---------------------------
 
     wp_update_post(['ID' => $shellId, 'post_title' => 'Titre de Quick Edit'], true);
-    $check('a save without the box (Quick Edit, REST, CLI) is left alone', get_post($shellId)->post_title === 'Titre de Quick Edit');
+    $check('a save without the box (REST, CLI) is left alone', get_post($shellId)->post_title === 'Titre de Quick Edit');
 
-    // 7. The box shows the stored document --------------------------------------------------------
+    // 8. The box shows the stored document --------------------------------------------------------
 
-    ob_start();
-    $box->render(get_post($shellId));
-    $html = (string) ob_get_clean();
-    $check('the box renders a nonce and the stored document', str_contains($html, 'name="' . EditorMetaBox::NONCE_FIELD . '"') && str_contains($html, esc_textarea($changed)));
+    $html = $renderBox($shellId);
+    $check('the box renders a nonce and the stored document', str_contains($html, 'name="' . EditorMetaBox::NONCE_FIELD . '"') && str_contains($html, esc_textarea($current)));
 
-    // 8. The paste page ------------------------------------------------------------------------
+    // 9. The paste page ------------------------------------------------------------------------
 
-    $pasted = str_replace(['zz-smoke-admin"', 'Projet de fumée (admin)'], ['zz-smoke-pasted"', 'Projet collé'], $changed);
+    $pasted = str_replace(['zz-smoke-admin"', 'Projet de fumée (admin)'], ['zz-smoke-pasted"', 'Projet collé'], $current);
     $paste = static function (string $mode, string $markdown) use ($page): string {
         $_SERVER['REQUEST_METHOD'] = 'POST';
         $_POST = ['portfolio_md_nonce' => wp_create_nonce('portfolio_md_import'), 'markdown' => wp_slash($markdown), 'mode' => $mode];
@@ -283,7 +326,7 @@ try {
     }
 }
 
-foreach (['zz-smoke-shell', 'zz-smoke-admin', 'zz-smoke-other', 'zz-smoke-fresh', 'zz-smoke-pasted'] as $slug) {
+foreach (['zz-smoke-shell', 'zz-smoke-admin', 'zz-smoke-drifted', 'zz-smoke-other', 'zz-smoke-fresh', 'zz-smoke-pasted'] as $slug) {
     $check("the smoke post {$slug} is cleaned up", $countBySlug(PostTypeRegistrar::PROJECT, $slug) === 0);
 }
 $check('the smoke tag is cleaned up', get_term_by('slug', $tagSlug, TaxonomyRegistrar::TECH_TAG) === false);
