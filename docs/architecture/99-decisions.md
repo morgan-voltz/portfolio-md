@@ -406,7 +406,7 @@ Toutes les clés meta du plugin sont préfixées `_portfolio_` et donc protégé
 
 ### Conséquences
 
-La boîte « Champs personnalisés » de l'admin n'affiche aucun champ du plugin ; l'édition passe par Gutenberg (metas exposées en REST), par l'API REST ou par le pipeline Markdown. Toute nouvelle meta publique **doit** porter `MetaRegistration::authorizeEditPost`, sans quoi elle sera muette en écriture ; un test unitaire vérifie ce callback sur chaque meta enregistrée. Les constantes de clés vivent sur les registrars (`CommonMetaRegistrar::FEATURED`, etc.) : aucune clé n'est écrite en dur ailleurs. Les règles de sanitization sont documentées dans `04-structure-wordpress.md` §5 et vérifiées par la suite PHPUnit (sans WordPress) et par un test de fumée WP-CLI (avec WordPress).
+La boîte « Champs personnalisés » de l'admin n'affiche aucun champ du plugin ; l'édition passe par Gutenberg (metas exposées en REST), par l'API REST ou par le pipeline Markdown. Toute nouvelle meta publique **doit** porter `MetaRegistration::authorizeEditPost`, sans quoi elle sera muette en écriture ; un test unitaire vérifie ce callback sur chaque meta enregistrée. Les constantes de clés vivent sur les registrars (`CommonMetaRegistrar::FEATURED`, etc.) : aucune clé n'est écrite en dur ailleurs. Les règles de sanitization sont documentées dans `04-structure-wordpress.md` §5 et vérifiées par la suite PHPUnit (sans WordPress) et par un test de fumée WP-CLI (avec WordPress). Toute écriture de meta depuis PHP passe par `Meta\MetaWriter::update()` : `update_post_meta()` déslashe sa valeur (`wp_unslash()`) avant stockage, ce qui supprimerait les antislashs d'un Markdown et casserait son hash ; le helper applique `wp_slash()` au préalable, comme l'API REST de WordPress. La note de session `docs/guide-implementation-meta.md` du 28 avril 2026 est supprimée : son contenu durable vit dans `04-structure-wordpress.md` §5 et dans cette entrée.
 
 ---
 
@@ -417,7 +417,7 @@ La boîte « Champs personnalisés » de l'admin n'affiche aucun champ du plugin
 
 ### Contexte
 
-ADR-011 a décidé de modéliser les compétences académiques UHA 4.0 comme une taxonomie custom attachée aux projets, en prévoyant « code comme slug et intitulé comme nom ». À l'implémentation, deux faits ont imposé de préciser la forme. D'abord, un code comme `4.0.1/C1.3` n'est pas un slug WordPress valide : `sanitize_title()` remplace le point par un tiret et supprime la barre oblique, ce qui donne `4-0-1c1-3`, illisible et ambigu. Ensuite, le jury raisonne par référentiel (Compétences 4.0.1, Compétences 4.0.2) : il veut voir, pour chaque référentiel, les compétences démontrées et les projets qui les démontrent.
+ADR-011 a décidé de modéliser les compétences académiques UHA 4.0 comme une taxonomie custom attachée aux projets, en prévoyant « code comme slug et intitulé comme nom ». À l'implémentation, deux faits ont imposé de préciser la forme. D'abord, un code comme `4.0.1/C1.3` ne survit pas à `sanitize_title()` : le point et la barre oblique deviennent des tirets, ce qui donne `4-0-1-c1-3`, où le référentiel et le code ne se distinguent plus (vérifié sur WordPress 7.1). Ensuite, le jury raisonne par référentiel (Compétences 4.0.1, Compétences 4.0.2) : il veut voir, pour chaque référentiel, les compétences démontrées et les projets qui les démontrent.
 
 ### Décision
 

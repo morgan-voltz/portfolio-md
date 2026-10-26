@@ -195,7 +195,7 @@ Cette taxonomie répond à l'exigence académique : chaque compétence des réf�
 | `4-0-1` | Compétences 4.0.1 |
 | `4-0-2` | Compétences 4.0.2 |
 
-**Termes enfants (compétences)** : créés par le pipeline Markdown à partir du frontmatter (`skills: [4.0.1/C1.3, …]`) ou à la main dans l'admin. Le nom du terme est l'intitulé officiel, son slug est dérivé du code (`C1.3` → `c1-3` sous le parent `4-0-1`), et le code complet vit dans le term meta `_portfolio_skill_code`, parce qu'un code comme `4.0.1/C1.3` n'est pas un slug WordPress valide (le point et la barre oblique sont transformés). La liste des codes et intitulés est du contenu, pas du code : elle vient du référentiel officiel.
+**Termes enfants (compétences)** : créés par le pipeline Markdown à partir du frontmatter (`skills: [4.0.1/C1.3, …]`) ou à la main dans l'admin. Le nom du terme est l'intitulé officiel, son slug est dérivé du code (`C1.3` → `c1-3` sous le parent `4-0-1`), et le code complet vit dans le term meta `_portfolio_skill_code`, parce qu'un code comme `4.0.1/C1.3` ne survit pas à `sanitize_title()` : le point et la barre oblique deviennent des tirets (`4-0-1-c1-3`), et le référentiel ne se distingue plus du code. La liste des codes et intitulés est du contenu, pas du code : elle vient du référentiel officiel.
 
 ### 4.4. Pourquoi pas les `category` et `post_tag` natifs ?
 
@@ -251,6 +251,8 @@ Tous sont exposés en REST en lecture et en écriture pour qui peut éditer le p
 
 Enregistrés sur `article` et `project` par `InternalMetaRegistrar`. Ces champs sont utilisés par le plugin pour son propre fonctionnement et ne sont jamais affichés : `show_in_rest => false` et `auth_callback => '__return_false'`, donc **aucun utilisateur ne peut les écrire**, quel que soit son rôle. Seul le code du plugin les écrit, via `update_post_meta()`, qui ne passe pas par les capabilities.
 
+⚠️ **Toute écriture depuis PHP passe par `Meta\MetaWriter::update()`.** `update_post_meta()` applique `wp_unslash()` à sa valeur avant de la sanitizer et de la stocker (héritage des *magic quotes*) : écrit naïvement, un Markdown contenant `\*` ou `C:\chemin` perdrait ses antislashs, et son hash ne correspondrait plus. Le helper applique `wp_slash()` au préalable, exactement comme le fait l'API REST de WordPress. Vérifié par le test de fumée.
+
 | Clé | Type | Utilité |
 |---|---|---|
 | `_portfolio_md_source` | string | Markdown brut complet (frontmatter + corps), source canonique. Stocké **verbatim** : aucun nettoyage, sinon le hash ne correspondrait plus |
@@ -291,12 +293,12 @@ WordPress confie au plugin le nettoyage des valeurs avant stockage (`sanitize_ca
 |---|---|---|
 | `text` | seo_description (max 160), subtitle, role, client, code de compétence (max 32) | `sanitize_text_field` WordPress (balises retirées, espaces et retours à la ligne réduits), puis troncature |
 | `rawString` | md_source | Verbatim : aucune transformation |
-| `boolean` | featured, is_fil_rouge | `true`/`false`, `1`/`0`, `yes`/`no`, `on`/`off` ; tout le reste → `false` |
+| `boolean` | featured, is_fil_rouge | `true`/`false`, `1`/`0` (nombre ou texte), `yes`/`no`, `on`/`off` ; tout le reste, `2` compris, → `false` |
 | `boundedInt` | reading_time (0 à 240) | Entier dans l'intervalle, sinon `0` |
 | `oneOf` | project_status (slugs de `project_status`), source_type (`ContentSource`) | Valeur exacte après trim, sinon `''` |
-| `url` | repo_url, demo_url | `esc_url_raw` restreint à `http`/`https` ; `javascript:`, `ftp:`, `mailto:` → `''` |
+| `url` | repo_url, demo_url | `esc_url_raw` restreint à `http`/`https`, puis vérification du schéma du résultat (WordPress laisse passer tel quel ce qui commence par `/`) : `javascript:`, `ftp:`, `mailto:`, `//hote`, `/chemin` → `''` ; un hôte nu reçoit `http://` |
 | `isoDate` | period_start, period_end | `YYYY-MM-DD` et jour calendaire réel (`2026-02-30` → `''`) |
-| `isoDateTimeUtc` | last_sync_at | Date-heure ISO 8601 avec fuseau, renvoyée normalisée en UTC `…Z` |
+| `isoDateTimeUtc` | last_sync_at | Date-heure ISO 8601 avec fuseau (`Z`, `-00:00` ou décalage), renvoyée normalisée en UTC `…Z` |
 | `sha256Hex` | md_hash | 64 caractères hexadécimaux, minuscules |
 | `semver` | render_version | `MAJEUR.MINEUR.CORRECTIF` strict |
 
@@ -313,6 +315,8 @@ WordPress dispose d'un système de rôles et de capacités (`capabilities`) gran
 **Visiteur anonyme.** Pas de compte, accès au site public uniquement.
 
 Pas besoin de rôle « auteur », « contributeur », « éditeur » à ce stade.
+
+Les deux post types sont déclarés avec `capability_type => 'post'` : ils réutilisent les capacités natives des articles WordPress. À garder en tête le jour où un rôle natif (`author`, `editor`, `contributor`) serait attribué à quelqu'un : cette personne obtiendrait automatiquement les mêmes droits sur `article` et `project` que sur les posts natifs. Il faudra alors soit l'accepter explicitement ici, soit donner aux deux types leurs propres capacités.
 
 Le seul cas particulier sera l'**endpoint de synchronisation Git** (`/sync` dans le plugin). Il ne dépendra pas du système de rôles WordPress mais d'un bearer token configuré hors du repo Git. Voir `01-plugin-php.md` section 11.
 

@@ -10,7 +10,7 @@ The **content model is complete** (roadmap phase 1). The plugin registers:
 
 - Custom post types `article` and `project` (`PostTypes\PostTypeRegistrar`)
 - Taxonomies `tech_tag` (flat, both types), `project_status` (flat, projects, closed list) and `skill` (hierarchical by referential, projects, official code in the `_portfolio_skill_code` term meta) via `Taxonomies\TaxonomyRegistrar`
-- Seventeen post metas, all prefixed `_portfolio_`: four public metas shared by both types (`Meta\CommonMetaRegistrar`), eight public project metas including the `is_fil_rouge` flag (`Meta\ProjectMetaRegistrar`), five internal metas hidden from REST and locked for users (`Meta\InternalMetaRegistrar`). Sanitization rules live in `Meta\Sanitizer`.
+- Seventeen post metas, all prefixed `_portfolio_`: four public metas shared by both types (`Meta\CommonMetaRegistrar`), eight public project metas including the `is_fil_rouge` flag (`Meta\ProjectMetaRegistrar`), five internal metas hidden from REST and locked for users (`Meta\InternalMetaRegistrar`). Sanitization rules live in `Meta\Sanitizer`; metas written from PHP go through `Meta\MetaWriter::update()`, which slashes the value because `update_post_meta()` unslashes it before storing.
 
 What is **not yet** implemented: Markdown parsing (`league/commonmark`), YAML frontmatter handling (`symfony/yaml`), the storage layer that persists both raw Markdown and derived Gutenberg HTML, the admin UI for Markdown editing, and the custom REST endpoints. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
 
@@ -94,6 +94,7 @@ The most frequent issues you'll hit while developing locally are documented in [
 - `missing services [wpcli]` → you forgot `--profile tools`
 - MariaDB restart loop → conflict between `podman compose` and `podman-compose` stacks sharing the same bind mount
 - A public meta that cannot be written through REST or Gutenberg, even as administrator → its key starts with `_` and it lacks an `auth_callback`; register it with `MetaRegistration::authorizeEditPost` (see ADR-013)
+- Backslashes vanish from a meta written in PHP (`\*` becomes `*`) → `update_post_meta()` unslashes its input; write through `MetaWriter::update()`, which applies `wp_slash()` first
 
 ## Architecture
 

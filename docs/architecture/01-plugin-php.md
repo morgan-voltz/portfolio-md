@@ -64,6 +64,7 @@ portfolio-md/
 │   ├── Meta/                          # Champs personnalisés (post metas, term metas)
 │   │   ├── Sanitizer.php              # Primitives de sanitization pures, partagées      ✅
 │   │   ├── MetaRegistration.php       # Helpers d'enregistrement + auth_callback         ✅
+│   │   ├── MetaWriter.php             # Écriture d'une meta depuis PHP (wp_slash)        ✅
 │   │   ├── CommonMetaRegistrar.php    # 4 metas publiques, article + project             ✅
 │   │   ├── ProjectMetaRegistrar.php   # 8 metas publiques, project                       ✅
 │   │   └── InternalMetaRegistrar.php  # 5 metas internes, verrouillées, hors REST        ✅
@@ -256,7 +257,7 @@ La cinquième phase stocke les champs dont le plugin a besoin pour son propre fo
 | `_portfolio_last_sync_at` | Date-heure ISO 8601 normalisée en UTC | Dernière synchro réussie |
 | `_portfolio_render_version` | Version du renderer (`MAJEUR.MINEUR.CORRECTIF`) | Invalider le HTML dérivé en cas d'upgrade |
 
-Ces cinq champs sont enregistrés par `Meta\InternalMetaRegistrar` avec `show_in_rest => false` et `auth_callback => '__return_false'` : invisibles dans l'API REST, et aucun utilisateur ne peut les écrire quel que soit son rôle. Seul le code du plugin les écrit, via `update_post_meta()`, qui ne passe pas par les capabilities.
+Ces cinq champs sont enregistrés par `Meta\InternalMetaRegistrar` avec `show_in_rest => false` et `auth_callback => '__return_false'` : invisibles dans l'API REST, et aucun utilisateur ne peut les écrire quel que soit son rôle. Seul le code du plugin les écrit, et toujours via `Meta\MetaWriter::update()` plutôt que `update_post_meta()` directement : WordPress déslashe la valeur qu'on lui donne avant de la stocker, ce qui ferait disparaître les antislashs du Markdown (`\*`, `C:\chemin`) et invaliderait le hash. Le helper applique `wp_slash()` au préalable, comme l'API REST de WordPress le fait pour ses propres écritures.
 
 ---
 
