@@ -53,7 +53,11 @@ portfolio-md/
 │   │   ├── ContentSource.php          # Enum : Admin, Git, Paste                         ✅
 │   │   ├── Article.php                # Value object représentant un article             ⏳
 │   │   ├── Project.php                # Value object pour un projet                      ⏳
-│   │   └── Frontmatter.php            # Métadonnées parsées depuis le YAML               ⏳
+│   │   ├── Frontmatter.php            # Métadonnées typées et validées du YAML           ✅
+│   │   ├── ContentType.php            # Enum : Article, Project, Page                    ✅
+│   │   ├── ProjectStatus.php          # Enum des statuts de projet (= taxonomie)         ✅
+│   │   ├── Skill.php, Referential.php, SkillsGrid.php   # Grille de compétences (ADR-014)  ✅
+│   │   └── (Article.php, Project.php ci-dessus restent à venir)
 │   │
 │   ├── PostTypes/
 │   │   └── PostTypeRegistrar.php      # CPT article et project, constantes de slug       ✅
@@ -69,14 +73,16 @@ portfolio-md/
 │   │   ├── ProjectMetaRegistrar.php   # 8 metas publiques, project                       ✅
 │   │   └── InternalMetaRegistrar.php  # 5 metas internes, verrouillées, hors REST        ✅
 │   │
-│   ├── Parsing/                       # Transformations de contenu                       ⏳
-│   │   ├── FrontmatterParser.php      # YAML → Frontmatter
-│   │   ├── MarkdownParser.php         # Wrapper sur league/commonmark
-│   │   └── GutenbergTransformer.php   # HTML → HTML commenté Gutenberg
+│   ├── Parsing/                       # Transformations de contenu
+│   │   ├── FrontmatterParser.php      # Markdown → ParsedDocument (Frontmatter + corps)   ✅
+│   │   ├── SkillsGridLoader.php       # content/skills.yaml → SkillsGrid validée          ✅
+│   │   ├── MarkdownParser.php         # Wrapper sur league/commonmark                    ⏳
+│   │   └── GutenbergTransformer.php   # HTML → HTML commenté Gutenberg                   ⏳
 │   │
-│   ├── Storage/                       # Abstraction sur wp_posts et wp_postmeta          ⏳
-│   │   ├── ArticleRepository.php
-│   │   └── ProjectRepository.php
+│   ├── Storage/                       # Adaptateurs vers les tables WordPress
+│   │   ├── WordPressSkillTermGateway.php  # Termes de la taxonomie skill (port de Service) ✅
+│   │   ├── ArticleRepository.php                                                          ⏳
+│   │   └── ProjectRepository.php                                                          ⏳
 │   │
 │   ├── Admin/                         # Interface d'administration WordPress             ⏳
 │   │   ├── EditorMetaBox.php          # Métabox Markdown sur les écrans
@@ -90,10 +96,15 @@ portfolio-md/
 │   │       ├── ProjectController.php
 │   │       └── SyncController.php
 │   │
-│   └── Service/                       # Cas d'usage applicatifs                          ⏳
-│       ├── ContentImportService.php   # Orchestre le pipeline complet
-│       ├── MediaImportService.php     # Gère l'import des images
-│       └── ConflictResolver.php       # Applique la règle source_of_truth
+│   ├── Service/                       # Cas d'usage applicatifs
+│   │   ├── SkillTermSynchronizer.php  # Grille → taxonomie skill, via le port SkillTermGateway ✅
+│   │   ├── SkillTermGateway.php, SkillTermRecord.php, SyncReport.php                     ✅
+│   │   ├── ContentImportService.php   # Orchestre le pipeline complet                    ⏳
+│   │   ├── MediaImportService.php     # Gère l'import des images                         ⏳
+│   │   └── ConflictResolver.php       # Applique la règle source_of_truth                ⏳
+│   │
+│   └── Cli/                           # Commandes WP-CLI (un hôte, comme Admin/ et Rest/)
+│       └── SkillsCommand.php          # wp portfolio skills sync                         ✅
 │
 ├── assets/                            # Ressources statiques côté navigateur             ⏳
 │   ├── js/admin-editor.js             # Éditeur Markdown (EasyMDE/CodeMirror)
@@ -104,7 +115,7 @@ portfolio-md/
     ├── Support/                       # WordPressSpy (enregistre les appels) + wp-stubs  ✅
     ├── Unit/                          # Sans WordPress, ultra-rapides                     ✅
     │   ├── Domain/, Meta/, PostTypes/, Taxonomies/
-    │   └── Parsing/, Service/                                                            ⏳
+    │   └── Parsing/, Service/ (pipeline et synchronisation des compétences)              ✅
     └── Integration/
         └── wp-cli/meta-smoke.php      # Test de fumée joué dans WordPress via wp eval-file ✅
 ```
@@ -183,6 +194,8 @@ Vu de loin, le pipeline ressemble à ceci.
 La première phase sépare le frontmatter YAML (entre les deux triples tirets en tête de fichier) du corps Markdown. Le frontmatter est parsé via `symfony/yaml` en tableau associatif PHP, puis transformé en objet `Frontmatter` qui valide et normalise les champs (conversion des dates en `DateTimeImmutable`, des enums en leur type propre, des tags en tableau de strings trimmés).
 
 La classe `FrontmatterParser` a une responsabilité unique : prendre un string Markdown en entrée, renvoyer un tuple composé d'un `Frontmatter` et d'un string contenant le corps sans frontmatter. Si le frontmatter est absent ou mal formé, elle lève une exception typée que les couches supérieures pourront attraper pour produire un message d'erreur utile dans l'admin WordPress ou dans la réponse du webhook Git.
+
+✅ **Implémenté le 26 octobre 2026.** `Parsing\FrontmatterParser::parse()` renvoie un `ParsedDocument` (le `Domain\Frontmatter` typé et le corps). Deux familles d'erreurs, pour que l'auteur sache quoi corriger : `Parsing\MalformedDocumentException` quand le bloc manque ou que le YAML ne se lit pas, `Domain\InvalidFrontmatterException` quand une clé est inconnue, absente ou mal typée. La validation est volontairement stricte (booléens YAML obligatoires, dates calendaires, URL en `http(s)`, codes de compétences au format `4.0.2/E07`, clés autorisées par type de contenu) : la sanitization des metas (ADR-013) reste la dernière ligne de défense, pas la première. Détail à connaître : le YAML est lu avec `Yaml::PARSE_DATETIME`, sans quoi `symfony/yaml` transforme une date nue en entier.
 
 ### 4.2. Phase deux : Markdown vers HTML avec coloration syntaxique
 
@@ -387,7 +400,7 @@ La classe `PostTypes\PostTypeRegistrar` enregistre les deux types au hook `init`
 
 ### 9.2. Les taxonomies `tech_tag`, `project_status` et `skill`
 
-La classe `Taxonomies\TaxonomyRegistrar` enregistre trois taxonomies. `tech_tag` est plate, partagée par les articles et les projets, en `/tag/<slug>/`. `project_status` est plate, réservée aux projets, à valeurs fermées (`TaxonomyRegistrar::PROJECT_STATUS_TERMS`, insérées à l'activation), en `/statut/<slug>/`. `skill` est **hiérarchique**, réservée aux projets : les parents sont les référentiels UHA 4.0 (`TaxonomyRegistrar::SKILL_REFERENTIALS`, insérés à l'activation), les enfants les compétences, dont le code officiel vit dans le term meta `_portfolio_skill_code` ; URL `/competences/<referentiel>/<competence>/`. Pourquoi une taxonomie custom plutôt que `post_tag`, et pourquoi hiérarchique : `04-structure-wordpress.md` §4, ADR-011 et ADR-014.
+La classe `Taxonomies\TaxonomyRegistrar` enregistre trois taxonomies. `tech_tag` est plate, partagée par les articles et les projets, en `/tag/<slug>/`. `project_status` est plate, réservée aux projets, à valeurs fermées (`TaxonomyRegistrar::PROJECT_STATUS_TERMS`, insérées à l'activation), en `/statut/<slug>/`. `skill` est **hiérarchique**, réservée aux projets : les parents sont les référentiels UHA 4.0 (`TaxonomyRegistrar::SKILL_REFERENTIALS`, insérés à l'activation), les enfants les compétences, dont le code officiel vit dans le term meta `_portfolio_skill_code` ; URL `/competences/<referentiel>/<competence>/`. Les compétences sont synchronisées depuis `content/skills.yaml` par la commande `wp portfolio skills sync` : `Cli\SkillsCommand` traduit les arguments, `Service\SkillTermSynchronizer` décide (créer, mettre à jour en place, signaler les orphelins sans jamais supprimer) à travers le port `SkillTermGateway`, et `Storage\WordPressSkillTermGateway` parle aux fonctions de termes WordPress. La commande est idempotente : rejouée sur une grille inchangée, elle n'écrit rien. Pourquoi une taxonomie custom plutôt que `post_tag`, et pourquoi hiérarchique : `04-structure-wordpress.md` §4, ADR-011 et ADR-014.
 
 ### 9.3. Les champs personnalisés
 

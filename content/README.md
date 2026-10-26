@@ -77,6 +77,17 @@ seo_description: "Une phrase complète de 160 caractères au plus."
 
 Corps en GFM, à la première personne, sans donnée de contact : l'adresse e-mail n'apparaît que sur la page Contact. La page CV est une version web lisible, pas une copie de la mise en page du PDF ; elle renvoie aux fiches projet par des liens relatifs (`../projects/<slug>.md`), que le pipeline réécrira en liens du site.
 
+## Import dans WordPress
+
+La grille de compétences se synchronise avec la taxonomie `skill` par WP-CLI (le dossier `content/` est monté en lecture seule dans le conteneur `wpcli`, sous `/srv/portfolio-content`) :
+
+```bash
+podman-compose --profile tools run --rm wpcli wp portfolio skills sync /srv/portfolio-content/skills.yaml --dry-run
+podman-compose --profile tools run --rm wpcli wp portfolio skills sync /srv/portfolio-content/skills.yaml
+```
+
+La commande est idempotente ; les termes présents dans WordPress mais absents de la grille sont signalés, jamais supprimés. L'import des fiches et des pages viendra avec le pipeline Markdown.
+
 ## Règles
 
 - Une fiche décrit le projet, pas le dépôt : pas de données client, pas de secrets, pas de noms de personnes tierces sans accord. Les projets sous dépôt privé (GitLab UHA 4.0, Kovelt) gardent `repo_url` vide et le disent dans **Liens**.

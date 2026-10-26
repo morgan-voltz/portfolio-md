@@ -39,6 +39,8 @@ Image : `wordpress:cli`. C'est un container **éphémère** dédié à l'exécut
 
 Il partage les mêmes bind mounts que `wordpress` (`wordpress_data` et `plugin`), donc il agit sur la même installation. Il dépend aussi de `db` pour les commandes qui touchent à la base.
 
+Depuis le 26 octobre 2026, il monte aussi le dossier `content/` du dépôt, en lecture seule, dans `/srv/portfolio-content` : c'est là que les commandes d'import (`wp portfolio skills sync …`) lisent les sources Markdown et la grille de compétences.
+
 Détail technique important : il tourne en `user: "33:33"`, qui est l'UID de `www-data` dans l'image WordPress. WP-CLI refuse de tourner en root par défaut (mécanisme de sécurité), donc on doit forcer un user non-root, et il faut que ce user puisse écrire dans les fichiers.
 
 ### 1.4. Bind mounts vs volumes nommés
