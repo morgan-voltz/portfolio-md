@@ -61,6 +61,22 @@ Puis deux blocs courts : **En chiffres** (taille, tests, commits, durée) et **L
 
 Le projet fil rouge 4.0.2 suit le même patron avec, en plus, une section **Correspondance avec les étapes du fil rouge** qui, pour chaque étape de la consigne, pointe vers l'élément du projet qui la réalise.
 
+## Frontmatter d'une page statique
+
+Les pages `À propos` et `CV` utilisent le type natif `page` de WordPress, sans champ personnalisé :
+
+```markdown
+---
+title: "À propos"
+slug: "a-propos"
+type: "page"
+date: 2026-10-26
+seo_description: "Une phrase complète de 160 caractères au plus."
+---
+```
+
+Corps en GFM, à la première personne, sans donnée de contact : l'adresse e-mail n'apparaît que sur la page Contact. La page CV est une version web lisible, pas une copie de la mise en page du PDF ; elle renvoie aux fiches projet par des liens relatifs (`../projects/<slug>.md`), que le pipeline réécrira en liens du site.
+
 ## Règles
 
 - Une fiche décrit le projet, pas le dépôt : pas de données client, pas de secrets, pas de noms de personnes tierces sans accord. Les projets sous dépôt privé (GitLab UHA 4.0, Kovelt) gardent `repo_url` vide et le disent dans **Liens**.
