@@ -2,12 +2,13 @@
 
 /**
  * Minimal stand-ins for the WordPress functions the plugin calls at
- * registration time and inside its sanitizers.
+ * registration time, when writing metas, and inside its sanitizers.
  *
- * Registration functions only record their arguments in WordPressSpy.
- * Sanitization helpers approximate WordPress behaviour closely enough for
- * the cases covered by the unit suite; the exact WordPress behaviour is
- * exercised by the WP-CLI smoke test (tests/Integration/wp-cli/).
+ * Registration and write functions only record their arguments in
+ * WordPressSpy. Sanitization helpers mirror the WordPress behaviour that
+ * matters for the covered cases (checked against WordPress 7.1 core); the
+ * exact behaviour is exercised by the WP-CLI smoke test
+ * (tests/Integration/wp-cli/).
  *
  * Every definition is guarded so that this file is harmless if it is ever
  * loaded next to a real WordPress.
@@ -52,6 +53,30 @@ if (!function_exists('register_post_type')) {
     }
 }
 
+if (!function_exists('update_post_meta')) {
+    function update_post_meta(int $post_id, string $meta_key, mixed $meta_value, mixed $prev_value = ''): int|bool
+    {
+        WordPressSpy::$updatedPostMetas[] = ['postId' => $post_id, 'key' => $meta_key, 'value' => $meta_value];
+
+        return true;
+    }
+}
+
+if (!function_exists('wp_slash')) {
+    /**
+     * Same contract as WordPress: strings get addslashes(), arrays are
+     * walked, every other type is returned untouched.
+     */
+    function wp_slash(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            return array_map('wp_slash', $value);
+        }
+
+        return is_string($value) ? addslashes($value) : $value;
+    }
+}
+
 if (!function_exists('__')) {
     function __(string $text, string $domain = 'default'): string
     {
@@ -80,15 +105,23 @@ if (!function_exists('__return_true')) {
     }
 }
 
-if (!function_exists('term_exists')) {
+if (!function_exists('get_term_by')) {
     /**
-     * @return array{term_id: int, term_taxonomy_id: int}|null
+     * Only the ('slug', $slug, $taxonomy) form used by the plugin is
+     * modelled: a term "exists" when its slug is listed in
+     * WordPressSpy::$existingTerms for that taxonomy.
      */
-    function term_exists(string|int $term, string $taxonomy = ''): ?array
+    function get_term_by(string $field, string|int $value, string $taxonomy = ''): object|false
     {
+        if ($field !== 'slug') {
+            return false;
+        }
+
         $slugs = WordPressSpy::$existingTerms[$taxonomy] ?? [];
 
-        return in_array((string) $term, $slugs, true) ? ['term_id' => 1, 'term_taxonomy_id' => 1] : null;
+        return in_array((string) $value, $slugs, true)
+            ? (object) ['slug' => (string) $value, 'taxonomy' => $taxonomy]
+            : false;
     }
 }
 
@@ -117,12 +150,21 @@ if (!function_exists('user_can')) {
 
 if (!function_exists('sanitize_text_field')) {
     /**
-     * Approximation of WordPress: strip tags, collapse whitespace (including
-     * line breaks) to single spaces, trim.
+     * Mirrors _sanitize_text_fields(): when the string contains markup,
+     * <script> and <style> blocks disappear with their content before the
+     * remaining tags are stripped (wp_strip_all_tags); then line breaks,
+     * tabs and runs of spaces collapse to one space and the result is
+     * trimmed.
      */
     function sanitize_text_field(string $str): string
     {
-        $filtered = strip_tags($str);
+        $filtered = $str;
+
+        if (str_contains($filtered, '<')) {
+            $filtered = preg_replace('@<(script|style)[^>]*?>.*?</\\1>@si', '', $filtered) ?? '';
+            $filtered = strip_tags($filtered);
+        }
+
         $filtered = preg_replace('/[\r\n\t ]+/', ' ', $filtered) ?? '';
 
         return trim($filtered);
@@ -131,8 +173,12 @@ if (!function_exists('sanitize_text_field')) {
 
 if (!function_exists('esc_url_raw')) {
     /**
-     * Approximation of WordPress: prepend http:// to scheme-less URLs, then
-     * reject any scheme outside the allowed list.
+     * Mirrors the parts of esc_url() that matter here: "http://" is
+     * prepended only when the string holds no colon at all and is not a
+     * path, fragment or query; anything starting with "/" is returned as is
+     * without consulting the protocol list; otherwise whatever precedes the
+     * first colon is the protocol candidate (wp_kses_bad_protocol) and the
+     * URL is rejected when it is not allowed.
      *
      * @param list<string>|null $protocols
      */
@@ -144,19 +190,18 @@ if (!function_exists('esc_url_raw')) {
             return '';
         }
 
-        $scheme = parse_url($url, PHP_URL_SCHEME);
-
-        if (!is_string($scheme)) {
-            if (str_starts_with($url, '/') || str_starts_with($url, '#') || str_starts_with($url, '?')) {
-                return $url;
-            }
-
+        if (!str_contains($url, ':') && !str_starts_with($url, '/') && !str_starts_with($url, '#') && !str_starts_with($url, '?')) {
             $url = 'http://' . $url;
-            $scheme = 'http';
+        }
+
+        if (str_starts_with($url, '/')) {
+            return $url;
         }
 
         $allowed = $protocols ?? ['http', 'https', 'ftp', 'ftps', 'mailto', 'news', 'irc', 'feed', 'tel'];
+        $colon = strpos($url, ':');
+        $protocol = strtolower(substr($url, 0, $colon === false ? 0 : $colon));
 
-        return in_array(strtolower($scheme), $allowed, true) ? $url : '';
+        return in_array($protocol, $allowed, true) ? $url : '';
     }
 }

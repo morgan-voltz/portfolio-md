@@ -36,6 +36,9 @@ final class WordPressSpy
     /** Value returned by the user_can() stub. */
     public static bool $userCanResult = false;
 
+    /** @var list<array{postId: int, key: string, value: mixed}> values handed to update_post_meta() */
+    public static array $updatedPostMetas = [];
+
     private function __construct()
     {
     }
@@ -50,6 +53,7 @@ final class WordPressSpy
         self::$insertedTerms = [];
         self::$userCanCalls = [];
         self::$userCanResult = false;
+        self::$updatedPostMetas = [];
     }
 
     /**

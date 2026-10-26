@@ -30,7 +30,8 @@ final class SanitizerTest extends TestCase
     public static function textProvider(): iterable
     {
         yield 'plain text' => ['Hello world', null, 'Hello world'];
-        yield 'tags stripped' => ['<b>Hello</b> <script>alert(1)</script>', null, 'Hello alert(1)'];
+        yield 'inline tags stripped' => ['<em>Hello</em> <a href="x">world</a>', null, 'Hello world'];
+        yield 'script block removed with its content' => ['<b>Hello</b> <script>alert(1)</script>', null, 'Hello'];
         yield 'line breaks collapsed' => ["line one\nline two", null, 'line one line two'];
         yield 'outer whitespace trimmed' => ['  padded  ', null, 'padded'];
         yield 'truncated after cleaning' => ['<i>abcdef</i>', 3, 'abc'];
@@ -98,7 +99,10 @@ final class SanitizerTest extends TestCase
         yield 'empty string' => ['', false];
         yield 'int 1' => [1, true];
         yield 'int 0' => [0, false];
-        yield 'int 2' => [2, true];
+        yield 'int 2 rejected' => [2, false];
+        yield '"2" rejected like the int' => ['2', false];
+        yield 'float 1.0' => [1.0, true];
+        yield 'float 0.5 rejected' => [0.5, false];
         yield 'array' => [[], false];
         yield 'null' => [null, false];
     }
@@ -169,6 +173,10 @@ final class SanitizerTest extends TestCase
         yield 'https' => ['https://github.com/morgan-voltz/portfolio-md', 'https://github.com/morgan-voltz/portfolio-md'];
         yield 'http' => ['http://localhost:8000/', 'http://localhost:8000/'];
         yield 'padding trimmed' => ['  https://example.org  ', 'https://example.org'];
+        yield 'bare host gets http' => ['github.com/morgan-voltz', 'http://github.com/morgan-voltz'];
+        yield 'protocol-relative rejected' => ['//evil.example.com/', ''];
+        yield 'root-relative path rejected' => ['/wp-admin/', ''];
+        yield 'bare host with port rejected like WordPress' => ['example.com:8080/demo', ''];
         yield 'javascript rejected' => ['javascript:alert(1)', ''];
         yield 'ftp rejected' => ['ftp://example.org/file', ''];
         yield 'mailto rejected' => ['mailto:a@b.c', ''];
@@ -217,6 +225,7 @@ final class SanitizerTest extends TestCase
     public static function isoDateTimeUtcProvider(): iterable
     {
         yield 'already UTC' => ['2026-10-26T07:00:00Z', '2026-10-26T07:00:00Z'];
+        yield 'negative zero offset treated as UTC' => ['2026-10-26T07:00:00-00:00', '2026-10-26T07:00:00Z'];
         yield 'positive offset converted' => ['2026-10-26T09:00:00+02:00', '2026-10-26T07:00:00Z'];
         yield 'negative offset converted' => ['2026-10-25T22:30:00-05:00', '2026-10-26T03:30:00Z'];
         yield 'fractional seconds dropped' => ['2026-10-26T07:00:00.123456Z', '2026-10-26T07:00:00Z'];
