@@ -14,7 +14,9 @@ The **content model is complete** (roadmap phase 1). The plugin registers:
 
 Phases 2 and 3 are done (26 October 2026): `Parsing\FrontmatterParser` turns a Markdown document into a typed `Domain\Frontmatter` plus its body (strict validation, explicit exceptions); `Parsing\MarkdownParser` renders GFM to HTML with server-side code highlighting (`HighlightedCodeRenderer`, highlight.php); `Parsing\GutenbergTransformer` wraps that HTML in core blocks exactly as the editor serialises them; `Service\ContentImportService` applies the source-of-truth rule of ADR-005 and `Storage\WordPressContentRepository` writes posts, terms and metas. Two WP-CLI commands drive it: `wp portfolio skills sync` (taxonomy from `content/skills.yaml`) and `wp portfolio import` (articles and projects from Markdown files), see below.
 
-What is **not yet** implemented: the import of static pages (`type: page`), image import into the media library, the admin Markdown editor and paste page, the Git webhook, and the custom REST endpoints. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
+The two admin doors are in (26 October 2026, server side): `Admin\EditorMetaBox` puts the whole document in a « Document Markdown » box on the classic edit screen of articles and projects (`Admin\EditScreen` turns the block editor off there and removes the native controls the document owns), and `Admin\ImportPage` adds « Portfolio → Importer », a paste page. Both call the same `ContentImportService` as the WP-CLI command; see "Admin screens" below.
+
+What is **not yet** implemented: the rich Markdown editor and the preview of the box (a JavaScript library to choose), the import of static pages (`type: page`), image import into the media library, the Git webhook, and the custom REST endpoints. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
 
 ## Local setup
 
@@ -91,6 +93,21 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/import-smoke.php --user=<your admin login>
 ```
 
+## Admin screens
+
+Articles and projects open in the **classic edit screen** with a « Document Markdown » box holding the whole document, frontmatter included. Saving the post hands that text to the import service with the post as target and `admin` as source: the document rewrites the title, the slug, the date, the content, the terms and the metas, and the source-of-truth rule of ADR-005 then protects the edit from `wp portfolio import` (which reports a `CONFLICT` until `--force`). Everything the document owns is removed from the screen on purpose: the block editor, the content editor, the permalink editor, the slug and taxonomy boxes, Quick Edit and Bulk Edit. The publish box, the author, the featured image, the revisions and the custom fields stay.
+
+Three refusals protect the post being edited: the document must be of the post's type, its slug must be free or already the post's own, and a post that holds a document keeps its slug (rename the file in the repository instead). A refused document leaves the post as it was; the reason and the text are shown in the box at the next visit; a post that never held a document goes back to draft, so that nothing empty is published. The text of the form is normalised (CRLF → LF, final newline) before hashing, so a document saved without changes keeps the hash of its Git file.
+
+« Portfolio → Importer » (`edit_others_posts`) takes a pasted document through the same service with `paste` as source: « Vérifier sans écrire » is the `--dry-run` of the command, « Importer » writes, and a checkbox creates the post as a draft.
+
+The admin doors have their own smoke test, which plays the form submissions through the real hooks and cleans up after itself (`--user` required):
+
+```bash
+podman-compose --profile tools run --rm wpcli wp eval-file \
+  wp-content/plugins/portfolio-md/tests/Integration/wp-cli/admin-smoke.php --user=<your admin login>
+```
+
 ## Tests
 
 Two complementary suites.
@@ -151,6 +168,11 @@ The most frequent issues you'll hit while developing locally are documented in [
 - `FAILED … is in the trash` → a trashed post still owns its slug (WordPress renames it `<slug>__trashed` and keeps the wanted slug in `_wp_desired_post_slug`); restore it or delete it permanently, the import never creates a second post next to it
 - `FAILED … does not match the file name` → files are named after their slug; a sheet copied from another one still carries the slug of its model
 - A fenced block in a huge pasted log is not coloured → blocks above 32 KiB are rendered plain on purpose (`HighlightedCodeRenderer::MAX_HIGHLIGHT_BYTES`): highlighting time grows about quadratically with the size of the block
+- Gutenberg does not open for an article or a project, and the slug box, the taxonomy boxes and Quick Edit are missing → by design (`Admin\EditScreen`): the Markdown document is the only editor of what they would change; edit the frontmatter instead
+- A post you just created went back to draft → its document was refused (the box says why, with the text you typed); fix it and save again
+- The box shows a text that is not the stored document → it is the text refused at the last save; reload the page to get the stored document back
+- `wp portfolio import` reports a `CONFLICT` right after a save from the admin → expected when the text changed (the admin edit is protected; `--force` or copy the box into the file); unexpected for an unchanged text, since the box normalises line endings: check that the file is LF-terminated and ends with a newline
+- « Portfolio → Importer » is not in the menu → it needs `edit_others_posts` (editors and administrators)
 
 ## Architecture
 
