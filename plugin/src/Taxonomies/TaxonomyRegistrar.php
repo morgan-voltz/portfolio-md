@@ -50,9 +50,10 @@ final class TaxonomyRegistrar
      * Clé du term meta qui porte le code officiel d'une compétence,
      * tel qu'il apparaît dans le référentiel UHA 4.0 (ex. « 4.0.1/C1.3 »).
      *
-     * Le code ne peut pas servir de slug (le point et la barre oblique
-     * sont interdits dans un slug WordPress), d'où ce stockage séparé.
-     * Le slug du terme est dérivé du code par le pipeline Markdown.
+     * Le code ne peut pas servir de slug : sanitize_title() transforme le
+     * point et la barre oblique en tirets (« 4-0-1-c1-3 »), et le référentiel
+     * ne se distingue plus du code. D'où ce stockage séparé ; le slug du
+     * terme est dérivé du code par le pipeline Markdown.
      */
     public const SKILL_CODE_META = '_portfolio_skill_code';
 
@@ -134,13 +135,17 @@ final class TaxonomyRegistrar
     /**
      * Insère chaque terme [slug => libellé] absent de la taxonomie donnée.
      *
+     * Le test d'existence se fait sur le slug via get_term_by(), et non
+     * via term_exists() : cette dernière retombe sur une comparaison par
+     * nom quand le slug ne matche pas, si bien qu'un terme simplement
+     * *nommé* « 4-0-1 » empêcherait l'insertion du référentiel attendu.
+     *
      * @param array<string, string> $terms
      */
     private function ensureTerms(string $taxonomy, array $terms): void
     {
         foreach ($terms as $slug => $label) {
-            // term_exists retourne null si absent, ou un tableau/int si présent.
-            if (term_exists($slug, $taxonomy) === null) {
+            if (get_term_by('slug', $slug, $taxonomy) === false) {
                 wp_insert_term($label, $taxonomy, ['slug' => $slug]);
             }
         }
