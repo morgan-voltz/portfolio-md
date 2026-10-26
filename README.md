@@ -29,7 +29,7 @@ The development environment runs WordPress and MariaDB in containers (Podman roo
 ### Prerequisites
 
 - Podman 4+ with `podman-compose`, or Docker 24+ with Docker Compose v2
-- PHP 8.2+ and Composer 2 (for the WordPress plugin)
+- PHP 8.2+ and Composer 2 for the WordPress plugin, or no PHP at all: [`plugin/plugin-README.md`](plugin/plugin-README.md) shows how to run Composer and PHPUnit through containers
 - .NET 10 SDK (for the C# API)
 - Node.js 20+ and npm (for the React frontend)
 - A `.env` file at the repository root (copy from `.env.example` if provided, otherwise set `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, and optionally `WP_PORT`)
@@ -105,7 +105,7 @@ cd plugin
 # Install PHP dependencies
 composer install
 
-# Run the plugin test suite (once PHPUnit is configured)
+# Run the plugin unit test suite
 composer test
 ```
 
@@ -165,7 +165,7 @@ Complete architectural documentation lives in [`docs/architecture/`](docs/archit
 4. [`03-frontend-react.md`](docs/architecture/03-frontend-react.md) — React frontend architecture (about 20 minutes)
 5. [`99-decisions.md`](docs/architecture/99-decisions.md) — architectural decision records
 
-Pedagogical documentation aimed at junior developers discovering the project will live in [`docs/pedagogie/`](docs/pedagogie/), written in French.
+Pedagogical documentation aimed at junior developers discovering the project lives in [`docs/pedagogie/`](docs/pedagogie/), written in French. Operational guides (WordPress onboarding) live in [`docs/guides/`](docs/guides/).
 
 ## Working with AI
 

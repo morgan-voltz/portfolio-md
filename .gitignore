@@ -37,9 +37,15 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# ─── Données des conteneurs de dev (bind mounts) ─────────
+# Créés au premier `podman-compose up` ; jamais versionnés.
+BDD_data/
+wordpress_data/
+
 # ─── PHP / Composer (plugin/) ────────────────────────────
 plugin/vendor/
 plugin/composer.phar
+plugin/.phpunit.cache/
 plugin/.phpunit.result.cache
 plugin/.phpstan.result.cache
 plugin/coverage/

@@ -4,7 +4,7 @@
 **Rôle** : guide opérationnel et progressif pour apprendre WordPress dans le contexte de ce projet. Doc « par où je commence ce matin », par opposition à `docs/architecture/04-structure-wordpress.md` qui est la référence durable.
 **Lectorat** : Morgan, en cours d'apprentissage WordPress.
 **Statut** : guide actif, mis à jour à mesure que l'apprentissage progresse.
-**Dernière mise à jour** : 25 avril 2026 (étapes 1 et 2 terminées, étape 3 redéfinie)
+**Dernière mise à jour** : 26 octobre 2026 (champs personnalisés et taxonomie `skill` terminés, commandes alignées sur `podman-compose`)
 
 ---
 
@@ -28,7 +28,7 @@ D'abord, ils génèrent du HTML imbuvable, lent, et truffé de classes CSS qui n
 
 Ensuite, ils créent une **dépendance permanente**. Une fois qu'un contenu est créé avec Elementor, il est inutilisable sans Elementor.
 
-Enfin et surtout pour ce projet, ils sont **incompatibles avec le format pivot Markdown** (voir `docs/02-le-markdown-comme-format-pivot.md`). Tu as construit toute ton architecture autour de Markdown comme source unique de vérité. Un page builder casse ce pivot.
+Enfin et surtout pour ce projet, ils sont **incompatibles avec le format pivot Markdown** (voir `docs/pedagogie/02-le-markdown-comme-format-pivot.md`). Tu as construit toute ton architecture autour de Markdown comme source unique de vérité. Un page builder casse ce pivot.
 
 **La règle pour ce projet** : tu utilises Gutenberg (l'éditeur natif de WordPress depuis 2018) et c'est tout.
 
@@ -45,34 +45,38 @@ git clone <url-du-repo> portfolio-double && cd portfolio-double
 # 2. Copier le modèle d'environnement
 cp .env.example .env
 
-# 3. Modifier .env si tu veux (par défaut admin/admin/admin@example.local)
+# 3. Remplacer les mots de passe placeholders de .env (utilisateur admin : morgan)
 # nano .env
 
-# 4. Installer les dépendances Composer du plugin
-docker run --rm -v "$(pwd)/plugin:/app" composer:latest install
+# 4. Installer les dépendances Composer du plugin (aucun PHP requis sur l'hôte)
+podman run --rm -v "$(pwd)/plugin:/app:z" docker.io/library/composer:2 install
 
-# 5. Lancer Docker
-docker compose up -d
+# 5. Lancer la stack (podman-compose avec un tiret, cf. containers-et-wp-cli.md §2)
+podman-compose up -d
 
 # 6. Bootstrapper WordPress (installation + configuration)
 ./bootstrap.sh
 
 # 7. Activer le plugin Portfolio MD
 # Soit dans wp-admin > Extensions, soit en ligne de commande :
-docker compose --profile tools run --rm wpcli wp plugin activate portfolio-md
+podman-compose --profile tools run --rm wpcli wp plugin activate portfolio-md
 
 # 8. Ouvrir http://localhost:8000
 ```
 
+Sur Docker, substitue `docker compose` à `podman-compose` et `docker run` à `podman run`.
+
 Pour **tout repartir de zéro** :
 
 ```bash
-docker compose down -v
+podman-compose down -v
 rm -rf BDD_data wordpress_data
-docker compose up -d
+podman-compose up -d
 ./bootstrap.sh
-docker compose --profile tools run --rm wpcli wp plugin activate portfolio-md
+podman-compose --profile tools run --rm wpcli wp plugin activate portfolio-md
 ```
+
+Sur un disque **btrfs** (cas du ThinkPad sous Fedora), crée `BDD_data` à la main et marque-le `chattr +C` **avant** le premier `up` : MariaDB écrit ses fichiers par accès aléatoires, et le copy-on-write de btrfs les fragmente massivement sinon.
 
 ---
 
@@ -107,19 +111,20 @@ Le script est **idempotent** : tu peux le relancer plusieurs fois sans casser qu
 
 ### Le service `wpcli`
 
-Dans le `docker-compose.yml`, le service `wpcli` a un `profiles: [tools]`. Ce profil signifie qu'il **ne démarre pas automatiquement** avec `docker compose up -d`. Il est invoqué à la demande :
+Dans le `docker-compose.yml`, le service `wpcli` a un `profiles: [tools]`. Ce profil signifie qu'il **ne démarre pas automatiquement** avec `podman-compose up -d`. Il est invoqué à la demande :
 
 ```bash
-docker compose --profile tools run --rm wpcli wp <commande>
+podman-compose --profile tools run --rm wpcli wp <commande>
 ```
 
 Tu peux l'utiliser à la main pour explorer WP-CLI :
 
 ```bash
-docker compose --profile tools run --rm wpcli wp option list
-docker compose --profile tools run --rm wpcli wp user list
-docker compose --profile tools run --rm wpcli wp plugin list
-docker compose --profile tools run --rm wpcli wp post-type list
+podman-compose --profile tools run --rm wpcli wp option list
+podman-compose --profile tools run --rm wpcli wp user list
+podman-compose --profile tools run --rm wpcli wp plugin list
+podman-compose --profile tools run --rm wpcli wp post-type list
+podman-compose --profile tools run --rm wpcli wp term list skill --fields=name,slug,parent
 ```
 
 ---
@@ -177,7 +182,7 @@ C'est le cœur fonctionnel du plugin, défini dans `docs/architecture/01-plugin-
 - La transformation Markdown → blocs Gutenberg (`core/paragraph`, `core/heading`, `core/code`, `core/list`, etc.).
 - Les Repository qui manipulent les contenus côté WordPress.
 - Les services orchestrateurs (`UpsertContent`, `DumpContent`).
-- L'enregistrement des champs personnalisés (custom fields) dans le bon format.
+- ~~L'enregistrement des champs personnalisés (custom fields) dans le bon format~~ : **fait le 26 octobre 2026** (trois registrars, dix-sept champs, voir `04-structure-wordpress.md` §5). Le pipeline devra les **remplir** depuis le frontmatter.
 - L'endpoint REST `/sync` pour recevoir des contenus depuis un script Git.
 - La résolution de conflits si un contenu a été modifié à la fois dans Git et dans l'admin WordPress.
 
@@ -203,7 +208,7 @@ C'est l'étape la plus dense techniquement. Elle se fera probablement sur plusie
 
 - **`docs/architecture/04-structure-wordpress.md`** est la **référence durable** de la structure. Les classes `PostTypeRegistrar` et `TaxonomyRegistrar` du plugin l'implémentent.
 - **`docs/architecture/01-plugin-php.md`** détaille **la cible architecturale complète du plugin** (pipeline, REST, etc.). À l'heure actuelle, seules les fondations et l'étape 2 sont implémentées.
-- **`docs/02-le-markdown-comme-format-pivot.md`** explique **pourquoi WordPress n'est pas la source de vérité** ; le Markdown l'est.
+- **`docs/pedagogie/02-le-markdown-comme-format-pivot.md`** explique **pourquoi WordPress n'est pas la source de vérité** ; le Markdown l'est.
 - **`docs/branding/03-direction-graphique.md`** définit **la direction graphique** que le thème WordPress devra respecter à terme.
 - **`docs/99-dette-technique.md`** liste les **points d'attention** sur l'environnement.
 
@@ -218,5 +223,9 @@ C'est l'étape la plus dense techniquement. Elle se fera probablement sur plusie
 **2026-04-25 (mise à jour 2)** — Étape 1 terminée. Familiarisation avec l'admin acquise.
 
 **2026-04-25 (mise à jour 3)** — Étape 2 terminée en chemin B (code propre direct, pas de plugins visuels). Plugin `portfolio-md` opérationnel avec ses deux custom post types et ses deux taxonomies. Étape 3 redéfinie comme « pipeline Markdown », ouverte pour la suite.
+
+**2026-04-28** — Quatre champs personnalisés communs enregistrés (`CommonMetaRegistrar`).
+
+**2026-10-26** — Champs personnalisés terminés (trois registrars, dix-sept champs), taxonomie `skill` ajoutée (hiérarchique par référentiel), suite PHPUnit et test de fumée WP-CLI en place. Stack relancée sur le portable **sans PHP sur l'hôte** : Composer et PHPUnit tournent dans des conteneurs, `podman-compose` installé en espace utilisateur (`uv tool install podman-compose`). Commandes du guide alignées sur `podman-compose`.
 
 ---
