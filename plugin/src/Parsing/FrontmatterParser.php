@@ -37,6 +37,8 @@ final class FrontmatterParser
             throw MalformedDocumentException::missingFrontmatter();
         }
 
+        self::assertCalendarDates($matches['yaml']);
+
         try {
             // PARSE_DATETIME: without it, symfony/yaml turns a bare date such
             // as 2026-10-26 into an integer timestamp.
@@ -50,6 +52,29 @@ final class FrontmatterParser
         }
 
         return new ParsedDocument(Frontmatter::fromArray($data), $matches['body']);
+    }
+
+    /**
+     * A bare date such as `period_start: 2026-02-30` is turned into a
+     * DateTime by the YAML parser, and PHP silently rolls an impossible day
+     * over to the next month. The raw text is the only place where the
+     * mistake is still visible, so top-level bare dates are checked here,
+     * before parsing. Quoted dates stay strings and are checked by Frontmatter.
+     *
+     * @throws InvalidFrontmatterException
+     */
+    private static function assertCalendarDates(string $yaml): void
+    {
+        preg_match_all('/^(?<key>[A-Za-z_][\w-]*):[ \t]*(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})(?=[ \tT]|$)/m', $yaml, $matches, PREG_SET_ORDER);
+
+        foreach ($matches as $match) {
+            if (!checkdate((int) $match['month'], (int) $match['day'], (int) $match['year'])) {
+                throw InvalidFrontmatterException::invalidValue(
+                    $match['key'],
+                    "{$match['year']}-{$match['month']}-{$match['day']} is not a calendar date",
+                );
+            }
+        }
     }
 
     private static function stripByteOrderMark(string $text): string

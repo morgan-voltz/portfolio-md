@@ -33,7 +33,8 @@ final class SkillsCommand
      * Referentials become parent terms, competencies child terms carrying
      * their official code in the `_portfolio_skill_code` term meta. Existing
      * terms are updated in place; terms absent from the file are reported,
-     * never deleted.
+     * never deleted. A term WordPress refuses is reported as FAILED and the
+     * command exits with an error after the full report.
      *
      * ## OPTIONS
      *
@@ -64,20 +65,27 @@ final class SkillsCommand
 
         try {
             $grid = $this->loader->load($file);
-            $report = $this->synchronizer->synchronize($grid, $dryRun);
         } catch (InvalidSkillsGridException | RuntimeException $exception) {
             WP_CLI::error($exception->getMessage());
         }
+
+        $report = $this->synchronizer->synchronize($grid, $dryRun);
 
         foreach ($report->lines() as $line) {
             WP_CLI::log($line);
         }
 
-        WP_CLI::success(sprintf(
+        $summary = sprintf(
             '%d referential(s), %d skill(s) in the grid; %s',
             count($grid->referentials),
             $grid->countSkills(),
             $report->summary(),
-        ));
+        );
+
+        if ($report->hasFailures()) {
+            WP_CLI::error($summary);
+        }
+
+        WP_CLI::success($summary);
     }
 }

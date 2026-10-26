@@ -68,7 +68,7 @@ final class WordPressSkillTermGateway implements SkillTermGateway
 
         $this->writeCode((int) $result['term_id'], $code);
 
-        return $this->load((int) $result['term_id']);
+        return $this->assertSlug($this->load((int) $result['term_id']), $slug);
     }
 
     public function update(int $termId, string $name, string $slug, string $description, int $parentId, ?string $code): SkillTermRecord
@@ -86,7 +86,21 @@ final class WordPressSkillTermGateway implements SkillTermGateway
 
         $this->writeCode($termId, $code);
 
-        return $this->load($termId);
+        return $this->assertSlug($this->load($termId), $slug);
+    }
+
+    /**
+     * wp_insert_term() silently suffixes a slug that already exists elsewhere
+     * in the taxonomy (wp_unique_term_slug); the grid would then disagree
+     * with WordPress forever. Better to fail loudly, naming the collision.
+     */
+    private function assertSlug(SkillTermRecord $record, string $requestedSlug): SkillTermRecord
+    {
+        if ($record->slug !== $requestedSlug) {
+            throw new RuntimeException("Slug collision: WordPress stored \"{$record->slug}\" for term {$record->id} instead of \"{$requestedSlug}\" because that slug already exists in the taxonomy.");
+        }
+
+        return $record;
     }
 
     public function all(): array

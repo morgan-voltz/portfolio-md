@@ -7,6 +7,7 @@ namespace Voltz\PortfolioMd\Parsing;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 use Voltz\PortfolioMd\Domain\InvalidSkillsGridException;
+use Voltz\PortfolioMd\Domain\Patterns;
 use Voltz\PortfolioMd\Domain\Referential;
 use Voltz\PortfolioMd\Domain\Skill;
 use Voltz\PortfolioMd\Domain\SkillsGrid;
@@ -17,14 +18,12 @@ use Voltz\PortfolioMd\Domain\SkillsGrid;
  * Validation covers what the taxonomy needs to stay consistent: every
  * referential and skill has a code, a slug, a name and a description; slugs
  * are WordPress-safe; a skill code starts with its referential code; codes
- * are unique across the grid and slugs unique within a referential.
+ * and slugs are unique across the whole grid, because WordPress enforces
+ * slug uniqueness across a taxonomy whatever the parent (wp_unique_term_slug
+ * would silently suffix an insert, and wp_update_term refuses the update).
  */
 final class SkillsGridLoader
 {
-    private const SLUG = '/^[a-z0-9]+(?:-[a-z0-9]+)*$/';
-    private const REFERENTIAL_CODE = '/^\d+(?:\.\d+)*$/';
-    private const SKILL_CODE = '/^\d+(?:\.\d+)*\/[A-Z]+-?\d+$/';
-
     /**
      * @throws InvalidSkillsGridException
      */
@@ -61,24 +60,24 @@ final class SkillsGridLoader
 
         $referentials = [];
         $seenCodes = [];
-        $seenReferentialSlugs = [];
+        $seenSlugs = [];
 
         foreach ($rawReferentials as $index => $raw) {
             if (!is_array($raw)) {
                 throw InvalidSkillsGridException::because("referential #{$index} must be a mapping");
             }
             $code = $this->requiredString($raw, 'code', "referential #{$index}");
-            if (preg_match(self::REFERENTIAL_CODE, $code) !== 1) {
+            if (preg_match(Patterns::REFERENTIAL_CODE, $code) !== 1) {
                 throw InvalidSkillsGridException::because("referential code \"{$code}\" must look like 4.0.1");
             }
             $slug = $this->requiredString($raw, 'slug', "referential {$code}");
-            if (preg_match(self::SLUG, $slug) !== 1) {
+            if (preg_match(Patterns::SLUG, $slug) !== 1) {
                 throw InvalidSkillsGridException::because("referential slug \"{$slug}\" is not a slug");
             }
-            if (isset($seenReferentialSlugs[$slug])) {
-                throw InvalidSkillsGridException::because("referential slug \"{$slug}\" is used twice");
+            if (isset($seenSlugs[$slug])) {
+                throw InvalidSkillsGridException::because("slug \"{$slug}\" is used twice (slugs are unique across the whole taxonomy)");
             }
-            $seenReferentialSlugs[$slug] = true;
+            $seenSlugs[$slug] = true;
             if (isset($seenCodes[$code])) {
                 throw InvalidSkillsGridException::because("code \"{$code}\" is used twice");
             }
@@ -90,13 +89,12 @@ final class SkillsGridLoader
             }
 
             $skills = [];
-            $seenSkillSlugs = [];
             foreach ($rawSkills as $skillIndex => $rawSkill) {
                 if (!is_array($rawSkill)) {
                     throw InvalidSkillsGridException::because("skill #{$skillIndex} of referential {$code} must be a mapping");
                 }
                 $skillCode = $this->requiredString($rawSkill, 'code', "skill #{$skillIndex} of referential {$code}");
-                if (preg_match(self::SKILL_CODE, $skillCode) !== 1) {
+                if (preg_match(Patterns::SKILL_CODE, $skillCode) !== 1) {
                     throw InvalidSkillsGridException::because("skill code \"{$skillCode}\" must look like 4.0.1/FR-01");
                 }
                 if (!str_starts_with($skillCode, $code . '/')) {
@@ -107,13 +105,13 @@ final class SkillsGridLoader
                 }
                 $seenCodes[$skillCode] = true;
                 $skillSlug = $this->requiredString($rawSkill, 'slug', "skill {$skillCode}");
-                if (preg_match(self::SLUG, $skillSlug) !== 1) {
+                if (preg_match(Patterns::SLUG, $skillSlug) !== 1) {
                     throw InvalidSkillsGridException::because("skill slug \"{$skillSlug}\" is not a slug");
                 }
-                if (isset($seenSkillSlugs[$skillSlug])) {
-                    throw InvalidSkillsGridException::because("skill slug \"{$skillSlug}\" is used twice in referential {$code}");
+                if (isset($seenSlugs[$skillSlug])) {
+                    throw InvalidSkillsGridException::because("slug \"{$skillSlug}\" is used twice (slugs are unique across the whole taxonomy)");
                 }
-                $seenSkillSlugs[$skillSlug] = true;
+                $seenSlugs[$skillSlug] = true;
 
                 $skills[] = new Skill(
                     $skillCode,

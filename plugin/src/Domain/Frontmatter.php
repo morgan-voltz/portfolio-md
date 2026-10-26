@@ -6,6 +6,7 @@ namespace Voltz\PortfolioMd\Domain;
 
 use DateTimeImmutable;
 use DateTimeInterface;
+use DateTimeZone;
 
 /**
  * Typed, validated metadata of a Markdown document (content/README.md).
@@ -27,7 +28,11 @@ final readonly class Frontmatter
     private const PROJECT_KEYS = ['status', 'role', 'period_start', 'period_end', 'repo_url', 'demo_url', 'client', 'is_fil_rouge'];
     private const PAGE_KEYS = ['title', 'slug', 'type', 'date', 'seo_description'];
 
+    /** Google truncates meta descriptions around this length; mirrored by CommonMetaRegistrar. */
     public const SEO_DESCRIPTION_MAX_LENGTH = 160;
+
+    /** Upper bound of a plausible reading time, in minutes; mirrored by CommonMetaRegistrar. */
+    public const READING_TIME_MAX_MINUTES = 240;
 
     /**
      * @param list<string> $tags   tech_tag slugs
@@ -157,7 +162,7 @@ final readonly class Frontmatter
     private static function slug(array $data, string $key): string
     {
         $value = self::requiredText($data, $key);
-        if (preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $value) !== 1) {
+        if (preg_match(Patterns::SLUG, $value) !== 1) {
             throw InvalidFrontmatterException::invalidValue($key, 'expected lowercase letters, digits and single hyphens');
         }
 
@@ -179,7 +184,13 @@ final readonly class Frontmatter
 
     /**
      * Accepts a YAML date (a DateTimeInterface when parsed with PARSE_DATETIME),
-     * a "YYYY-MM-DD" string, an empty string or null.
+     * a "YYYY-MM-DD" string, an empty string or null, and returns a calendar
+     * date at midnight UTC whatever the form.
+     *
+     * A DateTimeInterface is reduced to the calendar date it displays, so a
+     * time or an offset never shifts the day. Impossible dates written bare
+     * (2026-02-30) are already rolled over by the YAML parser before reaching
+     * this method: FrontmatterParser rejects them upstream.
      *
      * @param array<string, mixed> $data
      */
@@ -190,10 +201,10 @@ final readonly class Frontmatter
             return null;
         }
         if ($value instanceof DateTimeInterface) {
-            return DateTimeImmutable::createFromInterface($value)->setTime(0, 0);
+            $value = $value->format('Y-m-d');
         }
         if (is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1) {
-            $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+            $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value, new DateTimeZone('UTC'));
             if ($date !== false && $date->format('Y-m-d') === $value) {
                 return $date;
             }
@@ -211,8 +222,8 @@ final readonly class Frontmatter
             return null;
         }
         $value = $data['reading_time'];
-        if (!is_int($value) || $value < 0) {
-            throw InvalidFrontmatterException::invalidValue('reading_time', 'expected a non-negative integer number of minutes');
+        if (!is_int($value) || $value < 0 || $value > self::READING_TIME_MAX_MINUTES) {
+            throw InvalidFrontmatterException::invalidValue('reading_time', 'expected an integer number of minutes between 0 and ' . self::READING_TIME_MAX_MINUTES);
         }
 
         return $value;
@@ -240,7 +251,7 @@ final readonly class Frontmatter
     {
         $items = self::stringList($data, $key);
         foreach ($items as $item) {
-            if (preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $item) !== 1) {
+            if (preg_match(Patterns::SLUG, $item) !== 1) {
                 throw InvalidFrontmatterException::invalidValue($key, "\"{$item}\" is not a slug");
             }
         }
@@ -257,7 +268,7 @@ final readonly class Frontmatter
     {
         $items = self::stringList($data, 'skills');
         foreach ($items as $item) {
-            if (preg_match('/^\d+(?:\.\d+)*\/[A-Z]+-?\d+$/', $item) !== 1) {
+            if (preg_match(Patterns::SKILL_CODE, $item) !== 1) {
                 throw InvalidFrontmatterException::invalidValue('skills', "\"{$item}\" is not a competency code such as 4.0.2/E07");
             }
         }

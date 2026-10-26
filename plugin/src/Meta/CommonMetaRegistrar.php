@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Voltz\PortfolioMd\Meta;
 
+use Voltz\PortfolioMd\Domain\Frontmatter;
+
 /**
  * Registers the post metas shared by articles and projects.
  *
@@ -22,11 +24,9 @@ final class CommonMetaRegistrar
     public const READING_TIME = '_portfolio_reading_time';
     public const SUBTITLE = '_portfolio_subtitle';
 
-    /** Google truncates meta descriptions around this length. */
-    public const SEO_DESCRIPTION_MAX_LENGTH = 160;
-
-    /** Upper bound for a plausible reading time, in minutes. */
-    public const READING_TIME_MAX_MINUTES = 240;
+    /** Same bounds as the frontmatter contract: the domain owns them, this adapter applies them. */
+    public const SEO_DESCRIPTION_MAX_LENGTH = Frontmatter::SEO_DESCRIPTION_MAX_LENGTH;
+    public const READING_TIME_MAX_MINUTES = Frontmatter::READING_TIME_MAX_MINUTES;
 
     /**
      * Registers all shared post metas on both post types.
