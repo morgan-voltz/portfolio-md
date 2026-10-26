@@ -35,15 +35,19 @@ final class ImportCommand
      * its verbatim Markdown. A document whose Markdown did not change since
      * the last import is left alone. Content last written from the admin or
      * a paste is not overwritten by a Git import unless --force is given
-     * (ADR-005). Documents are processed one by one: a failure is reported
-     * and the others go on; the command exits with an error at the end if
-     * anything failed or conflicted.
+     * (ADR-005). A file must be named after its slug (<slug>.md), so that a
+     * sheet copied from another one never overwrites its model; a slug whose
+     * post is in the trash is refused until the post is restored or deleted.
+     * Documents are processed one by one: a failure is reported and the
+     * others go on; the command exits with an error at the end if anything
+     * failed or conflicted.
      *
      * ## OPTIONS
      *
      * <path>...
      * : Markdown files, or directories whose *.md files are imported in name
-     * order. Usually under /srv/portfolio-content, where content/ is mounted.
+     * order. Each file is named after its slug. Usually under
+     * /srv/portfolio-content, where content/ is mounted.
      *
      * [--source=<source>]
      * : Origin recorded on the content: git, paste or admin. Drives the
@@ -105,7 +109,7 @@ final class ImportCommand
             }
 
             try {
-                $result = $this->service->import($markdown, $options);
+                $result = $this->service->import($markdown, $options, basename($file, '.md'));
             } catch (MalformedDocumentException | InvalidFrontmatterException | ImportException | RuntimeException $exception) {
                 $counts['failed']++;
                 WP_CLI::warning("{$prefix}FAILED     {$file}: " . $exception->getMessage());

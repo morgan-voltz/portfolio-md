@@ -17,6 +17,10 @@ interface ContentRepository
 {
     /**
      * What is already stored under this slug for this content type, or null.
+     *
+     * A post in the trash is returned too, flagged as such: WordPress frees
+     * the slug of a trashed post, and the service must not create a second
+     * post next to it.
      */
     public function findBySlug(ContentType $type, string $slug): ?StoredContent;
 

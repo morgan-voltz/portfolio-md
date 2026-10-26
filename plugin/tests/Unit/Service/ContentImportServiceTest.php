@@ -196,6 +196,66 @@ final class ContentImportServiceTest extends TestCase
     }
 
     #[Test]
+    public function a_code_that_left_the_grid_does_not_fail_an_unchanged_document(): void
+    {
+        $markdown = self::project(skills: '["4.0.2/E99"]');
+        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(42, hash('sha256', $markdown), ContentSource::Git, ContentRenderer::VERSION));
+
+        $result = $this->service->import($markdown, new ImportOptions());
+
+        self::assertSame(ImportOutcome::Unchanged, $result->outcome);
+        self::assertSame([], $this->repository->saved);
+    }
+
+    #[Test]
+    public function a_code_that_left_the_grid_does_not_hide_a_conflict(): void
+    {
+        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(42, str_repeat('0', 64), ContentSource::Admin, ContentRenderer::VERSION));
+
+        $result = $this->service->import(self::project(skills: '["4.0.2/E99"]'), new ImportOptions());
+
+        self::assertSame(ImportOutcome::Conflict, $result->outcome);
+        self::assertSame([], $this->repository->saved);
+    }
+
+    #[Test]
+    public function a_slug_that_differs_from_the_file_name_is_refused(): void
+    {
+        $this->expectException(ImportException::class);
+        $this->expectExceptionMessage('The slug "projet" does not match the file name "geoforge"');
+
+        try {
+            $this->service->import(self::project(), new ImportOptions(), 'geoforge');
+        } finally {
+            self::assertSame([], $this->repository->saved);
+        }
+    }
+
+    #[Test]
+    public function a_file_named_after_its_slug_is_accepted(): void
+    {
+        $result = $this->service->import(self::project(), new ImportOptions(), 'projet');
+
+        self::assertSame(ImportOutcome::Created, $result->outcome);
+    }
+
+    #[Test]
+    public function a_slug_whose_post_is_in_the_trash_is_refused_even_when_nothing_changed(): void
+    {
+        $markdown = self::project();
+        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(42, hash('sha256', $markdown), ContentSource::Git, ContentRenderer::VERSION, inTrash: true));
+
+        $this->expectException(ImportException::class);
+        $this->expectExceptionMessage('Post 42 (project/projet) is in the trash');
+
+        try {
+            $this->service->import($markdown, new ImportOptions());
+        } finally {
+            self::assertSame([], $this->repository->saved);
+        }
+    }
+
+    #[Test]
     public function pages_are_refused(): void
     {
         $this->expectException(ImportException::class);
