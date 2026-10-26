@@ -1,0 +1,30 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Voltz\PortfolioMd\Service;
+
+use Voltz\PortfolioMd\Domain\ContentType;
+
+/**
+ * Port of the import service towards the post store.
+ *
+ * Implemented by Storage\WordPressContentRepository in production and by an
+ * in-memory fake in the unit tests, so that the import logic (conflict rule,
+ * idempotence, skill resolution) is tested without WordPress.
+ */
+interface ContentRepository
+{
+    /**
+     * What is already stored under this slug for this content type, or null.
+     */
+    public function findBySlug(ContentType $type, string $slug): ?StoredContent;
+
+    /**
+     * Creates the post when $record->id is null, updates it otherwise, and
+     * returns the post id.
+     *
+     * @throws \RuntimeException when the store refuses the write
+     */
+    public function save(ContentRecord $record): int;
+}
