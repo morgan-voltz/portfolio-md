@@ -12,8 +12,9 @@
  *
  * `--user` is required: posts need an author. The script creates one
  * article and one project (slugs zz-smoke-*), checks what WordPress stored,
- * plays the conflict rule, and deletes everything it created, including the
- * tech tag it made.
+ * plays the conflict rule and the guards (file name, future date, squatted
+ * slug, trash), and deletes everything it created, including the tech tag
+ * it made.
  *
  * No `declare(strict_types=1)`: `wp eval-file` runs the file through eval().
  */
@@ -263,6 +264,67 @@ try {
     $dry = $service->import(str_replace('zz-smoke-article', 'zz-smoke-dry', $article), new ImportOptions(dryRun: true));
     $check('a dry run reports a creation', $dry->outcome === ImportOutcome::Created && $dry->postId === null, $dry->outcome->value);
     $check('a dry run creates nothing', $countBySlug(PostTypeRegistrar::ARTICLE, 'zz-smoke-dry') === 0);
+
+    // 5. Guards against doubling or losing a post ------------------------------------------------
+
+    $refused = null;
+    try {
+        $service->import($article, new ImportOptions(), 'zz-smoke-copied');
+    } catch (ImportException $exception) {
+        $refused = $exception->getMessage();
+    }
+    $check('a slug that differs from the file name is refused', $refused !== null && str_contains($refused, '"zz-smoke-copied"'), (string) $refused);
+
+    $future = str_replace(['zz-smoke-article', 'date: 2026-10-26'], ['zz-smoke-future', 'date: 2099-01-01'], $article);
+    $refused = null;
+    try {
+        $service->import($future, new ImportOptions());
+    } catch (RuntimeException $exception) {
+        $refused = $exception->getMessage();
+    }
+    $check('a published post dated in the future is refused', $refused !== null && str_contains($refused, 'in the future'), (string) $refused);
+    $check('the refused post was never created', $countBySlug(PostTypeRegistrar::ARTICLE, 'zz-smoke-future') === 0);
+
+    $draft = $service->import($future, new ImportOptions(postStatus: 'draft'));
+    $check('the same document is accepted as a draft', $draft->outcome === ImportOutcome::Created && $draft->postId !== null, $draft->outcome->value);
+    if ($draft->postId !== null) {
+        $createdPosts[] = $draft->postId;
+        $check('the draft keeps its status and its date', get_post($draft->postId)->post_status === 'draft' && get_post($draft->postId)->post_date === '2099-01-01 00:00:00', get_post($draft->postId)->post_status . ' / ' . get_post($draft->postId)->post_date);
+    }
+
+    // An auto-draft is invisible to the lookup but still holds its slug for wp_unique_post_slug():
+    // the import gets a suffixed slug, refuses it, and must leave no post behind.
+    $squatter = wp_insert_post(['post_type' => PostTypeRegistrar::ARTICLE, 'post_status' => 'auto-draft', 'post_title' => 'squatter', 'post_name' => 'zz-smoke-squatted'], true);
+    if (is_int($squatter) && $squatter > 0) {
+        $createdPosts[] = $squatter;
+        $refused = null;
+        try {
+            $service->import(str_replace('zz-smoke-article', 'zz-smoke-squatted', $article), new ImportOptions());
+        } catch (RuntimeException $exception) {
+            $refused = $exception->getMessage();
+        }
+        $check('a slug WordPress had to change is refused', $refused !== null && str_contains($refused, 'Slug collision'), (string) $refused);
+        $check('the post created with the changed slug was removed again', $countBySlug(PostTypeRegistrar::ARTICLE, 'zz-smoke-squatted-2') === 0);
+    } else {
+        $check('an auto-draft can be planted to squat a slug', false, is_wp_error($squatter) ? $squatter->get_error_message() : 'no id');
+    }
+
+    // 6. A trashed post still owns its slug ------------------------------------------------------
+
+    wp_trash_post($articleId);
+    $check('WordPress renamed the trashed post', get_post_status($articleId) === 'trash' && get_post($articleId)->post_name !== $articleSlug, (string) get_post($articleId)->post_name);
+    $refused = null;
+    try {
+        $service->import($renamed, new ImportOptions());
+    } catch (ImportException $exception) {
+        $refused = $exception->getMessage();
+    }
+    $check('a slug whose post is in the trash is refused', $refused !== null && str_contains($refused, "Post {$articleId}") && str_contains($refused, 'in the trash'), (string) $refused);
+    $check('no second post took the slug', $countBySlug(PostTypeRegistrar::ARTICLE, $articleSlug) === 0);
+
+    wp_untrash_post($articleId);
+    $restored = $service->import($renamed, new ImportOptions());
+    $check('the restored post is found again under its slug', get_post($articleId)->post_name === $articleSlug && $restored->outcome === ImportOutcome::Unchanged && $restored->postId === $articleId, get_post($articleId)->post_name . ' / ' . $restored->outcome->value);
 } finally {
     foreach ($createdPosts as $postId) {
         wp_delete_post($postId, true);
