@@ -33,6 +33,31 @@ final class ImportException extends RuntimeException
         );
     }
 
+    public static function unknownPost(ContentType $type, int $postId): self
+    {
+        return new self(
+            "Post {$postId} is not an existing {$type->value}: a document of type \"{$type->value}\" can only be saved into a post of that type"
+            . ' (check the "type" line of its frontmatter).',
+        );
+    }
+
+    public static function slugTaken(ContentType $type, string $slug, int $ownerId, int $postId): self
+    {
+        return new self(
+            "The slug \"{$slug}\" already belongs to post {$ownerId} ({$type->value}/{$slug}): post {$postId} cannot take it."
+            . " Edit post {$ownerId} instead, or give this document another slug.",
+        );
+    }
+
+    public static function slugChanged(ContentType $type, int $postId, string $slug): self
+    {
+        return new self(
+            "Post {$postId} ({$type->value}) already holds a document under another slug and keeps it: renaming it to \"{$slug}\" from here"
+            . ' would orphan its Markdown file, whose next import would create a second post.'
+            . ' Put the former slug back, or rename the file in the repository and import it.',
+        );
+    }
+
     /**
      * @param list<string> $codes
      */

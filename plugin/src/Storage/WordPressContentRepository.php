@@ -70,16 +70,17 @@ final class WordPressContentRepository implements ContentRepository
             return null;
         }
 
-        $id = (int) $post->ID;
-        $source = ContentSource::tryFrom(self::meta($id, InternalMetaRegistrar::SOURCE_TYPE));
+        return self::stored($post, $inTrash);
+    }
 
-        return new StoredContent(
-            $id,
-            self::meta($id, InternalMetaRegistrar::MD_HASH),
-            $source,
-            self::meta($id, InternalMetaRegistrar::RENDER_VERSION),
-            $inTrash,
-        );
+    public function findById(ContentType $type, int $postId): ?StoredContent
+    {
+        $post = get_post($postId);
+        if (!$post instanceof WP_Post || $post->post_type !== self::postType($type)) {
+            return null;
+        }
+
+        return self::stored($post, $post->post_status === 'trash');
     }
 
     public function save(ContentRecord $record): int
@@ -290,6 +291,19 @@ final class WordPressContentRepository implements ContentRepository
         $allowed['input'] = ['type' => true, 'checked' => true, 'disabled' => true];
 
         return wp_kses($html, $allowed);
+    }
+
+    private static function stored(WP_Post $post, bool $inTrash): StoredContent
+    {
+        $id = (int) $post->ID;
+
+        return new StoredContent(
+            $id,
+            self::meta($id, InternalMetaRegistrar::MD_HASH),
+            ContentSource::tryFrom(self::meta($id, InternalMetaRegistrar::SOURCE_TYPE)),
+            self::meta($id, InternalMetaRegistrar::RENDER_VERSION),
+            $inTrash,
+        );
     }
 
     private static function meta(int $postId, string $key): string

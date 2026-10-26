@@ -7,8 +7,9 @@ namespace Voltz\PortfolioMd\Service;
 use Voltz\PortfolioMd\Domain\ContentType;
 
 /**
- * Result of importing one document. `postId` is null when nothing was
- * written for a document that does not exist yet (dry run, conflict).
+ * Result of importing one document. `postId` is the post the document
+ * belongs to, or null when no post exists yet and nothing was written (a
+ * dry run of a new document).
  */
 final readonly class ImportResult
 {

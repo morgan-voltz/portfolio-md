@@ -324,6 +324,137 @@ final class ContentImportServiceTest extends TestCase
         self::assertNotSame(hash('sha256', self::project()), $this->repository->lastSaved()->hash);
     }
 
+    // --- A target post: the editor of a post knows which one it edits ----------------------------
+
+    #[Test]
+    public function a_document_is_created_into_a_target_that_holds_none_yet(): void
+    {
+        $this->repository->seed(ContentType::Project, 'coquille', new StoredContent(7, '', null, ''));
+
+        $result = $this->service->import(self::project(), new ImportOptions(source: ContentSource::Admin), targetPostId: 7);
+
+        self::assertSame(ImportOutcome::Created, $result->outcome);
+        self::assertSame(7, $result->postId);
+        self::assertSame(7, $this->repository->lastSaved()->id);
+        self::assertSame(ContentSource::Admin, $this->repository->lastSaved()->source);
+        self::assertNotNull($this->repository->findBySlug(ContentType::Project, 'projet'));
+        self::assertNull($this->repository->findBySlug(ContentType::Project, 'coquille'));
+    }
+
+    #[Test]
+    public function a_target_whose_slug_already_matches_the_document_receives_it(): void
+    {
+        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(7, '', null, ''));
+
+        $result = $this->service->import(self::project(), new ImportOptions(source: ContentSource::Admin), targetPostId: 7);
+
+        self::assertSame(ImportOutcome::Created, $result->outcome);
+        self::assertSame(7, $this->repository->lastSaved()->id);
+    }
+
+    #[Test]
+    public function a_target_that_holds_a_document_is_updated_in_place(): void
+    {
+        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(42, str_repeat('0', 64), ContentSource::Git, ContentRenderer::VERSION));
+
+        $result = $this->service->import(self::project(), new ImportOptions(source: ContentSource::Admin), targetPostId: 42);
+
+        self::assertSame(ImportOutcome::Updated, $result->outcome);
+        self::assertSame(42, $result->postId);
+        self::assertSame(42, $this->repository->lastSaved()->id);
+    }
+
+    #[Test]
+    public function an_unchanged_document_saved_into_its_own_target_is_a_no_op(): void
+    {
+        $markdown = self::project();
+        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(42, hash('sha256', $markdown), ContentSource::Admin, ContentRenderer::VERSION));
+
+        $result = $this->service->import($markdown, new ImportOptions(source: ContentSource::Admin), targetPostId: 42);
+
+        self::assertSame(ImportOutcome::Unchanged, $result->outcome);
+        self::assertSame(42, $result->postId);
+        self::assertSame([], $this->repository->saved);
+    }
+
+    #[Test]
+    public function a_dry_run_into_a_target_names_the_post_and_writes_nothing(): void
+    {
+        $this->repository->seed(ContentType::Project, 'coquille', new StoredContent(7, '', null, ''));
+
+        $result = $this->service->import(self::project(), new ImportOptions(source: ContentSource::Admin, dryRun: true), targetPostId: 7);
+
+        self::assertSame(ImportOutcome::Created, $result->outcome);
+        self::assertSame(7, $result->postId);
+        self::assertSame([], $this->repository->saved);
+    }
+
+    #[Test]
+    public function a_target_that_does_not_exist_is_refused(): void
+    {
+        $this->expectException(ImportException::class);
+        $this->expectExceptionMessage('Post 7 is not an existing project');
+
+        $this->service->import(self::project(), new ImportOptions(source: ContentSource::Admin), targetPostId: 7);
+    }
+
+    #[Test]
+    public function a_target_of_another_type_is_refused(): void
+    {
+        $this->repository->seed(ContentType::Article, 'projet', new StoredContent(7, '', null, ''));
+
+        $this->expectException(ImportException::class);
+        $this->expectExceptionMessage('Post 7 is not an existing project');
+
+        $this->service->import(self::project(), new ImportOptions(source: ContentSource::Admin), targetPostId: 7);
+    }
+
+    #[Test]
+    public function a_target_in_the_trash_is_refused(): void
+    {
+        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(42, str_repeat('0', 64), ContentSource::Git, ContentRenderer::VERSION, inTrash: true));
+
+        $this->expectException(ImportException::class);
+        $this->expectExceptionMessage('Post 42 (project/projet) is in the trash');
+
+        $this->service->import(self::project(), new ImportOptions(source: ContentSource::Admin), targetPostId: 42);
+    }
+
+    #[Test]
+    public function a_slug_owned_by_another_post_cannot_be_taken_by_the_target(): void
+    {
+        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(42, str_repeat('0', 64), ContentSource::Git, ContentRenderer::VERSION));
+        $this->repository->seed(ContentType::Project, 'coquille', new StoredContent(7, '', null, ''));
+
+        $this->expectException(ImportException::class);
+        $this->expectExceptionMessage('The slug "projet" already belongs to post 42 (project/projet): post 7 cannot take it');
+
+        $this->service->import(self::project(), new ImportOptions(source: ContentSource::Admin), targetPostId: 7);
+    }
+
+    #[Test]
+    public function a_slug_owned_by_a_trashed_post_blocks_the_target_as_well(): void
+    {
+        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(42, str_repeat('0', 64), ContentSource::Git, ContentRenderer::VERSION, inTrash: true));
+        $this->repository->seed(ContentType::Project, 'coquille', new StoredContent(7, '', null, ''));
+
+        $this->expectException(ImportException::class);
+        $this->expectExceptionMessage('Post 42 (project/projet) is in the trash');
+
+        $this->service->import(self::project(), new ImportOptions(source: ContentSource::Admin), targetPostId: 7);
+    }
+
+    #[Test]
+    public function a_target_that_holds_a_document_keeps_its_slug(): void
+    {
+        $this->repository->seed(ContentType::Project, 'ancien-slug', new StoredContent(42, str_repeat('0', 64), ContentSource::Git, ContentRenderer::VERSION));
+
+        $this->expectException(ImportException::class);
+        $this->expectExceptionMessage('Post 42 (project) already holds a document under another slug');
+
+        $this->service->import(self::project(), new ImportOptions(source: ContentSource::Admin), targetPostId: 42);
+    }
+
     private static function project(string $title = 'Projet', string $skills = '["4.0.2/E00", "4.0.2/E01"]'): string
     {
         return "---\ntitle: \"{$title}\"\nslug: \"projet\"\ntype: \"project\"\nstatus: \"en-cours\"\nskills: {$skills}\ntags: [php]\n---\n\n# Projet\n\nCorps.\n";

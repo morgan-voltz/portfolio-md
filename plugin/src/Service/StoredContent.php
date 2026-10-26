@@ -23,4 +23,14 @@ final readonly class StoredContent
         public bool $inTrash = false,
     ) {
     }
+
+    /**
+     * Whether the post holds a document, that is, went through the pipeline
+     * at least once. A post made by hand in the admin, or just created
+     * there and about to receive its first document, does not.
+     */
+    public function holdsDocument(): bool
+    {
+        return $this->hash !== '';
+    }
 }
