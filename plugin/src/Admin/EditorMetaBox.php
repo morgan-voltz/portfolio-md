@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Voltz\PortfolioMd\Admin;
 
 use RuntimeException;
+use Throwable;
 use Voltz\PortfolioMd\Domain\ContentSource;
 use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
@@ -119,7 +120,7 @@ final class EditorMetaBox
         try {
             $this->service->import($markdown, new ImportOptions(source: ContentSource::Admin), targetPostId: $postId);
         } catch (MalformedDocumentException | InvalidFrontmatterException | ImportException | RuntimeException $failure) {
-            $this->rememberFailure($postId, $failure->getMessage(), $markdown);
+            $this->rememberFailure($postId, self::reasonFor($failure), $markdown);
             if (!self::holdsDocument($postId)) {
                 // WordPress may just have published an empty post: nothing goes live without a document.
                 wp_update_post(['ID' => $postId, 'post_status' => 'draft']);
@@ -155,6 +156,15 @@ final class EditorMetaBox
         return self::templateFor($type, (string) wp_date('Y-m-d'));
     }
 
+    /**
+     * The transient under which a refused document waits for its author:
+     * one per post and per user, so that nobody sees another's text.
+     */
+    public static function feedbackKey(int $postId, int $userId): string
+    {
+        return self::FEEDBACK_TRANSIENT . $postId . '_' . $userId;
+    }
+
     private static function holdsDocument(int $postId): bool
     {
         $hash = get_post_meta($postId, InternalMetaRegistrar::MD_HASH, true);
@@ -162,9 +172,23 @@ final class EditorMetaBox
         return is_string($hash) && $hash !== '';
     }
 
+    /**
+     * The reason shown to the author. A refusal that names another post
+     * (slug already taken, post in the trash) is detailed only to a user
+     * who may edit that post; the others are not told which posts exist.
+     */
+    private static function reasonFor(Throwable $failure): string
+    {
+        if ($failure instanceof ImportException && $failure->otherPostId !== null && !current_user_can('edit_post', $failure->otherPostId)) {
+            return __('Ce slug est déjà pris par un autre contenu que vous ne pouvez pas modifier : donnez-en un autre à ce document.', 'portfolio-md');
+        }
+
+        return $failure->getMessage();
+    }
+
     private function rememberFailure(int $postId, string $message, string $markdown): void
     {
-        set_transient(self::feedbackKey($postId), ['message' => $message, 'markdown' => $markdown], self::FEEDBACK_TTL);
+        set_transient(self::feedbackKey($postId, get_current_user_id()), ['message' => $message, 'markdown' => $markdown], self::FEEDBACK_TTL);
     }
 
     /**
@@ -172,7 +196,7 @@ final class EditorMetaBox
      */
     private function takeFeedback(int $postId): ?array
     {
-        $key = self::feedbackKey($postId);
+        $key = self::feedbackKey($postId, get_current_user_id());
         $feedback = get_transient($key);
         if (!is_array($feedback) || !isset($feedback['message'], $feedback['markdown'])) {
             return null;
@@ -180,10 +204,5 @@ final class EditorMetaBox
         delete_transient($key);
 
         return ['message' => (string) $feedback['message'], 'markdown' => (string) $feedback['markdown']];
-    }
-
-    private static function feedbackKey(int $postId): string
-    {
-        return self::FEEDBACK_TRANSIENT . $postId . '_' . get_current_user_id();
     }
 }

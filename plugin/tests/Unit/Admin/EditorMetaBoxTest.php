@@ -38,8 +38,6 @@ final class EditorMetaBoxTest extends TestCase
 {
     private const POST_ID = 5;
 
-    private const FEEDBACK_KEY = 'portfolio_md_feedback_5_1';
-
     private const DOCUMENT = "---\ntitle: \"Article\"\nslug: \"article\"\ntype: \"article\"\ntags: [php]\n---\n\n# Article\n\nUn `C:\\chemin`.\n";
 
     private InMemoryContentRepository $repository;
@@ -111,9 +109,20 @@ final class EditorMetaBoxTest extends TestCase
 
         self::assertStringContainsString('type: &quot;project&quot;', $project);
         self::assertStringContainsString('status: &quot;en-cours&quot;', $project);
-        self::assertStringContainsString('date: ' . date('Y-m-d'), $project);
         self::assertStringContainsString('type: &quot;article&quot;', $article);
         self::assertStringNotContainsString('status:', $article);
+    }
+
+    #[Test]
+    public function dates_the_template_in_the_timezone_of_the_site(): void
+    {
+        WordPressSpy::$now = (new \DateTimeImmutable('2026-10-26T23:30:00Z'))->getTimestamp();
+
+        WordPressSpy::$timezone = new \DateTimeZone('Pacific/Kiritimati');
+        self::assertStringContainsString('date: 2026-10-27', $this->render(self::post(type: 'project')));
+
+        WordPressSpy::$timezone = new \DateTimeZone('Pacific/Niue');
+        self::assertStringContainsString('date: 2026-10-26', $this->render(self::post(type: 'project')));
     }
 
     #[Test]
@@ -133,7 +142,7 @@ final class EditorMetaBoxTest extends TestCase
     public function shows_a_refused_text_with_its_reason_once_then_the_stored_document_again(): void
     {
         WordPressSpy::$postMetaValues[self::POST_ID][InternalMetaRegistrar::MD_SOURCE] = self::DOCUMENT;
-        WordPressSpy::$transients[self::FEEDBACK_KEY] = ['message' => 'Document: no frontmatter.', 'markdown' => "pas de frontmatter\n"];
+        WordPressSpy::$transients[self::feedbackKey()] = ['message' => 'Document: no frontmatter.', 'markdown' => "pas de frontmatter\n"];
 
         $first = $this->render(self::post());
 
@@ -141,7 +150,7 @@ final class EditorMetaBoxTest extends TestCase
         self::assertStringContainsString('Document: no frontmatter.', $first);
         self::assertStringContainsString(">\npas de frontmatter\n</textarea>", $first);
         self::assertStringNotContainsString('title: &quot;Article&quot;', $first);
-        self::assertArrayNotHasKey(self::FEEDBACK_KEY, WordPressSpy::$transients);
+        self::assertArrayNotHasKey(self::feedbackKey(), WordPressSpy::$transients);
 
         $second = $this->render(self::post());
 
@@ -231,7 +240,7 @@ final class EditorMetaBoxTest extends TestCase
     #[Test]
     public function an_unchanged_document_writes_nothing(): void
     {
-        $this->repository->seed(ContentType::Article, 'article', new StoredContent(self::POST_ID, hash('sha256', self::DOCUMENT), ContentSource::Admin, ContentRenderer::VERSION));
+        $this->repository->seed(ContentType::Article, 'article', new StoredContent(self::POST_ID, hash('sha256', self::DOCUMENT), ContentSource::Admin, ContentRenderer::VERSION, documentSlug: 'article'));
         $this->submit(self::DOCUMENT);
 
         $this->box->save(self::POST_ID, self::post());
@@ -249,9 +258,9 @@ final class EditorMetaBoxTest extends TestCase
         $this->box->save(self::POST_ID, self::post(status: 'publish'));
 
         self::assertSame([], $this->repository->saved);
-        self::assertArrayHasKey(self::FEEDBACK_KEY, WordPressSpy::$transients);
-        self::assertNotSame('', WordPressSpy::$transients[self::FEEDBACK_KEY]['message']);
-        self::assertSame("pas de frontmatter\n", WordPressSpy::$transients[self::FEEDBACK_KEY]['markdown']);
+        self::assertArrayHasKey(self::feedbackKey(), WordPressSpy::$transients);
+        self::assertNotSame('', WordPressSpy::$transients[self::feedbackKey()]['message']);
+        self::assertSame("pas de frontmatter\n", WordPressSpy::$transients[self::feedbackKey()]['markdown']);
         self::assertSame([['ID' => self::POST_ID, 'post_status' => 'draft']], WordPressSpy::$updatedPosts);
     }
 
@@ -259,14 +268,32 @@ final class EditorMetaBoxTest extends TestCase
     public function leaves_the_status_of_a_post_that_holds_a_document_alone_when_refusing(): void
     {
         WordPressSpy::$postMetaValues[self::POST_ID][InternalMetaRegistrar::MD_HASH] = 'abc';
-        $this->repository->seed(ContentType::Article, 'ancien', new StoredContent(self::POST_ID, 'abc', ContentSource::Git, ContentRenderer::VERSION));
+        $this->repository->seed(ContentType::Article, 'ancien', new StoredContent(self::POST_ID, 'abc', ContentSource::Git, ContentRenderer::VERSION, documentSlug: 'ancien'));
         $this->submit(self::DOCUMENT);
 
         $this->box->save(self::POST_ID, self::post());
 
         self::assertSame([], $this->repository->saved);
-        self::assertStringContainsString('already holds a document under another slug', WordPressSpy::$transients[self::FEEDBACK_KEY]['message']);
+        self::assertStringContainsString('holds a document whose slug is "ancien" and keeps it', WordPressSpy::$transients[self::feedbackKey()]['message']);
         self::assertSame([], WordPressSpy::$updatedPosts);
+    }
+
+    #[Test]
+    public function names_the_post_that_owns_a_slug_only_to_a_user_who_may_edit_it(): void
+    {
+        $this->repository->seed(ContentType::Article, 'article', new StoredContent(42, str_repeat('0', 64), ContentSource::Git, ContentRenderer::VERSION, documentSlug: 'article'));
+        $this->repository->seed(ContentType::Article, 'coquille', new StoredContent(self::POST_ID, '', null, ''));
+        $this->submit(self::DOCUMENT);
+
+        WordPressSpy::$capabilityResults['edit_post:42'] = false;
+        $this->box->save(self::POST_ID, self::post());
+        self::assertStringNotContainsString('42', WordPressSpy::$transients[self::feedbackKey()]['message']);
+        self::assertStringContainsString('déjà pris par un autre contenu', WordPressSpy::$transients[self::feedbackKey()]['message']);
+
+        WordPressSpy::$capabilityResults['edit_post:42'] = true;
+        $this->box->save(self::POST_ID, self::post());
+        self::assertStringContainsString('already belongs to post 42', WordPressSpy::$transients[self::feedbackKey()]['message']);
+        self::assertSame([], $this->repository->saved);
     }
 
     #[Test]
@@ -320,6 +347,12 @@ final class EditorMetaBoxTest extends TestCase
     private static function post(string $status = 'publish', string $type = 'article'): WP_Post
     {
         return new WP_Post(['ID' => self::POST_ID, 'post_type' => $type, 'post_status' => $status]);
+    }
+
+    /** The transient of the stubbed user (id 1) for the post under test. */
+    private static function feedbackKey(): string
+    {
+        return EditorMetaBox::feedbackKey(self::POST_ID, WordPressSpy::$currentUserId);
     }
 
     /**

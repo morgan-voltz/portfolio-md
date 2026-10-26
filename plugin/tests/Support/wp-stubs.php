@@ -208,11 +208,16 @@ if (!function_exists('user_can')) {
 }
 
 if (!function_exists('current_user_can')) {
+    /**
+     * Answers WordPressSpy::$userCanResult, unless the test primed an answer
+     * for this capability (and first argument) in WordPressSpy::$capabilityResults.
+     */
     function current_user_can(string $capability, mixed ...$args): bool
     {
         WordPressSpy::$currentUserCanCalls[] = [$capability, ...$args];
+        $key = $capability . ($args === [] ? '' : ':' . (string) $args[0]);
 
-        return WordPressSpy::$userCanResult;
+        return WordPressSpy::$capabilityResults[$key] ?? WordPressSpy::$userCanResult;
     }
 }
 
@@ -304,9 +309,17 @@ if (!function_exists('get_permalink')) {
 }
 
 if (!function_exists('wp_date')) {
+    /**
+     * Like WordPress: the site's timezone (WordPressSpy::$timezone, UTC by
+     * default) unless one is given; "now" is WordPressSpy::$now when a test
+     * fixed it.
+     */
     function wp_date(string $format, ?int $timestamp = null, ?DateTimeZone $timezone = null): string|false
     {
-        return date($format, $timestamp ?? time());
+        $moment = (new DateTimeImmutable('@' . ($timestamp ?? WordPressSpy::$now ?? time())))
+            ->setTimezone($timezone ?? WordPressSpy::$timezone ?? new DateTimeZone('UTC'));
+
+        return $moment->format($format);
     }
 }
 

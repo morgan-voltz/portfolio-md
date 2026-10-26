@@ -40,6 +40,15 @@ final class WordPressSpy
     /** @var list<array<int, mixed>> arguments of each current_user_can() call */
     public static array $currentUserCanCalls = [];
 
+    /** @var array<string, bool> "capability" or "capability:first argument" => answer of current_user_can() */
+    public static array $capabilityResults = [];
+
+    /** The site's timezone for wp_date(); UTC when null. */
+    public static ?\DateTimeZone $timezone = null;
+
+    /** The instant wp_date() takes for "now" when a test fixed it (Unix timestamp). */
+    public static ?int $now = null;
+
     /** @var list<array{postId: int, key: string, value: mixed}> values handed to update_post_meta() */
     public static array $updatedPostMetas = [];
 
@@ -99,6 +108,9 @@ final class WordPressSpy
         self::$userCanCalls = [];
         self::$userCanResult = false;
         self::$currentUserCanCalls = [];
+        self::$capabilityResults = [];
+        self::$timezone = null;
+        self::$now = null;
         self::$updatedPostMetas = [];
         self::$postMetaValues = [];
         self::$hooks = [];
