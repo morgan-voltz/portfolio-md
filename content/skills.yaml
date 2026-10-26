@@ -1,0 +1,228 @@
+# Référentiels de compétences UHA 4.0 — grille de la taxonomie `skill` (ADR-011, ADR-014).
+#
+# Source : les étapes des consignes officielles des deux fils rouges, qui sont ce que
+# l'école valide étape par étape. Fil rouge 4.0.1 : export Confluence du 29 septembre 2025
+# (14 étapes, les trois dernières optionnelles). Fil rouge 4.0.2 : export Confluence du
+# 3 septembre 2026 (étapes 0 à 12 plus les optionnelles). Si la liste officielle des
+# compétences avec ses propres codes est un jour exportée, elle remplace cette grille ;
+# les codes ci-dessous (E = étape, O = optionnelle) sont les nôtres.
+#
+# Chaque `referential` devient un terme parent de la taxonomie `skill` (slug imposé par
+# `TaxonomyRegistrar::SKILL_REFERENTIALS`), chaque `skill` un terme enfant : `name` est
+# l'intitulé affiché, `slug` le slug WordPress sous le parent, `code` est stocké dans le
+# term meta `_portfolio_skill_code`. Les fiches projet y font référence par le code dans
+# leur frontmatter : `skills: ["4.0.2/E07", "4.0.2/E08"]`.
+
+referentials:
+  - code: "4.0.1"
+    slug: 4-0-1
+    name: "Compétences 4.0.1"
+    description: >-
+      Première année du parcours UHA 4.0 : construire un site web complet autour de
+      données tierces, du HTML/CSS à l'API PHP maison, avec Git, MySQL et un déploiement
+      scripté.
+    skills:
+      - code: "4.0.1/E01"
+        slug: e01-cadrer-un-site-autour-d-apis
+        name: "Cadrer un projet web à partir d'APIs tierces"
+        description: >-
+          Choisir un thème et deux APIs web liées (items et catégories), inventorier les
+          informations disponibles et leurs relations, rédiger un cahier des charges de
+          dix lignes et une arborescence du site.
+      - code: "4.0.1/E02"
+        slug: e02-maquette-html-css
+        name: "Structurer et styler des pages avec HTML5 et CSS3"
+        description: >-
+          Produire une maquette de deux pages qui montre comment les informations sont
+          structurées et affichées, sans encore les charger automatiquement.
+      - code: "4.0.1/E03"
+        slug: e03-afficher-une-api-cote-serveur
+        name: "Afficher les données d'une API côté serveur"
+        description: >-
+          Faire chercher par le serveur les informations de la première API et générer
+          la page HTML qui les présente.
+      - code: "4.0.1/E04"
+        slug: e04-git-et-gitlab
+        name: "Versionner avec Git et travailler par branches"
+        description: >-
+          Installer et utiliser Git, prendre en main le GitLab UHA 4.0, développer chaque
+          tâche dans une branche dédiée puis la fusionner dans la branche principale.
+      - code: "4.0.1/E05"
+        slug: e05-script-de-deploiement-bash
+        name: "Automatiser le déploiement avec un script Bash"
+        description: >-
+          Écrire un script qui télécharge ou met à jour le site sur un serveur, signale
+          les erreurs et affiche l'URL d'accès, indépendamment du dossier d'exécution.
+      - code: "4.0.1/E06"
+        slug: e06-javascript-et-dom
+        name: "Rendre une page dynamique en JavaScript"
+        description: >-
+          Consommer la deuxième API depuis le navigateur et afficher ses informations
+          dynamiquement (manipulation du DOM, fenêtres contextuelles) sans recharger la page.
+      - code: "4.0.1/E07"
+        slug: e07-modeliser-une-base-mysql
+        name: "Modéliser une base de données relationnelle"
+        description: >-
+          Concevoir le schéma (au moins quatre tables, clés primaires et étrangères),
+          l'écrire en SQL rejouable et le documenter.
+      - code: "4.0.1/E08"
+        slug: e08-stocker-les-donnees-d-apis
+        name: "Alimenter une base depuis des APIs par programme"
+        description: >-
+          Stocker les données transmises par les APIs du thème et offrir un moyen de
+          réinitialiser la base avec toutes les données de l'API.
+      - code: "4.0.1/E09"
+        slug: e09-api-php-de-lecture
+        name: "Exposer ses données par une API PHP"
+        description: >-
+          Créer une API en PHP et JSON pour servir les données de la base, puis faire
+          afficher les pages du site depuis cette API.
+      - code: "4.0.1/E10"
+        slug: e10-crud-et-formulaire-dynamique
+        name: "Implémenter un CRUD complet, de la table au formulaire"
+        description: >-
+          Ajouter une table métier, une API REST qui la crée, lit, modifie et supprime,
+          et un formulaire dynamique qui enregistre et supprime sans rechargement.
+      - code: "4.0.1/E11"
+        slug: e11-documenter-et-paginer
+        name: "Documenter le déploiement et paginer les résultats"
+        description: >-
+          Rédiger la documentation qui permet à un tiers de déployer et utiliser le site,
+          et paginer les données dans l'API comme dans les pages.
+      - code: "4.0.1/E12"
+        slug: e12-inscription-et-connexion
+        name: "Gérer l'inscription et la connexion d'un administrateur"
+        description: >-
+          Ajouter un système d'inscription et de connexion donnant accès aux pages
+          d'administration, avec le nom de l'utilisateur connecté dans l'en-tête.
+          Étape optionnelle sauf retard.
+      - code: "4.0.1/E13"
+        slug: e13-site-responsive
+        name: "Rendre un site responsive avec une bibliothèque CSS"
+        description: >-
+          Adapter l'application à tous les écrans à l'aide d'une bibliothèque CSS
+          (Bootstrap). Étape optionnelle.
+      - code: "4.0.1/E14"
+        slug: e14-frameworks-front-et-back
+        name: "Reconstruire le site avec un framework front ou back"
+        description: >-
+          Initiation aux approches avancées du web : refaire le même site avec un
+          framework front (Angular, React, Vue) ou back (Symfony, NodeJS). Étape optionnelle.
+
+  - code: "4.0.2"
+    slug: 4-0-2
+    name: "Compétences 4.0.2"
+    description: >-
+      Deuxième année du parcours UHA 4.0 : concevoir et livrer une application et son API
+      en programmation orientée objet, de la spécification UML au déploiement, avec tests,
+      ORM, interface et intégration d'un LLM.
+    skills:
+      - code: "4.0.2/E00"
+        slug: e00-specifier-un-mvp-en-uml
+        name: "Spécifier un MVP avec UML et des user stories"
+        description: >-
+          Comprendre la demande, synthétiser usagers et usages dans un diagramme de cas
+          d'usage, décomposer en user stories avec critères d'acceptation et cas de test,
+          décrire le comportement attendu en diagrammes d'activité et de séquence,
+          documenter un algorithme en pseudo-code.
+      - code: "4.0.2/E01"
+        slug: e01-classes-et-objets
+        name: "Identifier et créer des classes et leurs objets"
+        description: >-
+          Identifier les classes utiles et leurs propriétés, mettre en place
+          l'environnement de développement, instancier les objets depuis un point d'entrée.
+      - code: "4.0.2/E02"
+        slug: e02-encapsulation
+        name: "Encapsuler l'état d'un objet"
+        description: >-
+          Implémenter pour chaque classe les méthodes et propriétés utiles, exposer
+          l'état par des accesseurs et rendre impossible l'accès direct aux attributs.
+      - code: "4.0.2/E03"
+        slug: e03-heritage-et-polymorphisme
+        name: "Factoriser par héritage et prouver le polymorphisme"
+        description: >-
+          Introduire une classe mère commune aux formes, y remonter les membres partagés
+          et démontrer le polymorphisme à l'exécution.
+      - code: "4.0.2/E04"
+        slug: e04-diagramme-de-classes-uml
+        name: "Modéliser l'architecture en diagramme de classes UML"
+        description: >-
+          Représenter l'architecture du programme en diagramme de classes (PlantUML) et
+          l'intégrer à la documentation du projet.
+      - code: "4.0.2/E05"
+        slug: e05-composition-et-calculs
+        name: "Composer des objets et calculer sur la composition"
+        description: >-
+          Calculer aire et périmètre de chaque forme, concevoir une classe de composition
+          qui en contient plusieurs et agrège les totaux.
+      - code: "4.0.2/E06"
+        slug: e06-tests-unitaires
+        name: "Valider le comportement par des tests unitaires"
+        description: >-
+          Rédiger des tests explicites et complets de la classe de composition et des
+          règles métier (xUnit ou équivalent).
+      - code: "4.0.2/E07"
+        slug: e07-api-documentee
+        name: "Exposer le domaine par une API documentée"
+        description: >-
+          Créer une API donnant accès aux éléments d'une composition et à la gestion de
+          plusieurs compositions, et la documenter.
+      - code: "4.0.2/E08"
+        slug: e08-persistance-par-orm
+        name: "Persister et restaurer les données avec un ORM"
+        description: >-
+          Sauvegarder les compositions et leurs éléments en base via un ORM (EF Core ou
+          équivalent), les restaurer, documenter l'accès aux données.
+      - code: "4.0.2/E09"
+        slug: e09-deploiement-serveur
+        name: "Déployer l'API et sa base sur un serveur"
+        description: >-
+          Héberger l'API et les données dans un SGBD pérenne sur les serveurs disponibles
+          et documenter la mise en production.
+      - code: "4.0.2/E10"
+        slug: e10-serveur-mcp-et-chatbot
+        name: "Brancher un LLM sur l'application via un serveur MCP"
+        description: >-
+          Ajouter un serveur MCP permettant à un LLM d'interroger l'application et ses
+          données à travers un client MCP, jusqu'à un chatbot.
+      - code: "4.0.2/E11"
+        slug: e11-interface-utilisateur
+        name: "Offrir une interface utilisateur sur l'API"
+        description: >-
+          Créer une interface qui exploite l'API et met en forme les fonctionnalités pour
+          qu'un utilisateur non aguerri puisse produire des compositions.
+      - code: "4.0.2/E12"
+        slug: e12-soutenance-et-presentation
+        name: "Présenter et défendre un projet technique"
+        description: >-
+          Présenter un concept abordé pendant la formation et soutenir le fil rouge à l'oral.
+      - code: "4.0.2/O01"
+        slug: o01-formes-3d-et-volumes
+        name: "Étendre le modèle à la 3D et aux volumes"
+        description: >-
+          Ajouter une notion de 3D aux formes, calculer leur volume et le total des
+          volumes d'une composition. Optionnelle.
+      - code: "4.0.2/O02"
+        slug: o02-design-patterns
+        name: "Mettre en œuvre des design patterns"
+        description: >-
+          Implémenter et justifier un ou plusieurs design patterns objets au sein du
+          projet. Optionnelle.
+      - code: "4.0.2/O03"
+        slug: o03-interface-graphique
+        name: "Construire une interface graphique riche"
+        description: >-
+          Utiliser une bibliothèque graphique pour une interface attractive de
+          l'application. Optionnelle.
+      - code: "4.0.2/O04"
+        slug: o04-edition-temps-reel
+        name: "Permettre l'édition simultanée par plusieurs utilisateurs"
+        description: >-
+          Faire éditer une même composition par plusieurs utilisateurs en temps réel.
+          Optionnelle.
+      - code: "4.0.2/O05"
+        slug: o05-amelioration-personnelle
+        name: "Proposer et livrer une amélioration conséquente"
+        description: >-
+          Proposer à l'équipe pédagogique une amélioration substantielle de l'application
+          et l'implémenter. Optionnelle.
