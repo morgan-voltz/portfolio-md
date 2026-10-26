@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Voltz\PortfolioMd\Parsing;
 
 use League\CommonMark\Environment\Environment;
+use League\CommonMark\Exception\UnexpectedEncodingException;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\CommonMark\Node\Block\FencedCode;
 use League\CommonMark\Extension\CommonMark\Node\Block\IndentedCode;
@@ -25,6 +26,10 @@ use League\CommonMark\Util\HtmlFilter;
  *
  * Pure PHP, no WordPress. The HTML produced here knows nothing about
  * Gutenberg: that is GutenbergTransformer's job.
+ *
+ * The library refuses a body that is not valid UTF-8 (a stray Windows-1252
+ * byte is enough); that refusal is translated into the pipeline's own
+ * MalformedDocumentException so that callers see one family of errors.
  */
 final class MarkdownParser
 {
@@ -53,8 +58,15 @@ final class MarkdownParser
         $this->converter = new MarkdownConverter($environment);
     }
 
+    /**
+     * @throws MalformedDocumentException when the Markdown is not valid UTF-8
+     */
     public function render(string $markdown): string
     {
-        return $this->converter->convert($markdown)->getContent();
+        try {
+            return $this->converter->convert($markdown)->getContent();
+        } catch (UnexpectedEncodingException) {
+            throw MalformedDocumentException::invalidEncoding();
+        }
     }
 }

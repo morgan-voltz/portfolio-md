@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Voltz\PortfolioMd\Parsing\HighlightedCodeRenderer;
+use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
 use Voltz\PortfolioMd\Parsing\MarkdownParser;
 
 #[CoversClass(MarkdownParser::class)]
@@ -69,6 +70,28 @@ final class MarkdownParserTest extends TestCase
             "<pre><code class=\"language-nosuchlang\">x &lt; y\n</code></pre>\n",
             $this->parser->render("```nosuchlang\nx < y\n```\n"),
         );
+    }
+
+    #[Test]
+    public function leaves_an_oversized_block_plain_with_its_language_class(): void
+    {
+        $line = "\$total = \$total + 1; // une ligne\n";
+        $code = str_repeat($line, intdiv(HighlightedCodeRenderer::MAX_HIGHLIGHT_BYTES, strlen($line)) + 1);
+
+        $html = $this->parser->render("```php\n{$code}```\n");
+
+        self::assertStringStartsWith('<pre><code class="language-php">', $html);
+        self::assertStringNotContainsString('<span class="hljs-', $html);
+        self::assertStringContainsString('$total = $total + 1; // une ligne', $html);
+    }
+
+    #[Test]
+    public function refuses_text_that_is_not_utf8(): void
+    {
+        $this->expectException(MalformedDocumentException::class);
+        $this->expectExceptionMessage('not valid UTF-8');
+
+        $this->parser->render('Une apostrophe Windows-1252 : l' . chr(0x92) . "apostrophe.\n");
     }
 
     #[Test]

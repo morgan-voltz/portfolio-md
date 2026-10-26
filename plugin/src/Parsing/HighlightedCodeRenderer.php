@@ -30,11 +30,19 @@ use Stringable;
  *
  * The highlighter loads its language definitions on first use, so building
  * the parser stays cheap for requests that never render Markdown.
+ *
+ * Highlighting time grows faster than the size of the block (about
+ * quadratically with most grammars: 64 KiB of C# take close to a second,
+ * 256 KiB more than ten), so a block above MAX_HIGHLIGHT_BYTES is rendered
+ * plain, with its language class, instead of tying the process up.
  */
 final class HighlightedCodeRenderer implements NodeRendererInterface
 {
     /** Info words accepted as a language name; anything else means "no language". */
     private const LANGUAGE_PATTERN = '/^[a-z0-9][a-z0-9_+#.-]{0,39}$/';
+
+    /** Largest block that gets colours (32 KiB, under a quarter of a second with the slowest grammar measured). */
+    public const MAX_HIGHLIGHT_BYTES = 32768;
 
     private ?Highlighter $highlighter = null;
 
@@ -49,6 +57,10 @@ final class HighlightedCodeRenderer implements NodeRendererInterface
 
         if ($language === null) {
             return self::block([], Xml::escape($code));
+        }
+
+        if (strlen($code) > self::MAX_HIGHLIGHT_BYTES) {
+            return self::block(['class' => 'language-' . $language], Xml::escape($code));
         }
 
         try {
