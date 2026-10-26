@@ -104,6 +104,7 @@ final class SkillsGridLoaderTest extends TestCase
         yield 'skill code shape' => [['referentials' => [0 => ['skills' => [0 => ['code' => 'FR-01']]]]], 'must look like 4.0.1/FR-01'];
         yield 'skill outside its referential' => [['referentials' => [0 => ['skills' => [0 => ['code' => '4.0.2/FR-01']]]]], 'does not belong to referential 4.0.1'];
         yield 'skill slug shape' => [['referentials' => [0 => ['skills' => [0 => ['slug' => 'FR 01']]]]], 'is not a slug'];
+        yield 'skill slug too long for WordPress' => [['referentials' => [0 => ['skills' => [0 => ['slug' => str_repeat('a', 201)]]]]], 'at most 200'];
         yield 'missing name' => [['referentials' => [0 => ['skills' => [0 => ['name' => '']]]]], '"name" must be a non-empty string'];
     }
 

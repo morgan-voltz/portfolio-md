@@ -84,6 +84,15 @@ final class FrontmatterParserTest extends TestCase
     }
 
     #[Test]
+    public function a_bare_impossible_date_without_zero_padding_is_rejected_too(): void
+    {
+        $this->expectException(InvalidFrontmatterException::class);
+        $this->expectExceptionMessage('2026-2-30 is not a calendar date');
+
+        $this->parser->parse("---\ntitle: x\nslug: x\ntype: project\nstatus: stable\nperiod_start: 2026-2-30\n---\n");
+    }
+
+    #[Test]
     public function a_quoted_impossible_date_is_rejected_too(): void
     {
         $this->expectException(InvalidFrontmatterException::class);
