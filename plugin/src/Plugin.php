@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Voltz\PortfolioMd;
 
+use Voltz\PortfolioMd\Meta\CommonMetaRegistrar;
+use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
+use Voltz\PortfolioMd\Meta\ProjectMetaRegistrar;
 use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
 use Voltz\PortfolioMd\Taxonomies\TaxonomyRegistrar;
-use Voltz\PortfolioMd\Meta\CommonMetaRegistrar;
 
 /**
  * Composition root du plugin Portfolio MD.
@@ -45,6 +47,16 @@ final class Plugin
      */
     private CommonMetaRegistrar $commonMetaRegistrar;
 
+    /**
+     * Service responsable de l'enregistrement des meta spécifiques aux projets.
+     */
+    private ProjectMetaRegistrar $projectMetaRegistrar;
+
+    /**
+     * Service responsable de l'enregistrement des meta internes du plugin.
+     */
+    private InternalMetaRegistrar $internalMetaRegistrar;
+
     public function __construct(string $pluginFile)
     {
         $this->pluginFile = $pluginFile;
@@ -55,6 +67,8 @@ final class Plugin
         $this->postTypeRegistrar = new PostTypeRegistrar();
         $this->taxonomyRegistrar = new TaxonomyRegistrar();
         $this->commonMetaRegistrar = new CommonMetaRegistrar();
+        $this->projectMetaRegistrar = new ProjectMetaRegistrar();
+        $this->internalMetaRegistrar = new InternalMetaRegistrar();
     }
 
     /**
@@ -62,15 +76,17 @@ final class Plugin
      */
     public function boot(): void
     {
-        // Hook 'init' : on enregistre les post types ET les taxonomies à ce
-        // moment. L'ordre d'enregistrement n'a pas d'importance dans le hook
-        // 'init' lui-même : WordPress résout la liaison post_type<->taxonomy
-        // après que tous les hooks 'init' ont été exécutés.
-        // Les deux registrars utilisent priority=10 (défaut), ce qui signifie
+        // Hook 'init' : on enregistre les post types, les taxonomies ET les
+        // metas à ce moment. L'ordre d'enregistrement n'a pas d'importance
+        // dans le hook 'init' lui-même : WordPress résout la liaison
+        // post_type<->taxonomy après que tous les hooks 'init' ont été exécutés.
+        // Tous les registrars utilisent priority=10 (défaut), ce qui signifie
         // qu'ils sont appelés dans l'ordre où ils ont été enregistrés ici.
         add_action('init', [$this->postTypeRegistrar, 'register']);
         add_action('init', [$this->taxonomyRegistrar, 'register']);
         add_action('init', [$this->commonMetaRegistrar, 'register']);
+        add_action('init', [$this->projectMetaRegistrar, 'register']);
+        add_action('init', [$this->internalMetaRegistrar, 'register']);
 
         // Hooks de cycle de vie du plugin (activation, désactivation).
         register_activation_hook($this->pluginFile, [$this, 'onActivation']);
@@ -82,21 +98,25 @@ final class Plugin
      * des extensions WordPress.
      *
      * Trois étapes :
-     *   1. Enregistrer post types et taxonomies (sinon les rewrite rules
-     *      flushées juste après n'incluraient pas les nouvelles URLs).
-     *   2. Insérer les termes fermés de project_status (En cours, Stable, etc.).
+     *   1. Enregistrer post types, taxonomies et metas (sinon les rewrite
+     *      rules flushées juste après n'incluraient pas les nouvelles URLs).
+     *   2. Insérer les termes fermés : statuts de projet et référentiels
+     *      de compétences.
      *   3. Flush les rewrite rules pour que les URLs /articles/, /projets/,
-     *      /tag/, /statut/ soient reconnues immédiatement.
+     *      /tag/, /statut/, /competences/ soient reconnues immédiatement.
      */
     public function onActivation(): void
     {
         $this->postTypeRegistrar->register();
         $this->taxonomyRegistrar->register();
         $this->taxonomyRegistrar->ensureProjectStatusTerms();
+        $this->taxonomyRegistrar->ensureSkillReferentialTerms();
 
         // Les meta n'ont pas d'impact sur les rewrite rules, mais on les enregistre
         // par cohérence avec les autres services.
         $this->commonMetaRegistrar->register();
+        $this->projectMetaRegistrar->register();
+        $this->internalMetaRegistrar->register();
 
         flush_rewrite_rules();
     }
