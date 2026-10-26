@@ -7,10 +7,12 @@ namespace Voltz\PortfolioMd\Tests\Unit\Service;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Voltz\PortfolioMd\Domain\Referential;
 use Voltz\PortfolioMd\Domain\Skill;
 use Voltz\PortfolioMd\Domain\SkillsGrid;
 use Voltz\PortfolioMd\Parsing\SkillsGridLoader;
+use Voltz\PortfolioMd\Service\SkillTermGateway;
 use Voltz\PortfolioMd\Service\SkillTermRecord;
 use Voltz\PortfolioMd\Service\SkillTermSynchronizer;
 use Voltz\PortfolioMd\Service\SyncReport;
@@ -52,7 +54,7 @@ final class SkillTermSynchronizerTest extends TestCase
 
         self::assertSame(5, $report->createdCount());
         self::assertSame(0, $report->updatedCount());
-        self::assertSame('5 created, 0 updated, 0 unchanged, 0 orphan(s)', $report->summary());
+        self::assertSame('5 created, 0 updated, 0 re-coded, 0 unchanged, 0 orphan(s)', $report->summary());
 
         $parent = $this->terms->findBySlug('4-0-1', 0);
         self::assertNotNull($parent);
@@ -76,6 +78,7 @@ final class SkillTermSynchronizerTest extends TestCase
         self::assertSame(0, $report->createdCount());
         self::assertSame(0, $report->updatedCount());
         self::assertSame(5, $report->unchangedCount());
+        self::assertSame(0, $report->orphanCount());
         self::assertCount($writesAfterFirstRun, $this->terms->writes);
     }
 
@@ -106,6 +109,31 @@ final class SkillTermSynchronizerTest extends TestCase
     }
 
     #[Test]
+    public function a_renamed_referential_slug_is_an_update_found_by_code_not_a_duplicate(): void
+    {
+        $this->synchronizer->synchronize(self::grid());
+        $before = $this->terms->findByCode('4.0.1');
+
+        $renamed = new SkillsGrid([
+            new Referential('4.0.1', 'competences-4-0-1', 'Compétences 4.0.1', 'Première année.', [
+                new Skill('4.0.1/FR-01', 'fr-01-outils', 'Utiliser des outils collaboratifs', 'Découverte.'),
+                new Skill('4.0.1/FR-02', 'fr-02-maquettes', 'Créer des maquettes', 'Maquette.'),
+            ]),
+            new Referential('4.0.2', '4-0-2', 'Compétences 4.0.2', 'Deuxième année.', [
+                new Skill('4.0.2/E07', 'e07-api', 'Exposer une API', 'Étape 7.'),
+            ]),
+        ]);
+
+        $report = $this->synchronizer->synchronize($renamed);
+
+        self::assertSame(0, $report->createdCount());
+        self::assertSame(1, $report->updatedCount());
+        self::assertSame($before?->id, $this->terms->findByCode('4.0.1')?->id);
+        self::assertSame('competences-4-0-1', $this->terms->findByCode('4.0.1')?->slug);
+        self::assertCount(5, $this->terms->all(), 'no duplicate top-level term');
+    }
+
+    #[Test]
     public function finds_a_child_by_slug_when_it_has_no_code_yet_and_gives_it_one(): void
     {
         $parent = $this->terms->seed('Compétences 4.0.1', '4-0-1', 'Première année.', 0, null);
@@ -115,21 +143,41 @@ final class SkillTermSynchronizerTest extends TestCase
 
         self::assertSame(3, $report->createdCount());
         self::assertSame(2, $report->updatedCount(), 'parent and child both gain their code');
+        self::assertSame(0, $report->recodedCount());
         self::assertSame('4.0.1/FR-01', $this->terms->findBySlug('fr-01-outils', $parent->id)?->code);
     }
 
     #[Test]
-    public function reports_terms_absent_from_the_grid_as_orphans_without_deleting_them(): void
+    public function a_term_matched_by_slug_that_carried_another_code_is_reported_as_recoded(): void
+    {
+        $parent = $this->terms->seed('Compétences 4.0.1', '4-0-1', 'Première année.', 0, '4.0.1');
+        $this->terms->seed('Ancien intitulé', 'fr-01-outils', 'Ancien.', $parent->id, '4.0.1/OLD-01');
+
+        $report = $this->synchronizer->synchronize(self::grid());
+
+        self::assertSame(1, $report->recodedCount());
+        self::assertSame(0, $report->orphanCount(), 'the re-coded term is claimed, not orphaned');
+        self::assertStringContainsString('re-coded skill 4.0.1/FR-01', $report->lines()[0]);
+        self::assertStringContainsString('(was 4.0.1/OLD-01)', $report->lines()[0]);
+        self::assertSame('4.0.1/FR-01', $this->terms->findBySlug('fr-01-outils', $parent->id)?->code);
+    }
+
+    #[Test]
+    public function reports_every_unclaimed_term_as_an_orphan_without_deleting_it(): void
     {
         $this->synchronizer->synchronize(self::grid());
         $parent = $this->terms->findBySlug('4-0-1', 0);
         $this->terms->seed('Ancienne compétence', 'fr-99-ancienne', 'Retirée.', $parent->id, '4.0.1/FR-99');
+        $this->terms->seed('Ancien référentiel', '4-0-0', 'Retiré.', 0, '4.0.0');
+        $this->terms->seed('Terme sans code', 'sans-code', 'Créé à la main.', $parent->id, null);
 
         $report = $this->synchronizer->synchronize(self::grid());
 
-        self::assertSame(1, $report->orphanCount());
-        self::assertStringContainsString('4.0.1/FR-99', $report->lines()[0]);
-        self::assertNotNull($this->terms->findByCode('4.0.1/FR-99'));
+        self::assertSame(3, $report->orphanCount());
+        self::assertStringContainsString('4.0.1/FR-99', implode("\n", $report->lines()));
+        self::assertStringContainsString('4.0.0', implode("\n", $report->lines()));
+        self::assertStringContainsString('no code', implode("\n", $report->lines()));
+        self::assertCount(8, $this->terms->all(), 'nothing deleted');
     }
 
     #[Test]
@@ -146,6 +194,67 @@ final class SkillTermSynchronizerTest extends TestCase
     }
 
     #[Test]
+    public function dry_run_never_looks_for_children_under_a_parent_that_does_not_exist_yet(): void
+    {
+        // A top-level term that happens to carry a child's slug must not be mistaken for that child.
+        $this->terms->seed('Homonyme au niveau racine', 'fr-01-outils', 'Pas une compétence.', 0, null);
+
+        $report = $this->synchronizer->synchronize(self::grid(), dryRun: true);
+
+        self::assertSame(5, $report->createdCount());
+        self::assertSame(0, $report->updatedCount());
+        self::assertSame(1, $report->orphanCount(), 'the homonym is unclaimed');
+    }
+
+    #[Test]
+    public function a_term_the_store_refuses_is_reported_and_the_run_continues(): void
+    {
+        $refusing = new class ($this->terms) implements SkillTermGateway {
+            public function __construct(private readonly InMemorySkillTermGateway $inner)
+            {
+            }
+
+            public function findByCode(string $code): ?SkillTermRecord
+            {
+                return $this->inner->findByCode($code);
+            }
+
+            public function findBySlug(string $slug, int $parentId): ?SkillTermRecord
+            {
+                return $this->inner->findBySlug($slug, $parentId);
+            }
+
+            public function insert(string $name, string $slug, string $description, int $parentId, ?string $code): SkillTermRecord
+            {
+                if ($slug === 'fr-02-maquettes') {
+                    throw new RuntimeException('refused by the store');
+                }
+
+                return $this->inner->insert($name, $slug, $description, $parentId, $code);
+            }
+
+            public function update(int $termId, string $name, string $slug, string $description, int $parentId, ?string $code): SkillTermRecord
+            {
+                return $this->inner->update($termId, $name, $slug, $description, $parentId, $code);
+            }
+
+            public function all(): array
+            {
+                return $this->inner->all();
+            }
+        };
+
+        $report = (new SkillTermSynchronizer($refusing))->synchronize(self::grid());
+
+        self::assertSame(1, $report->failedCount());
+        self::assertTrue($report->hasFailures());
+        self::assertStringContainsString('FAILED skill 4.0.1/FR-02', implode("\n", $report->lines()));
+        self::assertStringContainsString('1 FAILED', $report->summary());
+        self::assertNotNull($this->terms->findByCode('4.0.2/E07'), 'later terms are still synchronized');
+        self::assertCount(4, $this->terms->all());
+    }
+
+    #[Test]
     public function synchronizes_the_real_grid_twice_without_drift(): void
     {
         $grid = (new SkillsGridLoader())->load(self::GRID_FILE);
@@ -154,7 +263,7 @@ final class SkillTermSynchronizerTest extends TestCase
         $second = $this->synchronizer->synchronize($grid);
 
         self::assertSame(count($grid->referentials) + $grid->countSkills(), $first->createdCount());
-        self::assertSame(0, $second->createdCount() + $second->updatedCount() + $second->orphanCount());
+        self::assertSame(0, $second->createdCount() + $second->updatedCount() + $second->recodedCount() + $second->orphanCount() + $second->failedCount());
         self::assertCount(count($grid->referentials) + $grid->countSkills(), $this->terms->all());
     }
 }

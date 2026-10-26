@@ -120,6 +120,32 @@ final class SkillsGridLoaderTest extends TestCase
     }
 
     #[Test]
+    public function rejects_a_slug_reused_across_referentials(): void
+    {
+        $grid = self::grid();
+        $grid['referentials'][] = [
+            'code' => '4.0.2', 'slug' => '4-0-2', 'name' => 'Compétences 4.0.2', 'description' => 'Deuxième année.',
+            'skills' => [['code' => '4.0.2/E01', 'slug' => 'fr-01-outils', 'name' => 'n', 'description' => 'd']],
+        ];
+
+        $this->expectException(InvalidSkillsGridException::class);
+        $this->expectExceptionMessage('unique across the whole taxonomy');
+
+        $this->loader->fromArray($grid);
+    }
+
+    #[Test]
+    public function rejects_a_skill_slug_equal_to_a_referential_slug(): void
+    {
+        $grid = self::grid(['referentials' => [0 => ['skills' => [0 => ['slug' => '4-0-1']]]]]);
+
+        $this->expectException(InvalidSkillsGridException::class);
+        $this->expectExceptionMessage('used twice');
+
+        $this->loader->fromArray($grid);
+    }
+
+    #[Test]
     public function rejects_an_empty_referential_list(): void
     {
         $this->expectException(InvalidSkillsGridException::class);

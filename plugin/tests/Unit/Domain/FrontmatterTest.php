@@ -159,4 +159,22 @@ final class FrontmatterTest extends TestCase
 
         Frontmatter::fromArray(['title' => 'x', 'slug' => 'x', 'type' => 'article', 'reading_time' => -1]);
     }
+
+    #[Test]
+    public function a_reading_time_above_the_shared_bound_is_rejected(): void
+    {
+        $this->expectException(InvalidFrontmatterException::class);
+        $this->expectExceptionMessage('between 0 and 240');
+
+        Frontmatter::fromArray(['title' => 'x', 'slug' => 'x', 'type' => 'article', 'reading_time' => Frontmatter::READING_TIME_MAX_MINUTES + 1]);
+    }
+
+    #[Test]
+    public function a_date_time_with_an_offset_keeps_its_calendar_day_at_midnight_utc(): void
+    {
+        $fm = Frontmatter::fromArray(self::project(['period_end' => new DateTimeImmutable('2026-10-26T01:00:00+02:00')]));
+
+        self::assertSame('2026-10-26 00:00:00 UTC', $fm->periodEnd?->format('Y-m-d H:i:s e'));
+        self::assertSame('UTC', $fm->periodStart?->getTimezone()->getName(), 'the string branch uses the same timezone');
+    }
 }

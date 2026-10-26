@@ -75,6 +75,32 @@ final class FrontmatterParserTest extends TestCase
     }
 
     #[Test]
+    public function a_bare_impossible_date_is_rejected_instead_of_rolling_over(): void
+    {
+        $this->expectException(InvalidFrontmatterException::class);
+        $this->expectExceptionMessage('invalid value for "period_start": 2026-02-30 is not a calendar date');
+
+        $this->parser->parse("---\ntitle: x\nslug: x\ntype: project\nstatus: stable\nperiod_start: 2026-02-30\n---\n");
+    }
+
+    #[Test]
+    public function a_quoted_impossible_date_is_rejected_too(): void
+    {
+        $this->expectException(InvalidFrontmatterException::class);
+        $this->expectExceptionMessage('period_end');
+
+        $this->parser->parse("---\ntitle: x\nslug: x\ntype: project\nstatus: stable\nperiod_end: \"2026-02-30\"\n---\n");
+    }
+
+    #[Test]
+    public function a_bare_date_time_is_reduced_to_its_calendar_day(): void
+    {
+        $document = $this->parser->parse("---\ntitle: x\nslug: x\ntype: page\ndate: 2026-10-26T23:30:00+02:00\n---\n");
+
+        self::assertSame('2026-10-26 00:00:00 UTC', $document->frontmatter->date?->format('Y-m-d H:i:s e'));
+    }
+
+    #[Test]
     public function tolerates_windows_line_endings_and_a_byte_order_mark(): void
     {
         $document = $this->parser->parse("\xEF\xBB\xBF---\r\ntitle: x\r\nslug: x\r\ntype: page\r\n---\r\nBody\r\n");
