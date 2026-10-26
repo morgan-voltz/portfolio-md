@@ -17,18 +17,23 @@ use WP_Post;
  * at every save. Every native control that would let the same things be
  * edited next to the document is therefore taken away, so that nothing
  * drifts from the Markdown behind its back. The block editor is turned off
- * (the classic screen hosts the Markdown box), the content editor and the
- * permalink editor are not shown, the slug and taxonomy boxes are removed,
- * and Quick Edit and Bulk Edit are withdrawn from the lists. The publish
- * box (status, visibility, date), the author box, the featured image of a
- * project, the revisions and the custom fields box stay.
+ * (the classic screen hosts the Markdown box), the title field and the
+ * content editor are not shown, the permalink editor is blanked, the slug
+ * and taxonomy boxes are removed, and Quick Edit and Bulk Edit are
+ * withdrawn from the lists. The publish box (status, visibility, date),
+ * the author box, the featured image of a project, the revisions and the
+ * custom fields box stay.
  *
- * The content editor is removed from the edit screens only, not from the
- * post types: their REST representation keeps its `content` field.
+ * The title field and the content editor are removed from the edit screens
+ * only, not from the post types: their REST representation keeps its
+ * `title` and `content` fields.
  */
 final class EditScreen
 {
     private const POST_TYPES = [PostTypeRegistrar::ARTICLE, PostTypeRegistrar::PROJECT];
+
+    /** Post type features whose screen controls the document replaces. */
+    private const SCREEN_FEATURES = ['editor', 'title'];
 
     /** Core meta boxes that duplicate frontmatter fields, with the context they are registered in. */
     private const META_BOXES = [
@@ -42,7 +47,6 @@ final class EditScreen
     {
         add_filter('use_block_editor_for_post_type', [$this, 'useBlockEditor'], 10, 2);
         add_filter('get_sample_permalink_html', [$this, 'permalinkHtml'], 10, 5);
-        add_filter('enter_title_here', [$this, 'titlePlaceholder'], 10, 2);
         add_filter('post_row_actions', [$this, 'rowActions'], 10, 2);
         add_action('load-post.php', [$this, 'trimCurrentScreen']);
         add_action('load-post-new.php', [$this, 'trimCurrentScreen']);
@@ -64,18 +68,14 @@ final class EditScreen
         return self::handles($postType) ? false : $useBlockEditor;
     }
 
-    /** Filter `get_sample_permalink_html`: the slug comes from the document and is not edited under the title. */
+    /**
+     * Filter `get_sample_permalink_html`: the slug comes from the document
+     * and is not edited under the title (which the screen no longer shows;
+     * the filter also covers the ajax path that refreshes that box).
+     */
     public function permalinkHtml(string $html, int $postId, ?string $newTitle, ?string $newSlug, ?WP_Post $post): string
     {
         return $post !== null && self::handles($post->post_type) ? '' : $html;
-    }
-
-    /** Filter `enter_title_here`: the title field is filled from the document at each save. */
-    public function titlePlaceholder(string $text, WP_Post $post): string
-    {
-        return self::handles($post->post_type)
-            ? __('Le titre vient de la ligne « title » du document Markdown', 'portfolio-md')
-            : $text;
     }
 
     /**
@@ -119,8 +119,10 @@ final class EditScreen
     }
 
     /**
-     * The content editor is the document's job. Removing the support here,
-     * once the screen is known, leaves the post type itself untouched.
+     * The title and the content are the document's job. Removing the
+     * supports here, once the screen is known, leaves the post type itself
+     * untouched; WordPress then keeps the stored title when the form comes
+     * back without one.
      */
     public function trimScreen(string $postType): void
     {
@@ -128,7 +130,9 @@ final class EditScreen
             return;
         }
 
-        remove_post_type_support($postType, 'editor');
+        foreach (self::SCREEN_FEATURES as $feature) {
+            remove_post_type_support($postType, $feature);
+        }
     }
 
     /** Action `add_meta_boxes`, after core registered its own boxes. */
