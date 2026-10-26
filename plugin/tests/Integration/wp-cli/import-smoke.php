@@ -183,12 +183,21 @@ try {
 
     $content = $post->post_content;
     $check('the content starts with a heading block', str_starts_with($content, "<!-- wp:heading {\"level\":1} -->\n<h1 class=\"wp-block-heading\">Titre</h1>"));
-    $check('the code block carries its classes on the pre and escapes brackets', str_contains($content, '<!-- wp:code {"className":"hljs language-php"} -->') && str_contains($content, '&#91;0]'));
+    // kses writes numeric entities on three digits: the "[" escaped as &#91; is stored as &#091;.
+    // The highlighter wraps the "0" in a span of its own, hence the partial match.
+    $check('the code block carries its classes on the pre and escapes brackets', str_contains($content, '<!-- wp:code {"className":"hljs language-php"} -->') && str_contains($content, '$tableau&#091;<span class="hljs-number">0</span>];'));
     $check('the backslashes of inline code survived', str_contains($content, '<code>C:\chemin\fichier</code>'));
     $check('the task list is kept as raw HTML with its checkboxes', str_contains($content, '<!-- wp:html -->') && substr_count($content, 'type="checkbox"') === 2);
     $check('table, quote, separator and image blocks are there', str_contains($content, '<!-- wp:table') && str_contains($content, '<!-- wp:quote') && str_contains($content, '<!-- wp:separator') && str_contains($content, '<!-- wp:image'));
-    $check('kses left the rendered HTML untouched', $content === $renderer->render($frontmatterParser->parse($article)->body));
-    $check('parse_blocks() reads the content as blocks only', !in_array(null, array_column(parse_blocks($content), 'blockName'), true));
+
+    // kses normalises two things it leaves otherwise intact: numeric entities get three digits
+    // and a self-closing tag gets a space before its slash. Once undone, nothing else may differ.
+    $normalised = str_replace(['&#091;', ' />'], ['&#91;', '/>'], $content);
+    $check('kses stripped nothing from the rendered HTML', $normalised === $renderer->render($frontmatterParser->parse($article)->body));
+
+    // The block parser reports the blank lines between blocks as nameless freeform blocks; nothing else may be nameless.
+    $freeform = array_filter(parse_blocks($content), static fn (array $block): bool => $block['blockName'] === null && trim($block['innerHTML']) !== '');
+    $check('parse_blocks() reads the content as blocks only', $freeform === []);
 
     $check('the Markdown is stored verbatim', $meta($articleId, InternalMetaRegistrar::MD_SOURCE) === $article);
     $check('the hash is the SHA-256 of the Markdown', $meta($articleId, InternalMetaRegistrar::MD_HASH) === hash('sha256', $article));
