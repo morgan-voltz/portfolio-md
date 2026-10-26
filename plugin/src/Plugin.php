@@ -77,11 +77,11 @@ final class Plugin
     public function boot(): void
     {
         // Hook 'init' : on enregistre les post types, les taxonomies ET les
-        // metas à ce moment. L'ordre d'enregistrement n'a pas d'importance
-        // dans le hook 'init' lui-même : WordPress résout la liaison
-        // post_type<->taxonomy après que tous les hooks 'init' ont été exécutés.
-        // Tous les registrars utilisent priority=10 (défaut), ce qui signifie
-        // qu'ils sont appelés dans l'ordre où ils ont été enregistrés ici.
+        // metas à ce moment, dans l'ordre sûr recommandé par WordPress :
+        // les post types d'abord, puis les taxonomies qui s'y attachent,
+        // puis les metas. Tous les registrars utilisent priority=10 (défaut),
+        // ce qui signifie qu'ils sont appelés dans l'ordre où ils ont été
+        // enregistrés ici.
         add_action('init', [$this->postTypeRegistrar, 'register']);
         add_action('init', [$this->taxonomyRegistrar, 'register']);
         add_action('init', [$this->commonMetaRegistrar, 'register']);
