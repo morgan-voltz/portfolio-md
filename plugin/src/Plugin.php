@@ -4,13 +4,22 @@ declare(strict_types=1);
 
 namespace Voltz\PortfolioMd;
 
+use Voltz\PortfolioMd\Cli\ImportCommand;
 use Voltz\PortfolioMd\Cli\SkillsCommand;
 use Voltz\PortfolioMd\Meta\CommonMetaRegistrar;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
 use Voltz\PortfolioMd\Meta\ProjectMetaRegistrar;
+use Voltz\PortfolioMd\Parsing\ContentRenderer;
+use Voltz\PortfolioMd\Parsing\FrontmatterParser;
+use Voltz\PortfolioMd\Parsing\GutenbergTransformer;
+use Voltz\PortfolioMd\Parsing\MarkdownParser;
 use Voltz\PortfolioMd\Parsing\SkillsGridLoader;
 use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
+use Voltz\PortfolioMd\Service\ConflictResolver;
+use Voltz\PortfolioMd\Service\ContentImportService;
 use Voltz\PortfolioMd\Service\SkillTermSynchronizer;
+use Voltz\PortfolioMd\Service\SystemClock;
+use Voltz\PortfolioMd\Storage\WordPressContentRepository;
 use Voltz\PortfolioMd\Storage\WordPressSkillTermGateway;
 use Voltz\PortfolioMd\Taxonomies\TaxonomyRegistrar;
 
@@ -107,14 +116,29 @@ final class Plugin
      *
      * Les services sont assemblés ici, comme les registrars : la commande
      * elle-même ne fait que traduire les arguments et afficher le rapport.
-     * Le graphe est explicite : loader YAML (Parsing) → synchroniseur
-     * (Service) → passerelle de termes WordPress (Storage).
+     * Les graphes sont explicites : loader YAML (Parsing) → synchroniseur
+     * (Service) → passerelle de termes WordPress (Storage) pour les
+     * compétences ; parseur de frontmatter + rendu Markdown → Gutenberg
+     * (Parsing) → service d'import (Service) → dépôt de posts et passerelle
+     * de termes (Storage) pour l'import. Tout est bon marché à construire :
+     * le colorateur syntaxique ne charge ses grammaires qu'au premier rendu.
      */
     private function registerCliCommands(): void
     {
         \WP_CLI::add_command('portfolio skills', new SkillsCommand(
             new SkillsGridLoader(),
             new SkillTermSynchronizer(new WordPressSkillTermGateway()),
+        ));
+
+        \WP_CLI::add_command('portfolio import', new ImportCommand(
+            new ContentImportService(
+                new FrontmatterParser(),
+                new ContentRenderer(new MarkdownParser(), new GutenbergTransformer()),
+                new WordPressContentRepository(),
+                new WordPressSkillTermGateway(),
+                new ConflictResolver(),
+                new SystemClock(),
+            ),
         ));
     }
 
