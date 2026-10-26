@@ -82,9 +82,9 @@ podman-compose --profile tools run --rm wpcli wp portfolio import /srv/portfolio
 podman-compose --profile tools run --rm wpcli wp portfolio import /srv/portfolio-content/projects/momocad.md --draft --user=<your admin login>
 ```
 
-Each document is parsed, rendered to Gutenberg blocks and stored with its verbatim Markdown and SHA-256 (`_portfolio_md_*` metas). The origin recorded is `git` by default (`--source=paste|admin` otherwise), which drives the conflict rule of ADR-005: a document last edited from the admin is reported as `CONFLICT` and left alone unless `--force` is given. Unknown competency codes fail the document (synchronize the grid first); pages are refused for now. The command exits with an error after the full report if any document conflicted or failed.
+Each document is parsed, rendered to Gutenberg blocks and stored with its verbatim Markdown and SHA-256 (`_portfolio_md_*` metas). The origin recorded is `git` by default (`--source=paste|admin` otherwise), which drives the conflict rule of ADR-005: a document last edited from the admin is reported as `CONFLICT` and left alone unless `--force` is given. Unknown competency codes fail the document (synchronize the grid first); pages are refused for now. Three guards protect existing posts: a file must be named after its slug (a sheet copied from another one still carries the slug of its model), a slug whose post is in the trash is refused until the post is restored or deleted permanently, and a future `date` is refused for a published post (WordPress would schedule it). The command exits with an error after the full report if any document conflicted or failed.
 
-The import chain has its own smoke test, which creates one article and one project with synthetic content, checks posts, dates, terms, metas, idempotence and the conflict rule, then deletes everything it created (`--user` required):
+The import chain has its own smoke test, which creates one article and one project with synthetic content, checks posts, dates, terms, metas, idempotence, the conflict rule and the guards above, then deletes everything it created (`--user` required):
 
 ```bash
 podman-compose --profile tools run --rm wpcli wp eval-file \
@@ -147,6 +147,10 @@ The most frequent issues you'll hit while developing locally are documented in [
 - Backslashes vanish from a post written in PHP → `wp_insert_post()` and `wp_update_post()` unslash their input the same way; pass the array through `wp_slash()` (see `Storage\WordPressContentRepository`)
 - A code block is flagged as invalid content in the editor → `core/code` validates a bare `<code>`; classes go on the `<pre>` through the `className` attribute, as `GutenbergTransformer` does
 - Task-list checkboxes disappear after saving → `wp_kses_post()` does not allow `<input>`; the repository adds it to the allowed tags explicitly
+- `FAILED … is in the future` → WordPress turns a published post dated ahead into a scheduled one, invisible on the site; fix the date or import the document with `--draft`
+- `FAILED … is in the trash` → a trashed post still owns its slug (WordPress renames it `<slug>__trashed` and keeps the wanted slug in `_wp_desired_post_slug`); restore it or delete it permanently, the import never creates a second post next to it
+- `FAILED … does not match the file name` → files are named after their slug; a sheet copied from another one still carries the slug of its model
+- A fenced block in a huge pasted log is not coloured → blocks above 32 KiB are rendered plain on purpose (`HighlightedCodeRenderer::MAX_HIGHLIGHT_BYTES`): highlighting time grows about quadratically with the size of the block
 
 ## Architecture
 
