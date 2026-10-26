@@ -46,6 +46,7 @@ Les entrées ne sont jamais supprimées. Si une décision est révisée, on ajou
 | ADR-012 | Révision du contrat de collaboration : Claude écrit le code, Morgan relit et valide | 2026-10-26 | Accepté |
 | ADR-013 | Champs personnalisés : préfixe `_portfolio_` généralisé, trois registrars, autorisation explicite | 2026-10-26 | Accepté |
 | ADR-014 | Taxonomie `skill` hiérarchique par référentiel, code officiel en term meta | 2026-10-26 | Accepté |
+| ADR-015 | Contenu versionné dans le monorepo, grille de compétences et périmètre des fiches | 2026-10-26 | Accepté |
 
 ---
 
@@ -434,6 +435,43 @@ La taxonomie `skill` est **hiérarchique**, attachée au seul post type `project
 ### Conséquences
 
 Le pipeline Markdown résout un code en deux temps : le préfixe (`4.0.1`) désigne le parent, le code complet retrouve l'enfant via `meta_key = _portfolio_skill_code` ; s'il n'existe pas, il est créé sous le bon parent. Les archives WordPress fournissent gratuitement `/competences/4-0-1/` (tous les projets démontrant au moins une compétence du référentiel) et `/competences/4-0-1/c1-3/` (une compétence précise). L'API C# expose pour chaque compétence `{ slug, code, label }` comme prévu dans `02-api-csharp.md`, le code venant du term meta. ADR-011 reste accepté ; seule la forme concrète (hiérarchie, slug, term meta) est fixée ici. Reste à faire côté contenu : saisir ou importer la liste officielle des compétences des deux référentiels.
+
+---
+
+## ADR-015 — Contenu versionné dans le monorepo, grille de compétences et périmètre des fiches
+
+**Date** : 2026-10-26
+**Statut** : Accepté
+
+### Contexte
+
+Le modèle de contenu du plugin est en place (ADR-013, ADR-014) mais le site n'a encore aucun contenu, et le pipeline Markdown (phase 2) comme le webhook Git (phase 9) restent à construire. Morgan dispose pourtant de la matière : onze fiches projet détaillées qu'il a rédigées pour son CV, les exports de trois projets de formation, ses dépôts GitHub publics, le dépôt du fil rouge 4.0.2 en cours, les consignes officielles des deux fils rouges et la feuille de suivi des formateurs de première année. Quatre questions devaient être tranchées avant d'écrire la première fiche : où vivent les fichiers Markdown, quel projet porte le marqueur fil rouge 4.0.2, quels projets entrent dans le portfolio, et quelle liste de compétences alimente la taxonomie `skill`. Le frontmatter laissait aussi un champ `category` hérité de l'overview, en contradiction avec `04-structure-wordpress.md` §4.4.
+
+### Décision
+
+**Le contenu est versionné dans le monorepo**, sous `content/` : `content/projects/<slug>.md` pour les projets, `content/pages/` pour les pages statiques, `content/skills.yaml` pour la grille de compétences. `content/README.md` fixe le frontmatter, le patron narratif en trois temps (le problème, les décisions techniques, ce que j'en ai appris) suivi de « En chiffres » et « Liens », la première personne, et les règles de publication (aucune donnée client, aucun secret, aucun nom de tiers). Le champ `category` disparaît du frontmatter : les tags techniques (`tech_tag`) suffisent, la taxonomie native `category` n'est pas utilisée.
+
+**MomoCad est le projet fil rouge 4.0.2** marqué `is_fil_rouge`, en tant que fil rouge de l'année 2026-2027. GeoForge (le jeu), fil rouge de l'année 2025-2026, est présenté comme un projet à part entière, achevé et soutenu. UHA Learn est le fil rouge de première année.
+
+**Tous les projets entrent dans le portfolio** : les cinq de la formation (AUTOFIN Control, HEHEWATT, Trace 4.0, UHA Learn, MomoCad), les projets personnels sur GitHub (Atlas, GeoForge l'addon Godot, xvii, ancestors-modding), les projets Kovelt et open source (Vefta, carbon-fr, DevEye, chronos-penpot-tools), soit quatorze fiches ; le CV Typst alimente la page CV.
+
+**La grille de compétences reprend les intitulés officiels de l'école quand ils existent.** Pour 4.0.1, la feuille de suivi des formateurs fournit vingt-neuf compétences réparties en trois familles : techniques, rattachées aux étapes du fil rouge (`4.0.1/FR-nn`), métier, évaluées sur les projets en équipe (`4.0.1/PM-nn`), transverses (`4.0.1/TR-nn`). Pour 4.0.2, à défaut de feuille de suivi pour l'année en cours, les étapes de la consigne du fil rouge tiennent lieu de grille (`4.0.2/Enn`, `4.0.2/Onn`) jusqu'à ce que les intitulés officiels soient disponibles. Une fiche ne cite que les compétences que le projet démontre concrètement. Les niveaux atteints par Morgan sont des données personnelles et ne sont pas versionnés.
+
+### Alternatives considérées
+
+**Dépôt de contenu séparé** : garde le contenu privé jusqu'à publication et isole les droits, mais impose un second clone, une seconde configuration de webhook et une synchronisation de versions entre code et contenu pour un auteur unique. Écarté ; le dépôt est public de toute façon.
+
+**Contenu saisi directement dans WordPress** : évite tout fichier intermédiaire, mais contredit ADR-001 (le Markdown est la source) et laisserait le contenu sans historique ni relecture possible avant la phase 4.
+
+**Une grille de compétences maison, orientée recruteurs** : plus lisible pour un employeur, mais le jury évalue sur son propre référentiel ; les intitulés officiels sont la seule base incontestable. Les compétences « métier » et « transverses » couvrent d'ailleurs ce qu'un recruteur cherche.
+
+**Les étapes des fils rouges pour les deux années** : c'était le choix initial de la journée, remplacé pour 4.0.1 dès que la feuille de suivi officielle a été fournie ; il reste la solution d'attente pour 4.0.2.
+
+**GeoForge (le jeu) comme fil rouge 4.0.2** : c'est bien le fil rouge de 2025-2026, achevé et plus complet que MomoCad à ce jour, mais Morgan est réinscrit en 4.0.2 pour 2026-2027 avec MomoCad ; le portfolio doit présenter le fil rouge courant, et le jeu garde sa fiche.
+
+### Conséquences
+
+Le dossier `content/` devient la source que le pipeline importera (phase 2) puis que le webhook synchronisera (phase 9) ; d'ici là, l'import passe par WP-CLI. Le parser de frontmatter devra lire les dates nues avec `Yaml::PARSE_DATETIME`, sans quoi `symfony/yaml` les convertit en entiers. Les fiches sont rédigées avec l'assistance d'agents sous relecture croisée et validées par Morgan avant fusion (ADR-012) ; un validateur de frontmatter et de structure accompagne le dossier. Les codes 4.0.2 changeront lorsque la feuille de suivi de deuxième année sera fournie : le term meta `_portfolio_skill_code` et les frontmatters seront alors mis à jour ensemble. `01-plugin-php.md` §4.4 et l'exemple de frontmatter de `00-overview.md` perdent le champ `category`.
 
 ---
 

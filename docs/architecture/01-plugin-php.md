@@ -241,7 +241,7 @@ Le principe de distribution a été posé dans l'overview : chaque fois qu'il ex
 | `demo_url` (projets) | meta `_portfolio_project_demo_url` | URL `http`/`https` ou vide |
 | `client` (projets) | meta `_portfolio_project_client` | String libre |
 
-Trois champs du plan d'origine ont disparu de ce tableau. `gallery` a été écarté le 25 avril 2026 au profit des blocs Gutenberg natifs (`04-structure-wordpress.md` §5.4). `needs_mermaid` et `needs_katex` sont reportés jusqu'à ce qu'ils aient un producteur et un consommateur (ADR-013). `category` enfin : l'exemple de frontmatter de l'overview en contient un, mais `04-structure-wordpress.md` §4.4 exclut la taxonomie native `category` pour les articles. ⚠️ **Point à trancher avant d'écrire `FrontmatterParser`** : soit le champ disparaît du frontmatter, soit il devient un `tech_tag` ou une taxonomie dédiée. À consigner dans le journal des décisions.
+Trois champs du plan d'origine ont disparu de ce tableau. `gallery` a été écarté le 25 avril 2026 au profit des blocs Gutenberg natifs (`04-structure-wordpress.md` §5.4). `needs_mermaid` et `needs_katex` sont reportés jusqu'à ce qu'ils aient un producteur et un consommateur (ADR-013). `category` enfin, présent dans l'ancien exemple de frontmatter de l'overview, est abandonné : la taxonomie native n'est pas utilisée (`04-structure-wordpress.md` §4.4) et les tags techniques suffisent (ADR-015).
 
 Les valeurs sont validées deux fois : par le pipeline, qui remonte une erreur lisible à l'auteur, et par le `sanitize_callback` enregistré avec chaque meta, dernière ligne de défense (`Meta\Sanitizer`). Une valeur invalide qui atteint la seconde est stockée comme valeur neutre (`''`, `false`, `0`), jamais « réparée ».
 
