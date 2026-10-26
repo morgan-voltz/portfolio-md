@@ -180,7 +180,7 @@ Le projet est découpé en douze phases indépendantes, conçues pour être atta
 
 **Phase 3** : conversion HTML vers blocs Gutenberg. Le `post_content` résultant est reconnu par Gutenberg comme un article éditable en mode bloc. *(Terminée le 26 octobre 2026, dans le même lot que la phase 2.)*
 
-**Phase 4** : éditeur Markdown dans l'admin WordPress. Morgan peut écrire en Markdown directement depuis l'admin et voir le rendu immédiatement.
+**Phase 4** : éditeur Markdown dans l'admin WordPress. Morgan peut écrire en Markdown directement depuis l'admin et voir le rendu immédiatement. *(Côté serveur livré le 26 octobre 2026 : métabox Markdown sur l'écran d'édition classique des articles et projets, et page de collage sous le menu Portfolio ; l'éditeur riche et la prévisualisation attendent le choix de leur librairie.)*
 
 **Phase 5** : endpoint REST de lecture. L'API custom `/wp-json/portfolio/v1/*` expose articles et projets au format JSON.
 

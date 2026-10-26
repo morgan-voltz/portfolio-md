@@ -25,6 +25,12 @@ interface ContentRepository
     public function findBySlug(ContentType $type, string $slug): ?StoredContent;
 
     /**
+     * What this post stores, or null when no post of this content type has
+     * this id. A post in the trash is returned too, flagged as such.
+     */
+    public function findById(ContentType $type, int $postId): ?StoredContent;
+
+    /**
      * Creates the post when $record->id is null, updates it otherwise, and
      * returns the post id.
      *

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Voltz\PortfolioMd;
 
+use Voltz\PortfolioMd\Admin\EditScreen;
+use Voltz\PortfolioMd\Admin\EditorMetaBox;
+use Voltz\PortfolioMd\Admin\ImportPage;
 use Voltz\PortfolioMd\Cli\ImportCommand;
 use Voltz\PortfolioMd\Cli\SkillsCommand;
 use Voltz\PortfolioMd\Meta\CommonMetaRegistrar;
@@ -70,6 +73,12 @@ final class Plugin
      */
     private InternalMetaRegistrar $internalMetaRegistrar;
 
+    /**
+     * The import use case, shared by every door (WP-CLI, admin); built on
+     * first use because most requests never import anything.
+     */
+    private ?ContentImportService $importService = null;
+
     public function __construct(string $pluginFile)
     {
         $this->pluginFile = $pluginFile;
@@ -109,6 +118,42 @@ final class Plugin
         if (defined('WP_CLI') && WP_CLI) {
             $this->registerCliCommands();
         }
+
+        // The admin doors: only on admin requests (edit screens, the paste page).
+        if (is_admin()) {
+            $this->registerAdmin();
+        }
+    }
+
+    /**
+     * Hooks the two admin doors of 01-plugin-php.md §6: the Markdown box on
+     * the edit screens of articles and projects (with the screen trimmed of
+     * the fields the document owns) and the paste page under the plugin
+     * menu. Both call the same import service as the WP-CLI command.
+     */
+    private function registerAdmin(): void
+    {
+        (new EditScreen())->hook();
+        (new EditorMetaBox($this->importService()))->hook();
+        (new ImportPage($this->importService()))->hook();
+    }
+
+    /**
+     * Assembles the import chain once: frontmatter parser + Markdown →
+     * Gutenberg renderer (Parsing) → import service (Service) → post
+     * repository and skill term gateway (Storage). Cheap to build: the
+     * syntax highlighter loads its grammars at the first render only.
+     */
+    private function importService(): ContentImportService
+    {
+        return $this->importService ??= new ContentImportService(
+            new FrontmatterParser(),
+            new ContentRenderer(new MarkdownParser(), new GutenbergTransformer()),
+            new WordPressContentRepository(),
+            new WordPressSkillTermGateway(),
+            new ConflictResolver(),
+            new SystemClock(),
+        );
     }
 
     /**
@@ -116,12 +161,9 @@ final class Plugin
      *
      * Les services sont assemblés ici, comme les registrars : la commande
      * elle-même ne fait que traduire les arguments et afficher le rapport.
-     * Les graphes sont explicites : loader YAML (Parsing) → synchroniseur
-     * (Service) → passerelle de termes WordPress (Storage) pour les
-     * compétences ; parseur de frontmatter + rendu Markdown → Gutenberg
-     * (Parsing) → service d'import (Service) → dépôt de posts et passerelle
-     * de termes (Storage) pour l'import. Tout est bon marché à construire :
-     * le colorateur syntaxique ne charge ses grammaires qu'au premier rendu.
+     * Le graphe des compétences est explicite : loader YAML (Parsing) →
+     * synchroniseur (Service) → passerelle de termes WordPress (Storage) ;
+     * celui de l'import est partagé avec l'admin, voir importService().
      */
     private function registerCliCommands(): void
     {
@@ -130,16 +172,7 @@ final class Plugin
             new SkillTermSynchronizer(new WordPressSkillTermGateway()),
         ));
 
-        \WP_CLI::add_command('portfolio import', new ImportCommand(
-            new ContentImportService(
-                new FrontmatterParser(),
-                new ContentRenderer(new MarkdownParser(), new GutenbergTransformer()),
-                new WordPressContentRepository(),
-                new WordPressSkillTermGateway(),
-                new ConflictResolver(),
-                new SystemClock(),
-            ),
-        ));
+        \WP_CLI::add_command('portfolio import', new ImportCommand($this->importService()));
     }
 
     /**

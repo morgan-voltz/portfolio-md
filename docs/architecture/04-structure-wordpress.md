@@ -318,6 +318,8 @@ WordPress dispose d'un système de rôles et de capacités (`capabilities`) gran
 
 Pas besoin de rôle « auteur », « contributeur », « éditeur » à ce stade.
 
+Deux écrans du plugin ont leur propre exigence : la métabox « Document Markdown » n'enregistre que si l'utilisateur peut éditer le post (`edit_post`), et la page « Portfolio → Importer » demande `edit_others_posts`, parce qu'un document collé met à jour le post qui porte son slug, quel qu'en soit l'auteur (`01-plugin-php.md` §11).
+
 Les deux post types sont déclarés avec `capability_type => 'post'` : ils réutilisent les capacités natives des articles WordPress. À garder en tête le jour où un rôle natif (`author`, `editor`, `contributor`) serait attribué à quelqu'un : cette personne obtiendrait automatiquement les mêmes droits sur `article` et `project` que sur les posts natifs. Il faudra alors soit l'accepter explicitement ici, soit donner aux deux types leurs propres capacités.
 
 Le seul cas particulier sera l'**endpoint de synchronisation Git** (`/sync` dans le plugin). Il ne dépendra pas du système de rôles WordPress mais d'un bearer token configuré hors du repo Git. Voir `01-plugin-php.md` section 11.
@@ -423,5 +425,10 @@ WordPress
 - Le pipeline écrit désormais les posts : `Storage\WordPressContentRepository` remplit `wp_posts`, les trois taxonomies et les dix-sept champs à partir du frontmatter (`01-plugin-php.md` §4.4 et §4.5). Les quatorze fiches de `content/projects/` sont importées sur le site local par `wp portfolio import`.
 - Les tags techniques inconnus sont créés avec leur slug pour nom ; les compétences doivent exister dans la taxonomie (grille synchronisée) ; le statut de projet est résolu par son slug.
 - Les pages restent hors pipeline (section 3.4).
+
+**2026-10-26 (portes admin)**
+
+- Les écrans d'édition des `article` et `project` passent en écran classique avec une métabox « Document Markdown » (`01-plugin-php.md` §6.1) : Gutenberg coupé, éditeur de contenu, éditeur de permalien, boîtes de slug et de taxonomies, Quick Edit et Bulk Edit retirés, parce que le document est la seule source du titre, du slug, de la date, des termes et des champs. Restent la boîte de publication, l'auteur, l'image mise en avant, les révisions et les champs personnalisés.
+- Page « Portfolio → Importer » pour coller un document (`01-plugin-php.md` §6.3), capacité `edit_others_posts` (section 6).
 
 ---
