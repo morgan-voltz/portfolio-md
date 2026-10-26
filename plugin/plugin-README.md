@@ -12,7 +12,9 @@ The **content model is complete** (roadmap phase 1). The plugin registers:
 - Taxonomies `tech_tag` (flat, both types), `project_status` (flat, projects, closed list) and `skill` (hierarchical by referential, projects, official code in the `_portfolio_skill_code` term meta) via `Taxonomies\TaxonomyRegistrar`
 - Seventeen post metas, all prefixed `_portfolio_`: four public metas shared by both types (`Meta\CommonMetaRegistrar`), eight public project metas including the `is_fil_rouge` flag (`Meta\ProjectMetaRegistrar`), five internal metas hidden from REST and locked for users (`Meta\InternalMetaRegistrar`). Sanitization rules live in `Meta\Sanitizer`; metas written from PHP go through `Meta\MetaWriter::update()`, which slashes the value because `update_post_meta()` unslashes it before storing.
 
-What is **not yet** implemented: Markdown parsing (`league/commonmark`), YAML frontmatter handling (`symfony/yaml`), the storage layer that persists both raw Markdown and derived Gutenberg HTML, the admin UI for Markdown editing, and the custom REST endpoints. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
+Phase 2 has started: `Parsing\FrontmatterParser` turns a Markdown document into a typed `Domain\Frontmatter` plus its body (strict validation, explicit exceptions), and the `skill` taxonomy is synchronized from `content/skills.yaml` by the `wp portfolio skills sync` command (see below).
+
+What is **not yet** implemented: Markdown rendering (`league/commonmark`), the storage layer that persists both raw Markdown and derived Gutenberg HTML, the admin UI for Markdown editing, and the custom REST endpoints. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
 
 ## Local setup
 
@@ -41,6 +43,31 @@ podman-compose --profile tools run --rm wpcli wp term list skill --fields=name,s
 For a full setup from scratch (containers + database + WordPress install + plugin activation), use the [`bootstrap.sh`](../bootstrap.sh) script at the repo root.
 
 Activation matters: `Plugin::onActivation()` seeds the closed `project_status` terms and the two `skill` referential parents, then flushes rewrite rules. After changing anything in that method, deactivate and re-activate the plugin.
+
+## WP-CLI commands
+
+The compose file mounts `content/` read-only into the `wpcli` service at `/srv/portfolio-content`, so the commands can read the Markdown sources.
+
+```bash
+# Preview what the skills grid would change in the skill taxonomy
+podman-compose --profile tools run --rm wpcli wp portfolio skills sync /srv/portfolio-content/skills.yaml --dry-run
+
+# Apply it (idempotent: a second run reports "0 created, 0 updated")
+podman-compose --profile tools run --rm wpcli wp portfolio skills sync /srv/portfolio-content/skills.yaml
+
+# Check the result
+podman-compose --profile tools run --rm wpcli wp term list skill --fields=term_id,name,slug,parent --format=table
+podman-compose --profile tools run --rm wpcli wp term meta get <term_id> _portfolio_skill_code
+```
+
+Terms that exist in WordPress but not in the grid are listed as orphans and left untouched; deleting them is a human decision. A term WordPress refuses is reported as `FAILED`, the run continues, and the command exits with an error after the full report.
+
+The WordPress side of the synchronization (`Storage\WordPressSkillTermGateway`) has its own smoke test, run the same way as the metas one:
+
+```bash
+podman-compose --profile tools run --rm wpcli wp eval-file \
+  wp-content/plugins/portfolio-md/tests/Integration/wp-cli/skills-smoke.php /srv/portfolio-content/skills.yaml
+```
 
 ## Tests
 

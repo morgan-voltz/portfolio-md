@@ -99,6 +99,9 @@ services:
       # On monte aussi le plugin pour que WP-CLI puisse l'activer/désactiver,
       # lister ses post types, etc.
       - ./plugin:/var/www/html/wp-content/plugins/portfolio-md:z
+      # Le contenu Markdown du site (content/), en lecture seule, pour les
+      # commandes d'import : `wp portfolio skills sync /srv/portfolio-content/skills.yaml`.
+      - ./content:/srv/portfolio-content:ro,z
     # `user` important : WP-CLI refuse par défaut de tourner en root.
     # On utilise l'UID www-data (33) qui est l'utilisateur WordPress standard.
     user: "33:33"
