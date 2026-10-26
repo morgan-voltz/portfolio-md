@@ -5,7 +5,7 @@
 **Lectorat** : Morgan à froid, contributeurs futurs, et toute personne qui veut comprendre comment WordPress est organisé pour ce projet.
 **Articulation** : ce document complète `01-plugin-php.md` (qui détaille le plugin de conversion Markdown ↔ WordPress) en se concentrant sur la modélisation côté CMS.
 **Temps de lecture** : environ 12 minutes
-**Dernière mise à jour** : 25 avril 2026 (cadrage des champs personnalisés en fin de session)
+**Dernière mise à jour** : 26 octobre 2026 (champs personnalisés et taxonomie `skill` implémentés)
 
 ---
 
@@ -28,7 +28,7 @@ WordPress permet d'aller dans tous les sens : custom post types à foison, taxon
 
 Trois raisons à ce choix.
 
-D'abord, la **cohérence avec le format pivot Markdown** (voir `docs/02-le-markdown-comme-format-pivot.md`). Tout ce qui est dans WordPress doit pouvoir s'exprimer en frontmatter YAML et en corps Markdown, sinon le pivot est cassé.
+D'abord, la **cohérence avec le format pivot Markdown** (voir `docs/pedagogie/02-le-markdown-comme-format-pivot.md`). Tout ce qui est dans WordPress doit pouvoir s'exprimer en frontmatter YAML et en corps Markdown, sinon le pivot est cassé.
 
 Ensuite, la **cohérence avec le principe de rigueur calibrée** (voir `docs/branding/02-positionnement-et-fil-rouge.md`). Un portfolio personnel n'a pas besoin de la richesse structurelle d'un journal en ligne ou d'un site e-commerce. Surdimensionner la structure CMS serait l'erreur exacte qu'on critique ailleurs.
 
@@ -118,9 +118,9 @@ Les pages `À propos` et `Contact` utilisent le type natif `page` de WordPress. 
 
 ## 4. Les taxonomies
 
-Une taxonomie dans WordPress est un système de classification. Le projet définit **deux taxonomies custom**, en plus des catégories et tags natifs (qu'on n'utilise pas pour les types `article` et `project`).
+Une taxonomie dans WordPress est un système de classification. Le projet définit **trois taxonomies custom**, en plus des catégories et tags natifs (qu'on n'utilise pas pour les types `article` et `project`).
 
-> **État de l'implémentation** : les deux taxonomies décrites ci-dessous sont enregistrées par la classe `Voltz\PortfolioMd\Taxonomies\TaxonomyRegistrar` (fichier `plugin/src/Taxonomies/TaxonomyRegistrar.php`). L'enregistrement se fait au hook `init`. Les statuts fermés de `project_status` sont auto-insérés à l'activation du plugin via `TaxonomyRegistrar::ensureProjectStatusTerms()`.
+> **État de l'implémentation** : les trois taxonomies décrites ci-dessous sont enregistrées par la classe `Voltz\PortfolioMd\Taxonomies\TaxonomyRegistrar` (fichier `plugin/src/Taxonomies/TaxonomyRegistrar.php`). L'enregistrement se fait au hook `init`. Les statuts fermés de `project_status` et les référentiels parents de `skill` sont auto-insérés à l'activation du plugin via `TaxonomyRegistrar::ensureProjectStatusTerms()` et `TaxonomyRegistrar::ensureSkillReferentialTerms()`.
 
 ### 4.1. `tech_tag` — Tag technique
 
@@ -172,7 +172,32 @@ Cette taxonomie encode l'**état d'avancement** d'un projet. Quatre valeurs uniq
 
 Ces valeurs sont **fermées** côté convention. Le plugin auto-insère ces quatre termes à l'activation, et il ne devrait pas y en avoir d'autres. WordPress ne fournit pas de mécanisme natif pour interdire la création via l'admin — cette discipline est documentée et sera durcie à l'étape 3 du plan d'implémentation du plugin (capabilities custom ou masquage du formulaire d'ajout).
 
-### 4.3. Pourquoi pas les `category` et `post_tag` natifs ?
+### 4.3. `skill` — Compétence académique
+
+| Propriété | Valeur |
+|---|---|
+| Identifiant technique | `skill` |
+| Slug d'URL | `competences` (hiérarchique : `/competences/<referentiel>/<competence>/`) |
+| Hiérarchique | **Oui** : un parent par référentiel, un enfant par compétence |
+| Attachée à | `project` uniquement |
+| Public | Oui (archives par référentiel et par compétence) |
+| Term meta | `_portfolio_skill_code` : code officiel complet (ex. `4.0.1/C1.3`), string, exposé en REST |
+| Implémentation | `TaxonomyRegistrar::registerSkill()` |
+| Constantes | `TaxonomyRegistrar::SKILL`, `::SKILL_CODE_META`, `::SKILL_REFERENTIALS` |
+| Décisions | ADR-011 (principe), ADR-014 (forme concrète) |
+
+Cette taxonomie répond à l'exigence académique : chaque compétence des référentiels UHA 4.0 doit être rattachée aux projets qui la démontrent, et le jury doit pouvoir consulter la liste inverse (« quels projets prouvent cette compétence ? »). Une taxonomie fournit cette agrégation gratuitement via les archives WordPress ; un champ meta ne le ferait pas.
+
+**Termes parents (référentiels)**, auto-insérés à l'activation :
+
+| Slug | Libellé |
+|---|---|
+| `4-0-1` | Compétences 4.0.1 |
+| `4-0-2` | Compétences 4.0.2 |
+
+**Termes enfants (compétences)** : créés par le pipeline Markdown à partir du frontmatter (`skills: [4.0.1/C1.3, …]`) ou à la main dans l'admin. Le nom du terme est l'intitulé officiel, son slug est dérivé du code (`C1.3` → `c1-3` sous le parent `4-0-1`), et le code complet vit dans le term meta `_portfolio_skill_code`, parce qu'un code comme `4.0.1/C1.3` n'est pas un slug WordPress valide (le point et la barre oblique sont transformés). La liste des codes et intitulés est du contenu, pas du code : elle vient du référentiel officiel.
+
+### 4.4. Pourquoi pas les `category` et `post_tag` natifs ?
 
 Trois raisons.
 
@@ -188,44 +213,51 @@ Enfin, **expressivité du nom**. `tech_tag` dit clairement de quoi on parle, ce 
 
 WordPress permet d'attacher à n'importe quel post des paires clé-valeur arbitraires (les *post meta*). On les utilise pour stocker tout ce qui ne rentre dans aucun champ natif.
 
-> **État de l'implémentation** : les champs personnalisés ne sont **pas encore enregistrés** par le plugin (à la date du 25 avril 2026). Ils seront ajoutés à l'étape 3 du plan d'implémentation, en même temps que le pipeline de conversion Markdown qui sera leur producteur principal. Le plugin de conversion Markdown (voir `01-plugin-php.md` section 4) sera responsable de remplir ces champs depuis le frontmatter YAML.
+> **État de l'implémentation** : les dix-sept champs décrits ci-dessous sont enregistrés par trois classes du dossier `plugin/src/Meta/` : `CommonMetaRegistrar` (§5.1), `ProjectMetaRegistrar` (§5.2) et `InternalMetaRegistrar` (§5.3), accrochées au hook `init` par la composition root. Les règles de sanitization sont des fonctions pures regroupées dans `Meta\Sanitizer` (§5.6). Le remplissage de ces champs depuis le frontmatter YAML sera le rôle du pipeline de conversion Markdown (voir `01-plugin-php.md` section 4), pas encore implémenté. Décision associée : ADR-013.
+
+**Convention commune (ADR-013).** Toutes les clés sont préfixées `_portfolio_`. Pour WordPress, une clé qui commence par un underscore est *protégée* : elle est cachée de la boîte « Champs personnalisés » de l'admin et, par défaut, **interdite en écriture via l'API REST et Gutenberg pour tout le monde** (`auth_callback` vaut `__return_false`). Les champs publics déclarent donc explicitement `auth_callback => [MetaRegistration::class, 'authorizeEditPost']` : quiconque peut éditer le post peut éditer ses champs. Les champs internes gardent le verrou par défaut et ne sont pas exposés en REST.
+
+Chaque clé est exposée en constante publique sur son registrar (`CommonMetaRegistrar::FEATURED`, `ProjectMetaRegistrar::IS_FIL_ROUGE`, `InternalMetaRegistrar::MD_SOURCE`, …) ; aucun autre code n'écrit une clé en dur.
 
 ### 5.1. Champs publics communs
 
-Ces champs n'ont pas de préfixe underscore — ils sont visibles dans l'admin WordPress « Custom Fields » pour facilité de debug.
+Enregistrés sur `article` **et** `project` par `CommonMetaRegistrar`. `subtitle` et `reading_time` n'ont de sens éditorial que pour les articles, mais les enregistrer aussi sur les projets ne coûte rien et évite un quatrième registrar pour un champ.
 
-| Clé | Type | Cible | Utilité |
-|---|---|---|---|
-| `seo_description` | string | tous | Description meta pour SEO (compatible Yoast via `_yoast_wpseo_metadesc`) |
-| `featured` | bool | tous | Mis en avant sur la home |
-| `reading_time` | int | `article` | Temps de lecture estimé en minutes |
-| `subtitle` | string | `article` | Sous-titre / résumé court |
+| Clé | Type | Défaut | REST | Utilité |
+|---|---|---|---|---|
+| `_portfolio_seo_description` | string | `''` | lecture/écriture | Description meta pour SEO, tronquée à 160 caractères (recopie vers `_yoast_wpseo_metadesc` à prévoir dans le pipeline si Yoast est actif) |
+| `_portfolio_featured` | boolean | `false` | lecture/écriture | Mis en avant sur la home |
+| `_portfolio_reading_time` | integer | `0` | lecture/écriture | Temps de lecture estimé en minutes, 0 à 240 |
+| `_portfolio_subtitle` | string | `''` | lecture/écriture | Sous-titre / résumé court |
 
 ### 5.2. Champs spécifiques aux projets
 
-| Clé | Type | Utilité |
-|---|---|---|
-| `_portfolio_project_status` | string | Doublon textuel du statut (cohérence avec la taxo) |
-| `_portfolio_project_role` | string | Rôle de Morgan dans le projet (lead, contributeur, etc.) |
-| `_portfolio_project_period_start` | date ISO | Date de début |
-| `_portfolio_project_period_end` | date ISO ou null | Date de fin (null si en cours) |
-| `_portfolio_project_repo_url` | URL ou null | Lien vers le dépôt Git |
-| `_portfolio_project_demo_url` | URL ou null | Lien vers une démo en ligne |
-| `_portfolio_project_client` | string ou null | Nom du client si applicable |
+Enregistrés sur `project` seulement par `ProjectMetaRegistrar`. Huit champs : les sept du cadrage du 25 avril, plus le marqueur du projet fil rouge décidé en ADR-011.
 
-Le préfixe `_portfolio_` (avec underscore initial) suit la convention WordPress qui cache automatiquement ces champs de l'interface « Custom Fields » de l'admin. Ils sont gérés exclusivement par le plugin.
+| Clé | Type | Défaut | Utilité |
+|---|---|---|---|
+| `_portfolio_project_status` | string | `''` | Miroir textuel du statut, limité aux slugs de la taxonomie `project_status` (requêtes SQL plates sans jointure ; la taxonomie reste la source de vérité côté UI) |
+| `_portfolio_project_role` | string | `''` | Rôle de Morgan dans le projet (lead, contributeur, etc.) |
+| `_portfolio_project_period_start` | string | `''` | Date de début, ISO 8601 `YYYY-MM-DD` |
+| `_portfolio_project_period_end` | string | `''` | Date de fin, ISO 8601 ; vide tant que le projet est en cours |
+| `_portfolio_project_repo_url` | string | `''` | Lien vers le dépôt Git, `http` ou `https` seulement |
+| `_portfolio_project_demo_url` | string | `''` | Lien vers une démo en ligne, `http` ou `https` seulement |
+| `_portfolio_project_client` | string | `''` | Nom du client si applicable |
+| `_portfolio_project_is_fil_rouge` | boolean | `false` | Marque le projet fil rouge du cursus (traitement éditorial distinctif, ADR-011) |
+
+Tous sont exposés en REST en lecture et en écriture pour qui peut éditer le projet.
 
 ### 5.3. Champs internes de gestion
 
-Ces champs sont utilisés par le plugin pour son propre fonctionnement et ne sont jamais affichés.
+Enregistrés sur `article` et `project` par `InternalMetaRegistrar`. Ces champs sont utilisés par le plugin pour son propre fonctionnement et ne sont jamais affichés : `show_in_rest => false` et `auth_callback => '__return_false'`, donc **aucun utilisateur ne peut les écrire**, quel que soit son rôle. Seul le code du plugin les écrit, via `update_post_meta()`, qui ne passe pas par les capabilities.
 
 | Clé | Type | Utilité |
 |---|---|---|
-| `_portfolio_md_source` | string | Markdown brut complet (frontmatter + corps), source canonique |
-| `_portfolio_md_hash` | string | SHA-256 du Markdown source, pour détection de changement |
-| `_portfolio_source_type` | enum | `admin` / `git` / `paste`, provenance de la dernière édition |
-| `_portfolio_last_sync_at` | timestamp | Dernière synchro réussie |
-| `_portfolio_render_version` | string | Version du renderer, pour invalider le HTML cache |
+| `_portfolio_md_source` | string | Markdown brut complet (frontmatter + corps), source canonique. Stocké **verbatim** : aucun nettoyage, sinon le hash ne correspondrait plus |
+| `_portfolio_md_hash` | string | SHA-256 hexadécimal (64 caractères, minuscules) du Markdown source, pour détection de changement |
+| `_portfolio_source_type` | string | `admin` / `git` / `paste`, provenance de la dernière édition (valeurs de l'enum `Domain\ContentSource`, ADR-005) |
+| `_portfolio_last_sync_at` | string | Dernière synchro réussie, ISO 8601 **normalisé en UTC** (`2026-10-26T07:00:00Z`) |
+| `_portfolio_render_version` | string | Version du renderer (`MAJEUR.MINEUR.CORRECTIF`), pour invalider le HTML dérivé |
 
 ### 5.4. Champs explicitement écartés et pourquoi
 
@@ -239,6 +271,8 @@ Cette section consigne les champs qui ont été **considérés et rejetés** lor
 
 **`status` sur les articles** — rejeté. Le statut natif de WordPress (publié, brouillon, programmé, privé) suffit pour les articles. La taxonomie `project_status` est volontairement réservée aux projets parce que sa sémantique (En cours / Stable / Archivé / Prototype) est spécifique au cycle de vie d'un projet et n'a pas de sens pour un article.
 
+**`needs_mermaid` et `needs_katex` (flags de chargement des enrichissements)** — **reportés**, pas rejetés (26 octobre 2026, ADR-013). Ils figurent dans la spec `01-plugin-php.md` mais n'ont aujourd'hui ni producteur (le pipeline ne détecte rien) ni consommateur (le thème ne lit rien). Ils seront enregistrés dans `CommonMetaRegistrar` le jour où les deux existeront.
+
 ### 5.5. Critère de décision pour les évolutions futures
 
 Pour décider si un nouveau champ mérite d'être ajouté, le critère retenu est : **un champ doit satisfaire au moins un des trois usages suivants** :
@@ -248,6 +282,25 @@ Pour décider si un nouveau champ mérite d'être ajouté, le critère retenu es
 3. **Métadonnée d'export ou de SEO** — le champ est consommé par un système qui lit WordPress de l'extérieur (balises meta, pipeline Markdown, etc.).
 
 Avant d'ajouter un champ, vérifier d'abord qu'aucun champ natif WordPress ne couvre déjà le besoin (titre, slug, contenu, extrait, image à la une, date, statut, auteur, parent, ordre). Si un champ natif convient, on l'utilise — pas de duplication.
+
+### 5.6. Règles de sanitization
+
+WordPress confie au plugin le nettoyage des valeurs avant stockage (`sanitize_callback`). Le principe retenu (ADR-013) : une valeur invalide est remplacée par la **valeur neutre du type** (`''`, `false`, `0`), jamais « réparée » en quelque chose de plausible. Une date impossible est rejetée, pas arrondie au jour suivant. C'est la dernière ligne de défense ; le pipeline Markdown valide en amont et remonte des erreurs lisibles.
+
+| Règle (`Meta\Sanitizer`) | Champs | Comportement |
+|---|---|---|
+| `text` | seo_description (max 160), subtitle, role, client, code de compétence (max 32) | `sanitize_text_field` WordPress (balises retirées, espaces et retours à la ligne réduits), puis troncature |
+| `rawString` | md_source | Verbatim : aucune transformation |
+| `boolean` | featured, is_fil_rouge | `true`/`false`, `1`/`0`, `yes`/`no`, `on`/`off` ; tout le reste → `false` |
+| `boundedInt` | reading_time (0 à 240) | Entier dans l'intervalle, sinon `0` |
+| `oneOf` | project_status (slugs de `project_status`), source_type (`ContentSource`) | Valeur exacte après trim, sinon `''` |
+| `url` | repo_url, demo_url | `esc_url_raw` restreint à `http`/`https` ; `javascript:`, `ftp:`, `mailto:` → `''` |
+| `isoDate` | period_start, period_end | `YYYY-MM-DD` et jour calendaire réel (`2026-02-30` → `''`) |
+| `isoDateTimeUtc` | last_sync_at | Date-heure ISO 8601 avec fuseau, renvoyée normalisée en UTC `…Z` |
+| `sha256Hex` | md_hash | 64 caractères hexadécimaux, minuscules |
+| `semver` | render_version | `MAJEUR.MINEUR.CORRECTIF` strict |
+
+Ces règles sont vérifiées par la suite PHPUnit (sans WordPress) et par un test de fumée joué dans le vrai WordPress via WP-CLI (`plugin/tests/Integration/wp-cli/meta-smoke.php`).
 
 ---
 
@@ -292,13 +345,19 @@ WordPress
 │
 ├── Taxonomies
 │   ├── tech_tag (sur article + project) ... TaxonomyRegistrar::registerTechTag
-│   └── project_status (sur project) ....... TaxonomyRegistrar::registerProjectStatus
-│       └── 4 termes auto-insérés .......... TaxonomyRegistrar::ensureProjectStatusTerms
+│   ├── project_status (sur project) ....... TaxonomyRegistrar::registerProjectStatus
+│   │   └── 4 termes auto-insérés .......... TaxonomyRegistrar::ensureProjectStatusTerms
+│   └── skill (sur project, hiérarchique) .. TaxonomyRegistrar::registerSkill
+│       ├── 2 référentiels parents ......... TaxonomyRegistrar::ensureSkillReferentialTerms
+│       └── term meta _portfolio_skill_code
 │
-├── Champs personnalisés (à venir étape 3)
-│   ├── communs : seo_description, featured, reading_time, subtitle
-│   ├── projet : status, role, period_*, repo_url, demo_url, client
-│   └── internes (préfixe _portfolio_) : md_source, md_hash, source_type, …
+├── Champs personnalisés (tous préfixés _portfolio_, ADR-013)
+│   ├── communs (4, article + project) ..... Meta/CommonMetaRegistrar
+│   │   └── seo_description, featured, reading_time, subtitle
+│   ├── projet (8, project) ................ Meta/ProjectMetaRegistrar
+│   │   └── project_status, role, period_start/end, repo_url, demo_url, client, is_fil_rouge
+│   └── internes (5, article + project) .... Meta/InternalMetaRegistrar
+│       └── md_source, md_hash, source_type, last_sync_at, render_version
 │
 ├── Rôles
 │   └── administrator (Morgan) + visiteur anonyme
@@ -306,8 +365,11 @@ WordPress
 └── Plugins
     ├── plugin du projet (portfolio-md, défini dans 01-plugin-php.md)
     │   ├── src/Plugin.php ................. composition root
+    │   ├── src/Domain/ContentSource.php ... enum admin / git / paste
     │   ├── src/PostTypes/PostTypeRegistrar.php
-    │   └── src/Taxonomies/TaxonomyRegistrar.php
+    │   ├── src/Taxonomies/TaxonomyRegistrar.php
+    │   ├── src/Meta/{Sanitizer, MetaRegistration, *MetaRegistrar}.php
+    │   └── tests/ ......................... PHPUnit (unitaire) + WP-CLI (fumée)
     └── plugins ciblés minimaux (à évaluer au besoin)
 ```
 
@@ -337,5 +399,17 @@ WordPress
 - Posage du **critère de décision** pour les évolutions futures (section 5.5) : un champ ne mérite d'être ajouté que s'il satisfait au moins un des trois usages identifiés (affichage front, filtrage programmatique, métadonnée d'export/SEO).
 - Posage de la trace des **champs considérés et rejetés** (section 5.4) pour qu'on retrouve la raison à froid si la question revient.
 - Implémentation reportée à la session suivante, dédiée, juste avant le pipeline Markdown.
+
+**2026-04-28**
+
+- Quatre champs communs implémentés (`CommonMetaRegistrar`), avec le préfixe `_portfolio_` généralisé à tous les champs (changement par rapport au cadrage du 25 avril, consigné dans ADR-013 le 26 octobre).
+
+**2026-10-26 (champs personnalisés terminés, taxonomie `skill`)**
+
+- Section 5 entièrement implémentée : `ProjectMetaRegistrar` (huit champs dont `_portfolio_project_is_fil_rouge`), `InternalMetaRegistrar` (cinq champs verrouillés), primitives `Meta\Sanitizer` ; section 5.6 ajoutée (règles de sanitization).
+- Correctif sur les quatre champs communs : `auth_callback` explicite, sans quoi WordPress interdisait leur écriture via REST et Gutenberg (clé protégée par le préfixe underscore). Détail dans ADR-013.
+- Taxonomie **`skill`** ajoutée (section 4.3) : hiérarchique par référentiel, réservée aux projets, code officiel en term meta. Détail dans ADR-014. La liste des compétences reste à saisir côté contenu.
+- Flags `needs_mermaid` / `needs_katex` reportés (section 5.4).
+- Tests : suite PHPUnit unitaire (doublures WordPress) et test de fumée WP-CLI dans le vrai WordPress.
 
 ---
