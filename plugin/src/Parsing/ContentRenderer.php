@@ -17,7 +17,7 @@ final class ContentRenderer
      * changes its output: content whose stored version differs is rendered
      * again at the next import even if its Markdown did not change.
      */
-    public const VERSION = '1.0.0';
+    public const VERSION = '1.0.1';
 
     public function __construct(
         private readonly MarkdownParser $parser,

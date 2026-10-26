@@ -136,6 +136,15 @@ final class GutenbergTransformerTest extends TestCase
     }
 
     #[Test]
+    public function escapes_the_first_bare_url_line_of_a_code_block_like_gutenberg(): void
+    {
+        self::assertSame(
+            "<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>curl -s https://example.org/api\nhttps:&#47;&#47;example.org/demo\nhttps://example.org/second\n</code></pre>\n<!-- /wp:code -->",
+            $this->transformer->transform("<pre><code>curl -s https://example.org/api\nhttps://example.org/demo\nhttps://example.org/second\n</code></pre>\n"),
+        );
+    }
+
+    #[Test]
     public function escapes_a_class_name_the_way_gutenberg_does(): void
     {
         // A double hyphen would close the HTML comment; Gutenberg writes it as two JSON escapes.
@@ -190,7 +199,7 @@ final class GutenbergTransformerTest extends TestCase
         $html = "<table>\n<thead>\n<tr>\n<th align=\"center\">H</th>\n<th>I</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td align=\"center\">1</td>\n<td>2</td>\n</tr>\n</tbody>\n</table>\n";
 
         self::assertSame(
-            "<!-- wp:table {\"hasFixedLayout\":false} -->\n<figure class=\"wp-block-table\"><table><thead><tr><th class=\"has-text-align-center\">H</th><th>I</th></tr></thead><tbody><tr><td class=\"has-text-align-center\">1</td><td>2</td></tr></tbody></table></figure>\n<!-- /wp:table -->",
+            "<!-- wp:table {\"hasFixedLayout\":false} -->\n<figure class=\"wp-block-table\"><table><thead><tr><th class=\"has-text-align-center\" data-align=\"center\">H</th><th>I</th></tr></thead><tbody><tr><td class=\"has-text-align-center\" data-align=\"center\">1</td><td>2</td></tr></tbody></table></figure>\n<!-- /wp:table -->",
             $this->transformer->transform($html),
         );
     }

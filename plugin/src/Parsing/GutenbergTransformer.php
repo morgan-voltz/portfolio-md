@@ -44,6 +44,9 @@ final class GutenbergTransformer
     /** Elements of a table whose whitespace-only text nodes carry no meaning. */
     private const TABLE_STRUCTURE_TAGS = ['table', 'thead', 'tbody', 'tfoot', 'tr'];
 
+    /** A line that is only a URL, as the code block of Gutenberg matches it (its String.replace has no g flag: first line only). */
+    private const BARE_URL_LINE = '/^(\s*https?:)\/\/([^\s<>"]+\s*)$/m';
+
     public function transform(string $html): string
     {
         if (trim($html) === '') {
@@ -253,8 +256,10 @@ final class GutenbergTransformer
         $attributes = $classes === '' ? [] : ['className' => $classes];
         $preClass = trim('wp-block-code ' . $classes);
 
-        // Gutenberg escapes "[" in code blocks so that WordPress never reads a shortcode in them.
+        // Gutenberg escapes "[" in code blocks so that WordPress never reads a shortcode in them,
+        // and the "//" of the first line that is only a URL so that it never becomes an embed.
         $content = str_replace('[', '&#91;', self::inner($code));
+        $content = preg_replace(self::BARE_URL_LINE, '$1&#47;&#47;$2', $content, 1) ?? $content;
 
         return self::wrap('code', $attributes, '<pre class="' . self::attribute($preClass) . '"><code>' . $content . '</code></pre>');
     }
@@ -279,7 +284,9 @@ final class GutenbergTransformer
                 $align = strtolower($cell->getAttribute('align'));
                 $cell->removeAttribute('align');
                 if (in_array($align, ['left', 'center', 'right'], true)) {
+                    // The editor reads the alignment back from data-align; the class is for the stylesheet.
                     $cell->setAttribute('class', trim($cell->getAttribute('class') . ' has-text-align-' . $align));
+                    $cell->setAttribute('data-align', $align);
                 }
             }
         }
