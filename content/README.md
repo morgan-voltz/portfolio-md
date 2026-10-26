@@ -41,9 +41,11 @@ demo_url: ""
 client: ""                          # commanditaire réel, vide sinon
 is_fil_rouge: false                 # true pour le seul projet fil rouge 4.0.2
 tags: [csharp, dotnet, wpf]         # taxonomie tech_tag, slugs libres
-skills: ["4.0.2/E07", "4.0.2/E08"]  # codes de content/skills.yaml
+skills: ["4.0.1/FR-13", "4.0.2/E07"] # codes de content/skills.yaml
 ---
 ```
+
+Les codes de compétences viennent de `skills.yaml` : pour 4.0.1, les intitulés officiels de la feuille de suivi (`FR-nn` techniques, `PM-nn` métier, `TR-nn` transverses) ; pour 4.0.2, les étapes de la consigne du fil rouge (`Enn`, `Onn`) en attendant la feuille de suivi de l'année. Une fiche ne cite que les compétences que le projet démontre concrètement.
 
 Pas de champ `category` : la taxonomie native n'est pas utilisée (`04-structure-wordpress.md` §4.4), les tags techniques suffisent. Les flags `needs_mermaid` / `needs_katex` viendront avec le pipeline (ADR-013).
 

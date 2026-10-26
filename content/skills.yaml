@@ -1,17 +1,21 @@
 # Référentiels de compétences UHA 4.0 — grille de la taxonomie `skill` (ADR-011, ADR-014).
 #
-# Source : les étapes des consignes officielles des deux fils rouges, qui sont ce que
-# l'école valide étape par étape. Fil rouge 4.0.1 : export Confluence du 29 septembre 2025
-# (14 étapes, les trois dernières optionnelles). Fil rouge 4.0.2 : export Confluence du
-# 3 septembre 2026 (étapes 0 à 12 plus les optionnelles). Si la liste officielle des
-# compétences avec ses propres codes est un jour exportée, elle remplace cette grille ;
-# les codes ci-dessous (E = étape, O = optionnelle) sont les nôtres.
+# Deux sources, de qualité différente :
+# - 4.0.1 : la « Feuille de suivi formateurs » officielle de Morgan (export Confluence du
+#   26 octobre 2026). Les intitulés sont ceux de l'école, mot pour mot, en trois familles :
+#   FR = compétences techniques visées par les étapes du fil rouge, PM = compétences métier
+#   évaluées sur les projets en équipe, TR = compétences transverses. Les niveaux atteints
+#   (Supérieur / Attendu / Presque / Insuffisant) sont des données personnelles : ils ne
+#   figurent pas ici.
+# - 4.0.2 : à défaut de feuille de suivi pour l'année en cours, les étapes de la consigne
+#   officielle du fil rouge (export Confluence du 3 septembre 2026). E = étape, O = optionnelle.
+#   À remplacer par les intitulés officiels dès que la feuille de suivi 4.0.2 sera disponible.
 #
 # Chaque `referential` devient un terme parent de la taxonomie `skill` (slug imposé par
 # `TaxonomyRegistrar::SKILL_REFERENTIALS`), chaque `skill` un terme enfant : `name` est
 # l'intitulé affiché, `slug` le slug WordPress sous le parent, `code` est stocké dans le
 # term meta `_portfolio_skill_code`. Les fiches projet y font référence par le code dans
-# leur frontmatter : `skills: ["4.0.2/E07", "4.0.2/E08"]`.
+# leur frontmatter : `skills: ["4.0.1/FR-13", "4.0.2/E07"]`.
 
 referentials:
   - code: "4.0.1"
@@ -20,94 +24,127 @@ referentials:
     description: >-
       Première année du parcours UHA 4.0 : construire un site web complet autour de
       données tierces, du HTML/CSS à l'API PHP maison, avec Git, MySQL et un déploiement
-      scripté.
+      scripté, puis travailler en équipe sur des projets réels.
     skills:
-      - code: "4.0.1/E01"
-        slug: e01-cadrer-un-site-autour-d-apis
-        name: "Cadrer un projet web à partir d'APIs tierces"
-        description: >-
-          Choisir un thème et deux APIs web liées (items et catégories), inventorier les
-          informations disponibles et leurs relations, rédiger un cahier des charges de
-          dix lignes et une arborescence du site.
-      - code: "4.0.1/E02"
-        slug: e02-maquette-html-css
-        name: "Structurer et styler des pages avec HTML5 et CSS3"
-        description: >-
-          Produire une maquette de deux pages qui montre comment les informations sont
-          structurées et affichées, sans encore les charger automatiquement.
-      - code: "4.0.1/E03"
-        slug: e03-afficher-une-api-cote-serveur
-        name: "Afficher les données d'une API côté serveur"
-        description: >-
-          Faire chercher par le serveur les informations de la première API et générer
-          la page HTML qui les présente.
-      - code: "4.0.1/E04"
-        slug: e04-git-et-gitlab
-        name: "Versionner avec Git et travailler par branches"
-        description: >-
-          Installer et utiliser Git, prendre en main le GitLab UHA 4.0, développer chaque
-          tâche dans une branche dédiée puis la fusionner dans la branche principale.
-      - code: "4.0.1/E05"
-        slug: e05-script-de-deploiement-bash
-        name: "Automatiser le déploiement avec un script Bash"
-        description: >-
-          Écrire un script qui télécharge ou met à jour le site sur un serveur, signale
-          les erreurs et affiche l'URL d'accès, indépendamment du dossier d'exécution.
-      - code: "4.0.1/E06"
-        slug: e06-javascript-et-dom
-        name: "Rendre une page dynamique en JavaScript"
-        description: >-
-          Consommer la deuxième API depuis le navigateur et afficher ses informations
-          dynamiquement (manipulation du DOM, fenêtres contextuelles) sans recharger la page.
-      - code: "4.0.1/E07"
-        slug: e07-modeliser-une-base-mysql
-        name: "Modéliser une base de données relationnelle"
-        description: >-
-          Concevoir le schéma (au moins quatre tables, clés primaires et étrangères),
-          l'écrire en SQL rejouable et le documenter.
-      - code: "4.0.1/E08"
-        slug: e08-stocker-les-donnees-d-apis
-        name: "Alimenter une base depuis des APIs par programme"
-        description: >-
-          Stocker les données transmises par les APIs du thème et offrir un moyen de
-          réinitialiser la base avec toutes les données de l'API.
-      - code: "4.0.1/E09"
-        slug: e09-api-php-de-lecture
-        name: "Exposer ses données par une API PHP"
-        description: >-
-          Créer une API en PHP et JSON pour servir les données de la base, puis faire
-          afficher les pages du site depuis cette API.
-      - code: "4.0.1/E10"
-        slug: e10-crud-et-formulaire-dynamique
-        name: "Implémenter un CRUD complet, de la table au formulaire"
-        description: >-
-          Ajouter une table métier, une API REST qui la crée, lit, modifie et supprime,
-          et un formulaire dynamique qui enregistre et supprime sans rechargement.
-      - code: "4.0.1/E11"
-        slug: e11-documenter-et-paginer
-        name: "Documenter le déploiement et paginer les résultats"
-        description: >-
-          Rédiger la documentation qui permet à un tiers de déployer et utiliser le site,
-          et paginer les données dans l'API comme dans les pages.
-      - code: "4.0.1/E12"
-        slug: e12-inscription-et-connexion
-        name: "Gérer l'inscription et la connexion d'un administrateur"
-        description: >-
-          Ajouter un système d'inscription et de connexion donnant accès aux pages
-          d'administration, avec le nom de l'utilisateur connecté dans l'en-tête.
-          Étape optionnelle sauf retard.
-      - code: "4.0.1/E13"
-        slug: e13-site-responsive
-        name: "Rendre un site responsive avec une bibliothèque CSS"
-        description: >-
-          Adapter l'application à tous les écrans à l'aide d'une bibliothèque CSS
-          (Bootstrap). Étape optionnelle.
-      - code: "4.0.1/E14"
-        slug: e14-frameworks-front-et-back
-        name: "Reconstruire le site avec un framework front ou back"
-        description: >-
-          Initiation aux approches avancées du web : refaire le même site avec un
-          framework front (Angular, React, Vue) ou back (Symfony, NodeJS). Étape optionnelle.
+      # Compétences techniques visées par les étapes du fil rouge 4.0.1
+      - code: "4.0.1/FR-01"
+        slug: fr-01-outils-collaboratifs-de-gestion-de-projet
+        name: "Utiliser des outils collaboratifs de gestion de projet"
+        description: "Étapes Découverte et Versionning du fil rouge : Confluence, Jira, GitLab, branches par tâche."
+      - code: "4.0.1/FR-02"
+        slug: fr-02-maquettes-graphiques-integrees
+        name: "Création et intégration dans un site web de maquettes graphiques permettant la mise à disposition d'informations"
+        description: "Étape Maquette : pages HTML/CSS qui structurent et affichent les informations."
+      - code: "4.0.1/FR-03"
+        slug: fr-03-langage-procedural
+        name: "Appréhender un langage de programmation procédural"
+        description: "Étape Lire API : PHP côté serveur pour lire et afficher une API."
+      - code: "4.0.1/FR-04"
+        slug: fr-04-serveur-php
+        name: "Déployer un serveur qui interprète du PHP"
+        description: "Étape Lire API."
+      - code: "4.0.1/FR-05"
+        slug: fr-05-commandes-linux
+        name: "Connaître les commandes LINUX de base"
+        description: "Étape Linux."
+      - code: "4.0.1/FR-06"
+        slug: fr-06-mise-en-ligne-technologies-imposees
+        name: "Mettre en ligne son site web avec des technologies imposées"
+        description: "Étape Linux : script Bash de déploiement sur le serveur de la salle."
+      - code: "4.0.1/FR-07"
+        slug: fr-07-dynamiser-un-site-avec-une-api
+        name: "Dynamiser un site web en mobilisant une API"
+        description: "Étape Dynamisation : JavaScript et DOM, deuxième API."
+      - code: "4.0.1/FR-08"
+        slug: fr-08-langage-procedural-et-fonctionnel
+        name: "Appréhender un langage de programmation procédural et fonctionnel"
+        description: "Étape Dynamisation : JavaScript."
+      - code: "4.0.1/FR-09"
+        slug: fr-09-construire-des-bases-relationnelles
+        name: "Construire des bases de données relationnelles"
+        description: "Étape BDD : modélisation, clés primaires et étrangères, script SQL."
+      - code: "4.0.1/FR-10"
+        slug: fr-10-deployer-une-base-relationnelle
+        name: "Déployer une base de données relationnelle"
+        description: "Étape BDD : MySQL."
+      - code: "4.0.1/FR-11"
+        slug: fr-11-procedure-logique
+        name: "Développer une procédure logique répondant à des problématiques partielles"
+        description: "Étape Persistance : algorithmique de stockage des données d'API en base."
+      - code: "4.0.1/FR-12"
+        slug: fr-12-structures-de-donnees
+        name: "Savoir appréhender des structures de données"
+        description: "Étape Persistance."
+      - code: "4.0.1/FR-13"
+        slug: fr-13-architectures-n-tiers
+        name: "Développer des architectures n-tiers composées d'une interface utilisateur, d'un serveur et d'une base de données relationnelle"
+        description: "Étape Créer API : API PHP maison consommée par les pages, CRUD."
+      - code: "4.0.1/FR-14"
+        slug: fr-14-securite-injections-sql
+        name: "Être sensibilisé à la sécurité du développement réalisé, notamment avec des injections SQL"
+        description: "Étape Formulaire."
+      - code: "4.0.1/FR-15"
+        slug: fr-15-documentation-detaillee
+        name: "Produire une documentation détaillée sur le code développé et les tâches réalisées"
+        description: "Étape Documentation : README de déploiement, documentation technique."
+      - code: "4.0.1/FR-16"
+        slug: fr-16-framework-front-end-reactif
+        name: "Développer une application réactive à l'aide d'un framework de développement front-end"
+        description: "Objectif optionnel Framework : React."
+      # Compétences métier mobilisées sur les projets en équipe
+      - code: "4.0.1/PM-01"
+        slug: pm-01-collaborer-en-equipe
+        name: "Collaborer au sein d'une équipe pour atteindre les objectifs du projet"
+        description: "Évaluée sur les projets en équipe de la première année."
+      - code: "4.0.1/PM-02"
+        slug: pm-02-executer-les-taches-dans-les-delais
+        name: "Exécuter les tâches attribuées en respectant les délais impartis"
+        description: "Évaluée sur les projets en équipe de la première année."
+      - code: "4.0.1/PM-03"
+        slug: pm-03-framework-agile-scrum
+        name: "Appliquer le framework agile SCRUM"
+        description: "Sprints, backlog Jira, revues de sprint."
+      - code: "4.0.1/PM-04"
+        slug: pm-04-registres-d-expression-francaise
+        name: "Se servir aisément des différents registres d'expression écrite et orale de la langue française"
+        description: "Documentation, échanges avec le client et l'équipe."
+      - code: "4.0.1/PM-05"
+        slug: pm-05-presenter-a-l-oral-avec-support
+        name: "Présenter son parcours et ses travaux à l'oral en s'appuyant sur un support visuel"
+        description: "Revues de sprint, soutenances."
+      - code: "4.0.1/PM-06"
+        slug: pm-06-s-auto-evaluer
+        name: "S'auto-évaluer à chaque réalisation et étape d'apprentissage"
+        description: "Évaluée sur les projets en équipe de la première année."
+      - code: "4.0.1/PM-07"
+        slug: pm-07-developper-avec-les-langages-web
+        name: "Développer des applications en utilisant les langages de programmation web"
+        description: "Évaluée sur les projets en équipe de la première année."
+      - code: "4.0.1/PM-08"
+        slug: pm-08-pratiques-coherentes-avec-l-equipe
+        name: "Adopter des pratiques de développement cohérentes avec la stratégie mise en place par l'équipe de développement"
+        description: "Conventions de commit, découpage des tâches, communication des changements structurants."
+      - code: "4.0.1/PM-09"
+        slug: pm-09-code-review
+        name: "Corriger et adapter son code en fonction des remarques de ses pairs et du chef de projet (code review)"
+        description: "Évaluée sur les projets en équipe de la première année."
+      # Compétences transverses
+      - code: "4.0.1/TR-01"
+        slug: tr-01-anglais-oral
+        name: "Identifier son niveau en langue étrangère (anglais) et communiquer par oral en utilisant un vocabulaire courant"
+        description: "Test de langue à l'entrée de formation, évaluation d'anglais en fin d'année."
+      - code: "4.0.1/TR-02"
+        slug: tr-02-mettre-en-valeur-son-travail-en-entretien
+        name: "Présenter et mettre en valeur son travail, son expérience lors d'entretiens professionnels"
+        description: "Entretien individuel."
+      - code: "4.0.1/TR-03"
+        slug: tr-03-realiser-un-portfolio
+        name: "Réaliser un portfolio des projets réalisés et des compétences techniques acquises"
+        description: "Page de portfolio ; ce site en est la version aboutie."
+      - code: "4.0.1/TR-04"
+        slug: tr-04-dossier-de-candidature
+        name: "Réaliser un dossier de candidature professionnelle : CV, lettre de motivation, simulations d'entretiens"
+        description: "CV et lettre de motivation."
 
   - code: "4.0.2"
     slug: 4-0-2
