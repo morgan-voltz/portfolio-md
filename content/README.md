@@ -1,6 +1,6 @@
 # content/ — la source Markdown du portfolio
 
-**Rôle** : ce dossier est la source canonique du contenu du site (ADR-001, ADR-002). Tout ce que WordPress affiche en est une projection : le plugin `portfolio-md` stockera chaque fichier tel quel dans `_portfolio_md_source` et en dérivera le HTML Gutenberg. Jusqu'à l'arrivée du pipeline (phase 2) et du webhook Git (phase 9), les fichiers sont importés à la main ; leur forme, elle, est déjà définitive.
+**Rôle** : ce dossier est la source canonique du contenu du site (ADR-001, ADR-002). Tout ce que WordPress affiche en est une projection : le plugin `portfolio-md` stockera chaque fichier tel quel dans `_portfolio_md_source` et en dérivera le HTML Gutenberg. Les fichiers sont importés par la commande `wp portfolio import` (voir « Import dans WordPress ») en attendant le webhook Git (phase 9) ; leur forme est définitive.
 **Langue** : le contenu est en français, c'est la langue du site. Les identifiants (slugs, codes, clés de frontmatter) restent en anglais.
 **Décision associée** : contenu versionné dans le monorepo, ADR-015 du 26 octobre 2026.
 
@@ -88,12 +88,21 @@ podman-compose --profile tools run --rm wpcli wp portfolio skills sync /srv/port
 podman-compose --profile tools run --rm wpcli wp portfolio skills sync /srv/portfolio-content/skills.yaml
 ```
 
-La commande est idempotente ; les termes présents dans WordPress mais absents de la grille sont signalés, jamais supprimés. L'import des fiches et des pages viendra avec le pipeline Markdown.
+La commande est idempotente ; les termes présents dans WordPress mais absents de la grille sont signalés, jamais supprimés.
+
+Les fiches projet (et, le jour venu, les articles) s'importent ensuite avec `wp portfolio import`, qui prend des fichiers ou des dossiers et exige `--user` pour donner un auteur aux posts :
+
+```bash
+podman-compose --profile tools run --rm wpcli wp portfolio import /srv/portfolio-content/projects --dry-run --user=<login admin>
+podman-compose --profile tools run --rm wpcli wp portfolio import /srv/portfolio-content/projects --user=<login admin>
+```
+
+Chaque fiche donne un post publié (`--draft` pour un brouillon), avec son Markdown verbatim dans `_portfolio_md_source` et son HTML Gutenberg dans `post_content`. Un second passage sur un fichier inchangé ne réécrit rien (`UNCHANGED`). Un fichier modifié met à jour le même post, sauf si le post a été modifié entre-temps depuis l'admin : l'import signale alors un `CONFLICT` et ne touche à rien tant qu'on ne relance pas avec `--force` (règle d'ADR-005). Les codes de compétences doivent exister dans la taxonomie, donc dans `skills.yaml` synchronisé ; un code inconnu fait échouer la fiche. Les pages (`type: page`) ne sont pas encore importées (`04-structure-wordpress.md` §3.4).
 
 ## Règles
 
 - Une fiche décrit le projet, pas le dépôt : pas de données client, pas de secrets, pas de noms de personnes tierces sans accord. Les projets sous dépôt privé (GitLab UHA 4.0, Kovelt) gardent `repo_url` vide et le disent dans **Liens**.
-- Le Markdown est du GFM strict (ADR-002) : tableaux, listes de tâches, barré, liens automatiques. Pas de HTML inline.
+- Le Markdown est du GFM strict (ADR-002) : tableaux, listes de tâches, barré, liens automatiques. Pas de HTML inline : écrit malgré tout, il apparaîtrait en clair sur le site, le pipeline l'échappe. Une liste de tâches est conservée telle quelle, mais stockée en bloc HTML brut plutôt qu'en liste Gutenberg.
 - Les images vivent à côté du fichier qui les utilise (`projects/<slug>/`) et sont référencées en chemin relatif ; le pipeline les importera dans la médiathèque (`01-plugin-php.md` §8).
 - Les antislashs sont permis partout (`\*`, `C:\chemin`) : le plugin les préserve (`MetaWriter`, ADR-013).
 
