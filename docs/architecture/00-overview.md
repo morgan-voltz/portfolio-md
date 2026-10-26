@@ -4,7 +4,7 @@
 **Rôle** : document d'entrée dans l'architecture, porte d'accès aux documents détaillés
 **Lectorat** : contributeur, recruteur, étudiant, Morgan lui-même à froid
 **Temps de lecture** : environ quinze minutes
-**Dernière mise à jour** : 22 avril 2026
+**Dernière mise à jour** : 26 octobre 2026 (noms réels des types et taxonomies en phase 1)
 
 ---
 
@@ -175,7 +175,7 @@ Le projet est découpé en douze phases indépendantes, conçues pour être atta
 
 **Phase 0** : mise en place de l'environnement de développement. WordPress local fonctionnel, repo GitHub initialisé avec la structure de documentation, outillage en place.
 
-**Phase 1** : plugin squelette. Le plugin s'active, enregistre son Custom Post Type `portfolio_project` et la taxonomie `tech_stack`. Rien ne parse encore de Markdown, mais la structure est prête.
+**Phase 1** : plugin squelette. Le plugin s'active, enregistre ses Custom Post Types `article` et `project`, ses taxonomies `tech_tag`, `project_status` et `skill`, et ses champs personnalisés. Rien ne parse encore de Markdown, mais la structure est prête. *(Terminée le 26 octobre 2026.)*
 
 **Phase 2** : parser Markdown et stockage. Intégration de `league/commonmark` et `symfony/yaml`. Un script WP-CLI permet d'importer un fichier `.md` et de créer un article WordPress correctement rempli.
 

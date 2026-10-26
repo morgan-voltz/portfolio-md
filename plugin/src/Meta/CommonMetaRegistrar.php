@@ -4,7 +4,17 @@ declare(strict_types=1);
 
 namespace Voltz\PortfolioMd\Meta;
 
-
+/**
+ * Registers the post metas shared by articles and projects.
+ *
+ * Four public fields (exposed in the REST API, editable by anyone allowed to
+ * edit the post). `subtitle` and `reading_time` only make editorial sense on
+ * articles but are registered on both post types: an unused meta on a project
+ * costs nothing, while a fourth registrar for a single field would.
+ *
+ * Hooked on the WordPress `init` action by the composition root (`Plugin`).
+ * See docs/architecture/04-structure-wordpress.md section 5.1.
+ */
 final class CommonMetaRegistrar
 {
     public const SEO_DESCRIPTION = '_portfolio_seo_description';
@@ -12,138 +22,98 @@ final class CommonMetaRegistrar
     public const READING_TIME = '_portfolio_reading_time';
     public const SUBTITLE = '_portfolio_subtitle';
 
-    private const SHARED_POST_TYPES = ['article', 'project'];
+    /** Google truncates meta descriptions around this length. */
+    public const SEO_DESCRIPTION_MAX_LENGTH = 160;
 
+    /** Upper bound for a plausible reading time, in minutes. */
+    public const READING_TIME_MAX_MINUTES = 240;
 
     /**
-     * Registers all post metas shared between articles and projects.
-     *
-     * Hooked on WordPress 'init' action via Plugin.php.
+     * Registers all shared post metas on both post types.
      */
     public function register(): void
     {
-        $this->registerSeoDescription();
-        $this->registerFeatured();
-        $this->registerReadingTime();
-        $this->registerSubtitle();
+        $this->registerMeta(
+            self::SEO_DESCRIPTION,
+            'string',
+            '',
+            'Custom SEO description for this article or project.',
+            [self::class, 'sanitizeSeoDescription'],
+        );
+
+        $this->registerMeta(
+            self::FEATURED,
+            'boolean',
+            false,
+            'Whether this content is featured on the home page.',
+            [self::class, 'sanitizeFeatured'],
+        );
+
+        $this->registerMeta(
+            self::READING_TIME,
+            'integer',
+            0,
+            'Estimated reading time in minutes.',
+            [self::class, 'sanitizeReadingTime'],
+        );
+
+        $this->registerMeta(
+            self::SUBTITLE,
+            'string',
+            '',
+            'Short subtitle or summary line for articles.',
+            [self::class, 'sanitizeSubtitle'],
+        );
     }
 
     /**
-     * Registers the SEO description post meta.
+     * @param array{0: class-string, 1: string} $sanitizeCallback
      */
-    private function registerSeoDescription(): void
-    {
-        $args = [
-            'type' => 'string',
+    private function registerMeta(
+        string $metaKey,
+        string $type,
+        string|bool|int $default,
+        string $description,
+        array $sanitizeCallback,
+    ): void {
+        MetaRegistration::registerForPostTypes(MetaRegistration::PORTFOLIO_POST_TYPES, $metaKey, [
+            'type' => $type,
             'single' => true,
-            'default' => '',
-            'description' => 'Custom SEO description for this article or project.',
-            'sanitize_callback' => [self::class, 'sanitizeSeoDescription'],
+            'default' => $default,
+            'description' => $description,
+            'sanitize_callback' => $sanitizeCallback,
+            'auth_callback' => [MetaRegistration::class, 'authorizeEditPost'],
             'show_in_rest' => true,
-        ];
-        $this->registerForBothTypes(self::SEO_DESCRIPTION, $args);
+        ]);
     }
-
-    /**
-     * Registers the featured flag post meta.
-     */
-    private function registerFeatured(): void
-    {
-        $args = [
-            'type' => 'boolean',
-            'single' => true,
-            'default' => false,
-            'description' => 'Whether this article is featured on the home page.',
-            'sanitize_callback' => [self::class, 'sanitizeFeatured'],
-            'show_in_rest' => true,
-        ];
-        $this->registerForBothTypes(self::FEATURED, $args);
-    }
-
-    /**
-     * Registers the reading time post meta.
-     */
-    private function registerReadingTime(): void
-    {
-        $args = [
-          'type' => 'integer',
-          'single' => true,
-          'default' => 0,
-          'description' => 'Estimated reading time in minutes.',
-          'sanitize_callback' => [self::class, 'sanitizeReadingTime'],
-          'show_in_rest' => true,
-        ];
-        $this->registerForBothTypes(self::READING_TIME, $args);
-    }
-
-    /**
-     * Registers the subtitle post meta.
-     */
-    private function registerSubtitle(): void
-    {
-        $args = [
-            'type'              => 'string',
-            'single'            => true,
-            'default'           => '',
-            'description'       => 'Short subtitle or summary line for articles.',
-            'sanitize_callback' => [self::class, 'sanitizeSubtitle'],
-            'show_in_rest'      => true,
-        ];
-        $this->registerForBothTypes(self::SUBTITLE, $args);
-    }
-
-
-    /**
-     * Registers a post meta for both 'article' and 'project' post types.
-     */
-    private function registerForBothTypes(string $metaKey, array $args): void
-    {
-        foreach (self::SHARED_POST_TYPES as $postType) {
-            register_post_meta($postType, $metaKey, $args);
-        }
-    }
-
 
     // region Sanitizers
 
-
     /**
-     * Sanitizes the SEO description value before storage.
+     * Plain text truncated to the SEO-friendly length.
      */
-    public  static function sanitizeSeoDescription(mixed $value): string
+    public static function sanitizeSeoDescription(mixed $value): string
     {
-        $cleaned = sanitize_text_field((string) $value);
-        return mb_substr($cleaned, 0, 160);
+        return Sanitizer::text($value, self::SEO_DESCRIPTION_MAX_LENGTH);
     }
 
-    /**
-     * Sanitizes the featured flag value before storage.
-     */
     public static function sanitizeFeatured(mixed $value): bool
     {
-        if (is_string($value)) {
-            $value = filter_var($value, FILTER_VALIDATE_BOOLEAN);
-        }
-        return (bool) $value;
+        return Sanitizer::boolean($value);
     }
 
     /**
-     * Sanitizes the reading time value before storage.
+     * Minutes between 0 and READING_TIME_MAX_MINUTES; anything else becomes 0.
      */
     public static function sanitizeReadingTime(mixed $value): int
     {
-        $result = filter_var($value, FILTER_VALIDATE_INT, [
-            'options' => ['min_range' => 0, 'max_range' => 240],
-        ]);
-
-        return $result === false ? 0 : $result;
+        return Sanitizer::boundedInt($value, 0, self::READING_TIME_MAX_MINUTES);
     }
 
-    /**
-     * Sanitizes the subtitle value before storage.
-     */
     public static function sanitizeSubtitle(mixed $value): string
     {
-        return sanitize_text_field((string) $value);
+        return Sanitizer::text($value);
     }
+
+    // endregion
 }

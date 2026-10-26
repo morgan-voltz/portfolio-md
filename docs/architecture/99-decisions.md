@@ -4,7 +4,7 @@
 **Rôle** : trace des décisions structurantes, avec leur contexte et leur justification
 **Format** : inspiré d'ADR (Architecture Decision Records) de Michael Nygard
 **Lectorat** : contributeur, Morgan lui-même à froid, recruteur attentif
-**Dernière mise à jour** : 22 avril 2026
+**Dernière mise à jour** : 26 octobre 2026
 
 ---
 
@@ -43,6 +43,9 @@ Les entrées ne sont jamais supprimées. Si une décision est révisée, on ajou
 | ADR-009 | Pas de MediatR dans la version initiale de l'API | 2026-04-22 | Accepté |
 | ADR-010 | Stack front Vite + React Router + TanStack Query + Tailwind | 2026-04-22 | Accepté |
 | ADR-011 | Modélisation des compétences académiques et du projet fil rouge | 2026-04-22 | Accepté |
+| ADR-012 | Révision du contrat de collaboration : Claude écrit le code, Morgan relit et valide | 2026-10-26 | Accepté |
+| ADR-013 | Champs personnalisés : préfixe `_portfolio_` généralisé, trois registrars, autorisation explicite | 2026-10-26 | Accepté |
+| ADR-014 | Taxonomie `skill` hiérarchique par référentiel, code officiel en term meta | 2026-10-26 | Accepté |
 
 ---
 
@@ -321,7 +324,7 @@ La stack est simple à expliquer à un recruteur et correspond aux attentes cour
 ## ADR-011 — Modélisation des compétences académiques et du projet fil rouge
 
 **Date** : 2026-04-22
-**Statut** : Accepté
+**Statut** : Accepté (forme concrète de la taxonomie précisée par ADR-014 ; les noms `portfolio_project` et `tech_stack` employés ci-dessous sont devenus `project` et `tech_tag`, voir `04-structure-wordpress.md`)
 
 ### Contexte
 
@@ -346,6 +349,91 @@ Le projet fil rouge est marqué par un **champ booléen `is_fil_rouge` dans le f
 ### Conséquences
 
 Le plugin doit enregistrer la classe `PostTypes\SkillTaxonomy` au démarrage, au même titre que `TechStackTaxonomy`. La forme de la réponse de l'API REST `/wp-json/portfolio/v1/projects/{slug}` s'enrichit de deux champs : `skills` (liste des compétences rattachées) et `is_fil_rouge` (booléen). Le front React et le thème WordPress exploitent ces champs pour afficher les compétences sur chaque fiche projet et pour appliquer le traitement éditorial distinctif du fil rouge. Une page archive par compétence devient naturelle à construire via les archives de taxonomie WordPress, ce qui répond directement à l'exigence du jury de pouvoir consulter les projets démontrant une compétence donnée. La liste concrète des codes de compétences n'est pas figée dans le plugin mais vit dans les termes de la taxonomie, ce qui permet d'évoluer sans toucher au code — si les référentiels UHA 4.0 évoluent d'une promotion à l'autre, seuls les termes WordPress changent.
+
+---
+
+## ADR-012 — Révision du contrat de collaboration : Claude écrit le code, Morgan relit et valide
+
+**Date** : 2026-10-26
+**Statut** : Accepté
+
+### Contexte
+
+Le contrat de collaboration initial (`CLAUDE.md` version 1.0, 22 avril 2026) posait une règle cardinale : Claude explique, guide et relit, mais n'écrit jamais le code métier, parce que Morgan apprend en tapant chaque ligne lui-même. Six mois plus tard, le dépôt n'a pas avancé au-delà du modèle de contenu du plugin (post types, taxonomies, quatre post metas) : la contrainte de temps de Morgan, en formation et en emploi, n'a pas permis de tenir le rythme d'écriture. Entre-temps, le besoin s'est précisé : Morgan cherche une alternance et un stage pour janvier 2027 et veut un portfolio présentable pour appuyer ses candidatures. Il n'y a pas de date butoir académique ferme, mais un horizon de quelques mois pour disposer au minimum du site WordPress fonctionnel, idéalement de la stack complète.
+
+### Décision
+
+**Claude écrit le code, les tests et la documentation associée ; Morgan relit, questionne et valide.** La relation reste une revue à deux, mais le clavier change de mains. Chaque lot livré par Claude comprend obligatoirement trois choses : le code, les tests qui le protègent, et un résumé pédagogique qui explique ce qui a été fait, pourquoi, quelles décisions locales ont été prises et ce que Morgan doit vérifier en priorité. Avant d'être présenté à Morgan, chaque lot passe par une relecture indépendante par des agents de revue (bugs, sécurité WordPress, cohérence avec la doc, qualité des tests).
+
+Les garde-fous qui ne changent pas : aucune décision architecturale n'est prise par Claude seul (les options sont présentées, Morgan tranche) ; aucune mention d'IA n'apparaît dans les commits ou les pull requests ; la documentation n'est jamais modifiée silencieusement ; rien n'est supprimé sans confirmation explicite. Côté Git, Claude peut désormais créer les branches, commiter, pousser et ouvrir les pull requests ; **le merge sur `main` reste l'acte de Morgan**, par lequel il atteste avoir lu et compris le lot.
+
+### Alternatives considérées
+
+**Conserver le contrat initial** : pédagogiquement le plus pur, mais le rythme observé (aucun commit entre le 28 avril et le 26 octobre 2026) rend l'objectif de janvier 2027 inatteignable. Un portfolio inexistant n'enseigne rien et ne sert aucune candidature.
+
+**Claude en autonomie complète, sans revue** : le plus rapide sur le papier, mais rompt le lien entre le code et la compréhension de Morgan. Le projet est public et sera discuté en entretien : Morgan doit pouvoir défendre chaque choix. La revue obligatoire et le résumé pédagogique sont la contrepartie du droit d'écrire.
+
+**Pair programming synchrone** (Claude propose ligne à ligne, Morgan tape) : préserve le geste d'écriture, mais coûte presque autant de temps que le contrat initial sans en avoir la valeur formatrice complète. Écarté.
+
+### Conséquences
+
+La vitesse de production augmente nettement : les phases 2 à 5 de la feuille de route (pipeline Markdown, blocs Gutenberg, éditeur admin, API REST) deviennent atteignables avant la fin de l'année. Le risque principal est une compréhension superficielle du code par Morgan ; il est contenu par l'obligation d'explication, par la relecture de chaque PR avant merge, et par les tests qui jouent le rôle de spécification lisible. La discipline documentaire est maintenue à l'identique. Le `README.md` est mis à jour pour rester transparent sur le mode de collaboration, par honnêteté vis-à-vis des recruteurs et des étudiants qui liront le dépôt. `CLAUDE.md` passe en version 1.1 ; les sections 2, 3, 4 et 5.4 sont réécrites en conséquence.
+
+---
+
+## ADR-013 — Champs personnalisés : préfixe `_portfolio_` généralisé, trois registrars, autorisation explicite
+
+**Date** : 2026-10-26
+**Statut** : Accepté
+
+### Contexte
+
+Le cadrage du 25 avril 2026 (`04-structure-wordpress.md` §5) prévoyait quatre champs publics **sans** préfixe underscore, pour qu'ils restent visibles dans la boîte « Champs personnalisés » de l'admin, et des champs projet et internes préfixés `_portfolio_`. La session du 28 avril a généralisé le préfixe à tous les champs (cohérence, signalisation claire « géré par le plugin ») et choisi trois classes d'enregistrement plutôt qu'une. En implémentant, une conséquence non anticipée est apparue : WordPress considère toute clé commençant par `_` comme *protégée*, et `register_meta()` donne alors à `auth_callback` la valeur par défaut `__return_false` (`wp-includes/meta.php`, bloc « If `auth_callback` is not provided, fall back to `is_protected_meta()` »). Les quatre metas communes mergées le 28 avril étaient donc exposées dans l'API REST mais **interdites en écriture pour tout le monde, administrateurs compris**, via Gutenberg ou REST. Par ailleurs, la spec `01-plugin-php.md` listait deux flags `needs_mermaid` / `needs_katex` absents du cadrage du 25 avril.
+
+### Décision
+
+Toutes les clés meta du plugin sont préfixées `_portfolio_` et donc protégées. Elles sont enregistrées par **trois classes** dans `plugin/src/Meta/` : `CommonMetaRegistrar` (quatre metas publiques sur `article` et `project`), `ProjectMetaRegistrar` (huit metas publiques sur `project`, dont `_portfolio_project_is_fil_rouge`), `InternalMetaRegistrar` (cinq metas internes sur les deux types). Les metas **publiques** déclarent explicitement `auth_callback => [MetaRegistration::class, 'authorizeEditPost']`, qui autorise l'écriture à quiconque peut éditer le post (`user_can($userId, 'edit_post', $postId)`). Les metas **internes** gardent `auth_callback => '__return_false'` et `show_in_rest => false` : seul le code du plugin les écrit, via `update_post_meta()` qui ne passe pas par les capabilities. Les sanitizers sont des fonctions **pures et strictes** regroupées dans `Meta\Sanitizer` : une valeur invalide devient la valeur neutre du type (`''`, `false`, `0`), jamais une valeur « réparée ». Les flags `needs_mermaid` / `needs_katex` sont **reportés** : ils seront enregistrés quand le pipeline les produira et que le thème les consommera.
+
+### Alternatives considérées
+
+**Champs publics sans préfixe** (cadrage initial) : visibles et éditables à la main dans la boîte « Champs personnalisés », ce qui contourne le pipeline et la sanitization typée, et mélange les champs du plugin avec ceux d'autres extensions. Écarté au profit de l'édition via Gutenberg, REST ou le pipeline.
+
+**Un seul registrar** : plus court, mais une classe de dix-sept champs aux règles différentes (publics / internes, article / projet) devient vite illisible. Trois classes alignées sur les trois lots du cadrage sont plus faciles à relire et à tester.
+
+**Sanitization permissive** (corriger les valeurs : tronquer, arrondir, remplacer) : ne casse rien en apparence mais masque les erreurs du pipeline ou de la saisie. Pour un projet d'apprentissage, voir l'erreur vaut mieux que la cacher.
+
+**Enregistrer `needs_mermaid` / `needs_katex` dès maintenant** : alignerait la spec et le code, au prix de deux champs sans producteur ni consommateur. Code mort refusé.
+
+### Conséquences
+
+La boîte « Champs personnalisés » de l'admin n'affiche aucun champ du plugin ; l'édition passe par Gutenberg (metas exposées en REST), par l'API REST ou par le pipeline Markdown. Toute nouvelle meta publique **doit** porter `MetaRegistration::authorizeEditPost`, sans quoi elle sera muette en écriture ; un test unitaire vérifie ce callback sur chaque meta enregistrée. Les constantes de clés vivent sur les registrars (`CommonMetaRegistrar::FEATURED`, etc.) : aucune clé n'est écrite en dur ailleurs. Les règles de sanitization sont documentées dans `04-structure-wordpress.md` §5 et vérifiées par la suite PHPUnit (sans WordPress) et par un test de fumée WP-CLI (avec WordPress). Toute écriture de meta depuis PHP passe par `Meta\MetaWriter::update()` : `update_post_meta()` déslashe sa valeur (`wp_unslash()`) avant stockage, ce qui supprimerait les antislashs d'un Markdown et casserait son hash ; le helper applique `wp_slash()` au préalable, comme l'API REST de WordPress. La note de session `docs/guide-implementation-meta.md` du 28 avril 2026 est supprimée : son contenu durable vit dans `04-structure-wordpress.md` §5 et dans cette entrée.
+
+---
+
+## ADR-014 — Taxonomie `skill` hiérarchique par référentiel, code officiel en term meta
+
+**Date** : 2026-10-26
+**Statut** : Accepté (précise ADR-011)
+
+### Contexte
+
+ADR-011 a décidé de modéliser les compétences académiques UHA 4.0 comme une taxonomie custom attachée aux projets, en prévoyant « code comme slug et intitulé comme nom ». À l'implémentation, deux faits ont imposé de préciser la forme. D'abord, un code comme `4.0.1/C1.3` ne survit pas à `sanitize_title()` : le point et la barre oblique deviennent des tirets, ce qui donne `4-0-1-c1-3`, où le référentiel et le code ne se distinguent plus (vérifié sur WordPress 7.1). Ensuite, le jury raisonne par référentiel (Compétences 4.0.1, Compétences 4.0.2) : il veut voir, pour chaque référentiel, les compétences démontrées et les projets qui les démontrent.
+
+### Décision
+
+La taxonomie `skill` est **hiérarchique**, attachée au seul post type `project`, avec l'URL de base `/competences/`. Les termes **parents** sont les référentiels (`4-0-1` → « Compétences 4.0.1 », `4-0-2` → « Compétences 4.0.2 »), auto-insérés à l'activation du plugin comme les statuts de projet (`TaxonomyRegistrar::ensureSkillReferentialTerms()`). Les termes **enfants** sont les compétences ; leur nom est l'intitulé officiel, leur slug est dérivé du code (`C1.3` → `c1-3`, WordPress suffixe automatiquement en cas de doublon entre référentiels), et le **code officiel complet** (`4.0.1/C1.3`) est stocké dans le term meta `_portfolio_skill_code`, exposé en REST et sanitizé comme texte court. Les compétences sont créées par le pipeline Markdown à partir du frontmatter (`skills: [4.0.1/C1.3, …]`) ou à la main dans l'admin ; la liste des codes et intitulés est du **contenu**, fourni par Morgan depuis le référentiel officiel, pas du code.
+
+### Alternatives considérées
+
+**Taxonomie plate avec slug dérivé du code complet** (`4-0-1-c1-3`) : la plus simple à implémenter, mais le regroupement par référentiel devrait être recodé dans le thème et dans l'API C# en analysant les slugs, et une archive « tous les projets du référentiel 4.0.1 » n'existerait pas nativement.
+
+**Deux taxonomies** (`skill_401`, `skill_402`) : duplication de la structure, et un troisième référentiel un jour imposerait du code.
+
+**Code officiel dans la description du terme** : pas requêtable proprement (`get_terms` avec `meta_query` fonctionne sur les term metas, pas sur la description), et mélange une donnée technique avec un texte éditorial.
+
+### Conséquences
+
+Le pipeline Markdown résout un code en deux temps : le préfixe (`4.0.1`) désigne le parent, le code complet retrouve l'enfant via `meta_key = _portfolio_skill_code` ; s'il n'existe pas, il est créé sous le bon parent. Les archives WordPress fournissent gratuitement `/competences/4-0-1/` (tous les projets démontrant au moins une compétence du référentiel) et `/competences/4-0-1/c1-3/` (une compétence précise). L'API C# expose pour chaque compétence `{ slug, code, label }` comme prévu dans `02-api-csharp.md`, le code venant du term meta. ADR-011 reste accepté ; seule la forme concrète (hiérarchie, slug, term meta) est fixée ici. Reste à faire côté contenu : saisir ou importer la liste officielle des compétences des deux référentiels.
 
 ---
 

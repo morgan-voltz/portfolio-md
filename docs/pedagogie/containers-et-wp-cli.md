@@ -388,5 +388,5 @@ ls -la plugin/portfolio-md.php
 - [Documentation officielle WP-CLI](https://wp-cli.org/) — toutes les commandes.
 - [Image officielle WordPress sur Docker Hub](https://hub.docker.com/_/wordpress) — variables d'environnement disponibles.
 - [Compose profiles spec](https://docs.docker.com/compose/profiles/) — spec officielle du mécanisme `profiles`.
-- [`docs/00-overview.md`](../architecture/00-overview.md) — vue d'ensemble du projet et placement de la stack containers dans l'architecture globale.
+- [`docs/architecture/00-overview.md`](../architecture/00-overview.md) — vue d'ensemble du projet et placement de la stack containers dans l'architecture globale.
 - [`README.md`](../../README.md) — instructions de démarrage rapide.

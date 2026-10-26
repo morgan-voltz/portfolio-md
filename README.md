@@ -2,7 +2,7 @@
 
 One Markdown source, two distinct portfolios. This project publishes a single body of content through two independent web interfaces: a standard WordPress site (for SEO and academic requirements) and a modern technical portfolio built on a C# API and a React frontend.
 
-> **Status**: documentation is complete, implementation is scheduled in phases over the coming months. See the [roadmap](docs/architecture/00-overview.md#7-feuille-de-route) for the detailed plan.
+> **Status**: implementation in progress. The WordPress plugin registers its content model (custom post types, taxonomies, post metas); the Markdown pipeline is next. See the [roadmap](docs/architecture/00-overview.md#7-feuille-de-route) for the detailed plan.
 
 ## Why
 
@@ -29,7 +29,7 @@ The development environment runs WordPress and MariaDB in containers (Podman roo
 ### Prerequisites
 
 - Podman 4+ with `podman-compose`, or Docker 24+ with Docker Compose v2
-- PHP 8.2+ and Composer 2 (for the WordPress plugin)
+- PHP 8.2+ and Composer 2 for the WordPress plugin, or no PHP at all: [`plugin/plugin-README.md`](plugin/plugin-README.md) shows how to run Composer and PHPUnit through containers
 - .NET 10 SDK (for the C# API)
 - Node.js 20+ and npm (for the React frontend)
 - A `.env` file at the repository root (copy from `.env.example` if provided, otherwise set `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, and optionally `WP_PORT`)
@@ -105,7 +105,7 @@ cd plugin
 # Install PHP dependencies
 composer install
 
-# Run the plugin test suite (once PHPUnit is configured)
+# Run the plugin unit test suite
 composer test
 ```
 
@@ -165,11 +165,13 @@ Complete architectural documentation lives in [`docs/architecture/`](docs/archit
 4. [`03-frontend-react.md`](docs/architecture/03-frontend-react.md) — React frontend architecture (about 20 minutes)
 5. [`99-decisions.md`](docs/architecture/99-decisions.md) — architectural decision records
 
-Pedagogical documentation aimed at junior developers discovering the project will live in [`docs/pedagogie/`](docs/pedagogie/), written in French.
+Pedagogical documentation aimed at junior developers discovering the project lives in [`docs/pedagogie/`](docs/pedagogie/), written in French. Operational guides (WordPress onboarding) live in [`docs/guides/`](docs/guides/).
 
 ## Working with AI
 
-This project uses Claude Code as a mentoring tool throughout its development. The collaboration contract is formalized in [`CLAUDE.md`](CLAUDE.md). In short: Claude guides, explains, reviews code, and maintains documentation — but does not write application code on the author's behalf, and never signs commits. This constraint is deliberate. The project is, above all, a learning exercise.
+This project uses Claude Code throughout its development, under a collaboration contract formalized in [`CLAUDE.md`](CLAUDE.md) and tracked in the decision log ([ADR-012](docs/architecture/99-decisions.md)).
+
+Until October 2026, Claude only guided, explained and reviewed: the author wrote every line of code as a learning exercise. Since then, to meet a tighter timeline, Claude writes code and tests under the author's review. Every change is explained, independently reviewed, and merged by the author only once understood. Architectural decisions remain the author's, and Claude never signs commits.
 
 ## Technology stack
 
@@ -184,7 +186,7 @@ This project uses Claude Code as a mentoring tool throughout its development. Th
 
 ## Contributing
 
-This project is a personal learning exercise and is not actively seeking contributions at this stage. However, issues that report bugs or suggest documentation improvements are welcome. Please keep in mind that pull requests with code changes are unlikely to be merged during the initial implementation phases, as writing the code itself is part of the learning goal.
+This project is a personal learning exercise and is not actively seeking contributions at this stage. However, issues that report bugs or suggest documentation improvements are welcome. Please keep in mind that pull requests with code changes are unlikely to be merged during the initial implementation phases, as the scope follows the author's roadmap and every merged line has to be understood by the author first.
 
 The commit convention is [Conventional Commits](https://www.conventionalcommits.org/) with mandatory scope (`plugin`, `api`, `frontend`, `docs`, `repo`). Commits are written in English, imperative present tense. The full Git workflow is documented in [`CLAUDE.md`](CLAUDE.md#5-workflow-git).
 

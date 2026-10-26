@@ -22,6 +22,10 @@
       "Voltz\\PortfolioMd\\Tests\\": "tests/"
     }
   },
+  "scripts": {
+    "test": "phpunit",
+    "test:unit": "phpunit --testsuite unit"
+  },
   "config": {
     "sort-packages": true
   },
