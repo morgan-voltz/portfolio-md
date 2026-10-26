@@ -66,7 +66,9 @@ final class Sanitizer
 
     /**
      * Boolean from the usual textual forms ("1", "true", "yes", "on" and their
-     * negatives). Anything unrecognised is false.
+     * negatives) or from the numbers 1 and 0. Anything unrecognised is false:
+     * the number 2 and the string "2" are both rejected, so that the same
+     * value gives the same answer whatever the type it arrives with.
      */
     public static function boolean(mixed $value): bool
     {
@@ -75,7 +77,7 @@ final class Sanitizer
         }
 
         if (is_int($value) || is_float($value)) {
-            return $value != 0;
+            return $value == 1;
         }
 
         if (is_string($value)) {
@@ -118,7 +120,12 @@ final class Sanitizer
     }
 
     /**
-     * Web URL restricted to the given protocols; '' when empty or rejected.
+     * Absolute web URL restricted to the given protocols; '' when empty or rejected.
+     *
+     * esc_url_raw() prepends "http://" to a bare host and filters schemes
+     * against $protocols, but it lets anything that starts with "/" through
+     * untouched (root-relative paths, protocol-relative "//host"), so the
+     * scheme of its result is checked again here.
      *
      * @param list<string> $protocols
      */
@@ -130,7 +137,14 @@ final class Sanitizer
 
         $value = trim($value);
 
-        return $value === '' ? '' : esc_url_raw($value, $protocols);
+        if ($value === '') {
+            return '';
+        }
+
+        $clean = esc_url_raw($value, $protocols);
+        $scheme = strtolower((string) parse_url($clean, PHP_URL_SCHEME));
+
+        return in_array($scheme, $protocols, true) ? $clean : '';
     }
 
     /**
@@ -160,9 +174,10 @@ final class Sanitizer
      * ISO 8601 date-time with timezone (offset or "Z"), normalised to UTC.
      *
      * Accepts "2026-10-26T09:00:00+02:00", "2026-10-26T07:00:00Z" and an
-     * optional fractional second part, which is dropped. Returns the instant
-     * in the canonical form "2026-10-26T07:00:00Z", or '' when the input is
-     * malformed or names an impossible date.
+     * optional fractional second part, which is dropped. The RFC 3339
+     * "-00:00" offset (unknown local offset, UTC instant) is treated like
+     * "Z". Returns the instant in the canonical form "2026-10-26T07:00:00Z",
+     * or '' when the input is malformed or names an impossible date.
      */
     public static function isoDateTimeUtc(mixed $value): string
     {
@@ -177,7 +192,7 @@ final class Sanitizer
             return '';
         }
 
-        $offset = $matches[2] === 'Z' ? '+00:00' : $matches[2];
+        $offset = in_array($matches[2], ['Z', '-00:00'], true) ? '+00:00' : $matches[2];
         $normalised = $matches[1] . $offset;
         $dateTime = DateTimeImmutable::createFromFormat('Y-m-d\TH:i:sP', $normalised);
 
