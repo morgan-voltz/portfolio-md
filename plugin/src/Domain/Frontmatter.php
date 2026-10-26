@@ -162,8 +162,8 @@ final readonly class Frontmatter
     private static function slug(array $data, string $key): string
     {
         $value = self::requiredText($data, $key);
-        if (preg_match(Patterns::SLUG, $value) !== 1) {
-            throw InvalidFrontmatterException::invalidValue($key, 'expected lowercase letters, digits and single hyphens');
+        if (preg_match(Patterns::SLUG, $value) !== 1 || strlen($value) > Patterns::SLUG_MAX_LENGTH) {
+            throw InvalidFrontmatterException::invalidValue($key, 'expected lowercase letters, digits and single hyphens, at most ' . Patterns::SLUG_MAX_LENGTH . ' characters');
         }
 
         return $value;

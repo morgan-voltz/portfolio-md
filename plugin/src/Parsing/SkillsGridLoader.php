@@ -71,8 +71,8 @@ final class SkillsGridLoader
                 throw InvalidSkillsGridException::because("referential code \"{$code}\" must look like 4.0.1");
             }
             $slug = $this->requiredString($raw, 'slug', "referential {$code}");
-            if (preg_match(Patterns::SLUG, $slug) !== 1) {
-                throw InvalidSkillsGridException::because("referential slug \"{$slug}\" is not a slug");
+            if (preg_match(Patterns::SLUG, $slug) !== 1 || strlen($slug) > Patterns::SLUG_MAX_LENGTH) {
+                throw InvalidSkillsGridException::because("referential slug \"{$slug}\" is not a slug of at most " . Patterns::SLUG_MAX_LENGTH . ' characters');
             }
             if (isset($seenSlugs[$slug])) {
                 throw InvalidSkillsGridException::because("slug \"{$slug}\" is used twice (slugs are unique across the whole taxonomy)");
@@ -105,8 +105,8 @@ final class SkillsGridLoader
                 }
                 $seenCodes[$skillCode] = true;
                 $skillSlug = $this->requiredString($rawSkill, 'slug', "skill {$skillCode}");
-                if (preg_match(Patterns::SLUG, $skillSlug) !== 1) {
-                    throw InvalidSkillsGridException::because("skill slug \"{$skillSlug}\" is not a slug");
+                if (preg_match(Patterns::SLUG, $skillSlug) !== 1 || strlen($skillSlug) > Patterns::SLUG_MAX_LENGTH) {
+                    throw InvalidSkillsGridException::because("skill slug \"{$skillSlug}\" is not a slug of at most " . Patterns::SLUG_MAX_LENGTH . ' characters');
                 }
                 if (isset($seenSlugs[$skillSlug])) {
                     throw InvalidSkillsGridException::because("slug \"{$skillSlug}\" is used twice (slugs are unique across the whole taxonomy)");

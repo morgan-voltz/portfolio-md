@@ -90,14 +90,15 @@ final class WordPressSkillTermGateway implements SkillTermGateway
     }
 
     /**
-     * wp_insert_term() silently suffixes a slug that already exists elsewhere
-     * in the taxonomy (wp_unique_term_slug); the grid would then disagree
-     * with WordPress forever. Better to fail loudly, naming the collision.
+     * WordPress may store a slug different from the requested one: suffixed by
+     * wp_unique_term_slug() when it already exists elsewhere in the taxonomy,
+     * or sanitized/truncated by sanitize_title(). Either way the grid would
+     * disagree with WordPress forever, so fail loudly with both values.
      */
     private function assertSlug(SkillTermRecord $record, string $requestedSlug): SkillTermRecord
     {
         if ($record->slug !== $requestedSlug) {
-            throw new RuntimeException("Slug collision: WordPress stored \"{$record->slug}\" for term {$record->id} instead of \"{$requestedSlug}\" because that slug already exists in the taxonomy.");
+            throw new RuntimeException("Slug collision: WordPress stored \"{$record->slug}\" for term {$record->id} instead of \"{$requestedSlug}\" (already taken elsewhere in the taxonomy, or altered by sanitization).");
         }
 
         return $record;

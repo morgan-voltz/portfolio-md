@@ -65,7 +65,9 @@ final class FrontmatterParser
      */
     private static function assertCalendarDates(string $yaml): void
     {
-        preg_match_all('/^(?<key>[A-Za-z_][\w-]*):[ \t]*(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})(?=[ \tT]|$)/m', $yaml, $matches, PREG_SET_ORDER);
+        // Same laxity as symfony/yaml's timestamp grammar (Inline::getTimestampRegex):
+        // one or two digits for month and day, so "2026-2-30" is caught too.
+        preg_match_all('/^(?<key>[A-Za-z_][\w-]*):[ \t]*(?<year>\d{4})-(?<month>\d{1,2})-(?<day>\d{1,2})(?=[ \tT]|$)/m', $yaml, $matches, PREG_SET_ORDER);
 
         foreach ($matches as $match) {
             if (!checkdate((int) $match['month'], (int) $match['day'], (int) $match['year'])) {

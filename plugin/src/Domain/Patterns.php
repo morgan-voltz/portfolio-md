@@ -13,6 +13,9 @@ final class Patterns
     /** WordPress-safe slug: lowercase letters, digits, single hyphens. */
     public const SLUG = '/^[a-z0-9]+(?:-[a-z0-9]+)*$/';
 
+    /** WordPress truncates a term slug beyond this length (varchar(200)), silently. */
+    public const SLUG_MAX_LENGTH = 200;
+
     /** Referential code such as "4.0.1". */
     public const REFERENTIAL_CODE = '/^\d+(?:\.\d+)*$/';
 

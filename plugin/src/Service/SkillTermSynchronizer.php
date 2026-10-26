@@ -22,8 +22,10 @@ use Voltz\PortfolioMd\Domain\SkillsGrid;
  * as an orphan and left untouched: deleting is a human decision.
  *
  * A term the store refuses is recorded as failed and the run continues, so
- * that one bad entry never hides what happened to the others. In dry-run
- * mode nothing is written; the report says what would change.
+ * that one bad entry never hides what happened to the others; the report
+ * only records a success once the store has accepted the write. When a
+ * referential itself fails, its competencies are recorded as failed too.
+ * In dry-run mode nothing is written; the report says what would change.
  */
 final class SkillTermSynchronizer
 {
@@ -38,10 +40,10 @@ final class SkillTermSynchronizer
         $claimed = [];
 
         foreach ($grid->referentials as $referential) {
-            $parent = $this->syncReferential($referential, $dryRun, $report, $claimed);
+            [$parent, $parentFailed] = $this->syncReferential($referential, $dryRun, $report, $claimed);
 
             foreach ($referential->skills as $skill) {
-                $this->syncSkill($skill, $parent, $dryRun, $report, $claimed);
+                $this->syncSkill($skill, $parent, $parentFailed, $dryRun, $report, $claimed);
             }
         }
 
@@ -55,26 +57,35 @@ final class SkillTermSynchronizer
     }
 
     /**
-     * Returns the parent term, or null when it does not exist yet and this is
-     * a dry run (nothing can be looked up under a parent that has no id).
+     * Returns the parent term (null when it does not exist yet in a dry run)
+     * and whether its write failed.
      *
      * @param array<int, true> $claimed
+     *
+     * @return array{0: ?SkillTermRecord, 1: bool}
      */
-    private function syncReferential(Referential $referential, bool $dryRun, SyncReport $report, array &$claimed): ?SkillTermRecord
+    private function syncReferential(Referential $referential, bool $dryRun, SyncReport $report, array &$claimed): array
     {
         $label = "referential {$referential->code} \"{$referential->name}\"";
-        $existing = $this->terms->findByCode($referential->code) ?? $this->terms->findBySlug($referential->slug, 0);
+        $existing = $this->terms->findByCode($referential->code);
+        $matchedBySlug = false;
+        if ($existing === null) {
+            $existing = $this->terms->findBySlug($referential->slug, 0);
+            $matchedBySlug = $existing !== null;
+        }
 
         try {
             if ($existing === null) {
-                $report->created($label);
                 if ($dryRun) {
-                    return null;
+                    $report->created($label);
+
+                    return [null, false];
                 }
                 $created = $this->terms->insert($referential->name, $referential->slug, $referential->description, 0, $referential->code);
                 $claimed[$created->id] = true;
+                $report->created($label);
 
-                return $created;
+                return [$created, false];
             }
 
             $claimed[$existing->id] = true;
@@ -82,28 +93,42 @@ final class SkillTermSynchronizer
             if ($changed === []) {
                 $report->unchanged($label);
 
-                return $existing;
+                return [$existing, false];
             }
 
-            $report->updated($label, $changed);
+            $recoded = $matchedBySlug && $existing->code !== null && $existing->code !== $referential->code;
+            if ($dryRun) {
+                $recoded ? $report->recoded($label, (string) $existing->code) : $report->updated($label, $changed);
 
-            return $dryRun ? $existing : $this->terms->update($existing->id, $referential->name, $referential->slug, $referential->description, 0, $referential->code);
+                return [$existing, false];
+            }
+
+            $updated = $this->terms->update($existing->id, $referential->name, $referential->slug, $referential->description, 0, $referential->code);
+            $recoded ? $report->recoded($label, (string) $existing->code) : $report->updated($label, $changed);
+
+            return [$updated, false];
         } catch (RuntimeException $exception) {
             $report->failed($label, $exception->getMessage());
 
-            return $existing;
+            return [$existing, true];
         }
     }
 
     /**
      * @param array<int, true> $claimed
      */
-    private function syncSkill(Skill $skill, ?SkillTermRecord $parent, bool $dryRun, SyncReport $report, array &$claimed): void
+    private function syncSkill(Skill $skill, ?SkillTermRecord $parent, bool $parentFailed, bool $dryRun, SyncReport $report, array &$claimed): void
     {
         $label = "skill {$skill->code} \"{$skill->name}\"";
+
+        if ($parentFailed && $parent === null) {
+            $report->failed($label, 'its referential could not be written');
+
+            return;
+        }
+
         $existing = $this->terms->findByCode($skill->code);
         $matchedBySlug = false;
-
         if ($existing === null && $parent !== null) {
             $existing = $this->terms->findBySlug($skill->slug, $parent->id);
             $matchedBySlug = $existing !== null;
@@ -114,11 +139,14 @@ final class SkillTermSynchronizer
 
         try {
             if ($existing === null) {
-                $report->created($label);
-                if (!$dryRun && $parent !== null) {
-                    $created = $this->terms->insert($skill->name, $skill->slug, $skill->description, $parent->id, $skill->code);
-                    $claimed[$created->id] = true;
+                if ($dryRun || $parent === null) {
+                    $report->created($label);
+
+                    return;
                 }
+                $created = $this->terms->insert($skill->name, $skill->slug, $skill->description, $parent->id, $skill->code);
+                $claimed[$created->id] = true;
+                $report->created($label);
 
                 return;
             }
@@ -131,15 +159,15 @@ final class SkillTermSynchronizer
                 return;
             }
 
-            if ($matchedBySlug && $existing->code !== null && $existing->code !== $skill->code) {
-                $report->recoded($label, $existing->code);
-            } else {
-                $report->updated($label, $changed);
+            $recoded = $matchedBySlug && $existing->code !== null && $existing->code !== $skill->code;
+            if ($dryRun || $parent === null) {
+                $recoded ? $report->recoded($label, (string) $existing->code) : $report->updated($label, $changed);
+
+                return;
             }
 
-            if (!$dryRun && $parent !== null) {
-                $this->terms->update($existing->id, $skill->name, $skill->slug, $skill->description, $parent->id, $skill->code);
-            }
+            $this->terms->update($existing->id, $skill->name, $skill->slug, $skill->description, $parent->id, $skill->code);
+            $recoded ? $report->recoded($label, (string) $existing->code) : $report->updated($label, $changed);
         } catch (RuntimeException $exception) {
             $report->failed($label, $exception->getMessage());
         }
