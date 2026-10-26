@@ -355,7 +355,7 @@ final class ContentImportServiceTest extends TestCase
     #[Test]
     public function a_target_that_holds_a_document_is_updated_in_place(): void
     {
-        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(42, str_repeat('0', 64), ContentSource::Git, ContentRenderer::VERSION));
+        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(42, str_repeat('0', 64), ContentSource::Git, ContentRenderer::VERSION, documentSlug: 'projet'));
 
         $result = $this->service->import(self::project(), new ImportOptions(source: ContentSource::Admin), targetPostId: 42);
 
@@ -368,7 +368,7 @@ final class ContentImportServiceTest extends TestCase
     public function an_unchanged_document_saved_into_its_own_target_is_a_no_op(): void
     {
         $markdown = self::project();
-        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(42, hash('sha256', $markdown), ContentSource::Admin, ContentRenderer::VERSION));
+        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(42, hash('sha256', $markdown), ContentSource::Admin, ContentRenderer::VERSION, documentSlug: 'projet'));
 
         $result = $this->service->import($markdown, new ImportOptions(source: ContentSource::Admin), targetPostId: 42);
 
@@ -445,14 +445,40 @@ final class ContentImportServiceTest extends TestCase
     }
 
     #[Test]
-    public function a_target_that_holds_a_document_keeps_its_slug(): void
+    public function a_target_that_holds_a_document_keeps_the_slug_written_in_it(): void
     {
-        $this->repository->seed(ContentType::Project, 'ancien-slug', new StoredContent(42, str_repeat('0', 64), ContentSource::Git, ContentRenderer::VERSION));
+        $this->repository->seed(ContentType::Project, 'ancien-slug', new StoredContent(42, str_repeat('0', 64), ContentSource::Git, ContentRenderer::VERSION, documentSlug: 'ancien-slug'));
 
         $this->expectException(ImportException::class);
-        $this->expectExceptionMessage('Post 42 (project) already holds a document under another slug');
+        $this->expectExceptionMessage('Post 42 (project) holds a document whose slug is "ancien-slug" and keeps it: renaming it to "projet"');
 
         $this->service->import(self::project(), new ImportOptions(source: ContentSource::Admin), targetPostId: 42);
+    }
+
+    #[Test]
+    public function a_slug_line_change_is_refused_even_when_the_url_slug_already_matches(): void
+    {
+        // The post's URL slug was changed behind the document's back (REST); the stored document still says "ancien".
+        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(42, str_repeat('0', 64), ContentSource::Git, ContentRenderer::VERSION, documentSlug: 'ancien'));
+
+        $this->expectException(ImportException::class);
+        $this->expectExceptionMessage('holds a document whose slug is "ancien" and keeps it');
+
+        $this->service->import(self::project(), new ImportOptions(source: ContentSource::Admin), targetPostId: 42);
+    }
+
+    #[Test]
+    public function a_url_slug_that_drifted_from_the_document_does_not_count_as_a_rename(): void
+    {
+        // Same document slug as before: the drifted URL slug is the one that is wrong, and the write puts it back.
+        $this->repository->seed(ContentType::Project, 'slug-change-par-rest', new StoredContent(42, str_repeat('0', 64), ContentSource::Git, ContentRenderer::VERSION, documentSlug: 'projet'));
+
+        $result = $this->service->import(self::project(), new ImportOptions(source: ContentSource::Admin), targetPostId: 42);
+
+        self::assertSame(ImportOutcome::Updated, $result->outcome);
+        self::assertSame(42, $this->repository->lastSaved()->id);
+        self::assertSame(42, $this->repository->findBySlug(ContentType::Project, 'projet')?->id);
+        self::assertNull($this->repository->findBySlug(ContentType::Project, 'slug-change-par-rest'));
     }
 
     private static function project(string $title = 'Projet', string $skills = '["4.0.2/E00", "4.0.2/E01"]'): string

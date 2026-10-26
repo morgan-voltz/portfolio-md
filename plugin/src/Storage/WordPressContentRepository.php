@@ -10,10 +10,13 @@ use Throwable;
 use Voltz\PortfolioMd\Domain\ContentSource;
 use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Domain\Frontmatter;
+use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
 use Voltz\PortfolioMd\Meta\CommonMetaRegistrar;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
 use Voltz\PortfolioMd\Meta\MetaWriter;
 use Voltz\PortfolioMd\Meta\ProjectMetaRegistrar;
+use Voltz\PortfolioMd\Parsing\FrontmatterParser;
+use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
 use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
 use Voltz\PortfolioMd\Service\ContentRecord;
 use Voltz\PortfolioMd\Service\ContentRepository;
@@ -53,6 +56,15 @@ final class WordPressContentRepository implements ContentRepository
     /** Where WordPress keeps the slug of a trashed post while the post is named `<slug>__trashed`. */
     private const DESIRED_SLUG_META = '_wp_desired_post_slug';
 
+    /**
+     * The parser reads the slug written in a stored document (findById):
+     * the post's own URL slug may have been changed behind the document's
+     * back, and the document is what the slug rules are about.
+     */
+    public function __construct(private readonly FrontmatterParser $frontmatterParser = new FrontmatterParser())
+    {
+    }
+
     public function findBySlug(ContentType $type, string $slug): ?StoredContent
     {
         $postType = self::postType($type);
@@ -80,7 +92,25 @@ final class WordPressContentRepository implements ContentRepository
             return null;
         }
 
-        return self::stored($post, $post->post_status === 'trash');
+        return self::stored($post, $post->post_status === 'trash', $this->documentSlug((int) $post->ID));
+    }
+
+    /**
+     * The slug written in the document the post holds, or null when it
+     * holds none (or one the parser can no longer read).
+     */
+    private function documentSlug(int $postId): ?string
+    {
+        $source = self::meta($postId, InternalMetaRegistrar::MD_SOURCE);
+        if ($source === '') {
+            return null;
+        }
+
+        try {
+            return $this->frontmatterParser->parse($source)->frontmatter->slug;
+        } catch (MalformedDocumentException | InvalidFrontmatterException) {
+            return null;
+        }
     }
 
     public function save(ContentRecord $record): int
@@ -293,7 +323,7 @@ final class WordPressContentRepository implements ContentRepository
         return wp_kses($html, $allowed);
     }
 
-    private static function stored(WP_Post $post, bool $inTrash): StoredContent
+    private static function stored(WP_Post $post, bool $inTrash, ?string $documentSlug = null): StoredContent
     {
         $id = (int) $post->ID;
 
@@ -303,6 +333,7 @@ final class WordPressContentRepository implements ContentRepository
             ContentSource::tryFrom(self::meta($id, InternalMetaRegistrar::SOURCE_TYPE)),
             self::meta($id, InternalMetaRegistrar::RENDER_VERSION),
             $inTrash,
+            $documentSlug,
         );
     }
 
