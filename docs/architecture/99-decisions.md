@@ -185,6 +185,8 @@ Chaque article porte une méta `_portfolio_source_type` (valeur `admin`, `git`, 
 
 Le plugin peut refuser une synchronisation Git, ce qui ajoute une friction occasionnelle quand les sources ont divergé. Cette friction est délibérée : elle protège contre la perte silencieuse de travail, au prix d'une résolution manuelle dans les cas de divergence. La logique s'inspire directement de Git lui-même (un push non fast-forward est rejeté). La détection de conflit est bornée et testable : c'est la comparaison de deux hashes SHA-256, sans heuristique floue.
 
+**Note d'implémentation (26 octobre 2026).** La règle vit dans `Service\ConflictResolver`, décision pure testée ligne par ligne, et s'applique à toute écriture, pas seulement au webhook : la commande `wp portfolio import` enregistre la provenance `git` (les fichiers viennent du dépôt) et refuse donc d'écraser un post dont la dernière écriture vient de l'admin, d'un collage ou d'ailleurs (post créé à la main, sans métas du plugin) quand le contenu diffère, sauf `--force`. Un contenu identique au hash près n'est pas réécrit, sauf si la version de rendu stockée est plus ancienne que celle du renderer. Détail dans `01-plugin-php.md` §5.
+
 ---
 
 ## ADR-006 — Conventional Commits avec scope obligatoire et feature branches
@@ -437,6 +439,8 @@ La taxonomie `skill` est **hiérarchique**, attachée au seul post type `project
 ### Conséquences
 
 Le pipeline Markdown résout un code en deux temps : le préfixe (`4.0.1`) désigne le parent, le code complet retrouve l'enfant via `meta_key = _portfolio_skill_code` ; s'il n'existe pas, il est créé sous le bon parent. Les archives WordPress fournissent gratuitement `/competences/4-0-1/` (tous les projets démontrant au moins une compétence du référentiel) et `/competences/4-0-1/c1-3/` (une compétence précise). L'API C# expose pour chaque compétence `{ slug, code, label }` comme prévu dans `02-api-csharp.md`, le code venant du term meta. ADR-011 reste accepté ; seule la forme concrète (hiérarchie, slug, term meta) est fixée ici. Reste à faire côté contenu : saisir ou importer la liste officielle des compétences des deux référentiels.
+
+**Note d'implémentation (26 octobre 2026).** La création « à la volée » d'une compétence inconnue n'a pas été retenue : depuis que la grille `content/skills.yaml` porte les intitulés officiels et que `wp portfolio skills sync` la projette dans la taxonomie (ADR-015), un code que la taxonomie ne connaît pas est une erreur du document, pas une compétence à inventer. `wp portfolio import` refuse alors la fiche en listant les codes inconnus ; le remède est d'ajouter le code à la grille puis de resynchroniser. Le slug d'une compétence est fixé dans la grille (`04-structure-wordpress.md` §4.3), unique dans toute la taxonomie.
 
 ---
 

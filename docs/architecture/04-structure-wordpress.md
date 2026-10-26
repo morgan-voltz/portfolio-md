@@ -5,7 +5,7 @@
 **Lectorat** : Morgan à froid, contributeurs futurs, et toute personne qui veut comprendre comment WordPress est organisé pour ce projet.
 **Articulation** : ce document complète `01-plugin-php.md` (qui détaille le plugin de conversion Markdown ↔ WordPress) en se concentrant sur la modélisation côté CMS.
 **Temps de lecture** : environ 12 minutes
-**Dernière mise à jour** : 26 octobre 2026 (champs personnalisés et taxonomie `skill` implémentés)
+**Dernière mise à jour** : 26 octobre 2026 (champs personnalisés, taxonomie `skill` et import Markdown implémentés)
 
 ---
 
@@ -113,6 +113,8 @@ Les **projets**, en revanche, n'ont pas d'équivalent natif et nécessitent obli
 ### 3.4. Pages standards
 
 Les pages `À propos` et `Contact` utilisent le type natif `page` de WordPress. Pas de spécificité, pas de custom field.
+
+Elles ne passent pas encore par le pipeline Markdown : `wp portfolio import` refuse `type: page`, parce que les champs internes qui rendent un import idempotent (section 5.3) ne sont enregistrés que sur `article` et `project`, et que `seo_description` n'aurait nulle part où aller. Point ouvert au 26 octobre 2026 : enregistrer ces champs sur `page` aussi, ou saisir les deux pages (`content/pages/`) à la main.
 
 ---
 
@@ -415,5 +417,11 @@ WordPress
 - Taxonomie **`skill`** ajoutée (section 4.3) : hiérarchique par référentiel, réservée aux projets, code officiel en term meta. Détail dans ADR-014. La liste des compétences reste à saisir côté contenu.
 - Flags `needs_mermaid` / `needs_katex` reportés (section 5.4).
 - Tests : suite PHPUnit unitaire (doublures WordPress) et test de fumée WP-CLI dans le vrai WordPress.
+
+**2026-10-26 (import Markdown)**
+
+- Le pipeline écrit désormais les posts : `Storage\WordPressContentRepository` remplit `wp_posts`, les trois taxonomies et les dix-sept champs à partir du frontmatter (`01-plugin-php.md` §4.4 et §4.5). Les quatorze fiches de `content/projects/` sont importées sur le site local par `wp portfolio import`.
+- Les tags techniques inconnus sont créés avec leur slug pour nom ; les compétences doivent exister dans la taxonomie (grille synchronisée) ; le statut de projet est résolu par son slug.
+- Les pages restent hors pipeline (section 3.4).
 
 ---

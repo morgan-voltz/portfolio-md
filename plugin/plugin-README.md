@@ -12,9 +12,9 @@ The **content model is complete** (roadmap phase 1). The plugin registers:
 - Taxonomies `tech_tag` (flat, both types), `project_status` (flat, projects, closed list) and `skill` (hierarchical by referential, projects, official code in the `_portfolio_skill_code` term meta) via `Taxonomies\TaxonomyRegistrar`
 - Seventeen post metas, all prefixed `_portfolio_`: four public metas shared by both types (`Meta\CommonMetaRegistrar`), eight public project metas including the `is_fil_rouge` flag (`Meta\ProjectMetaRegistrar`), five internal metas hidden from REST and locked for users (`Meta\InternalMetaRegistrar`). Sanitization rules live in `Meta\Sanitizer`; metas written from PHP go through `Meta\MetaWriter::update()`, which slashes the value because `update_post_meta()` unslashes it before storing.
 
-Phase 2 has started: `Parsing\FrontmatterParser` turns a Markdown document into a typed `Domain\Frontmatter` plus its body (strict validation, explicit exceptions), and the `skill` taxonomy is synchronized from `content/skills.yaml` by the `wp portfolio skills sync` command (see below).
+Phases 2 and 3 are done (26 October 2026): `Parsing\FrontmatterParser` turns a Markdown document into a typed `Domain\Frontmatter` plus its body (strict validation, explicit exceptions); `Parsing\MarkdownParser` renders GFM to HTML with server-side code highlighting (`HighlightedCodeRenderer`, highlight.php); `Parsing\GutenbergTransformer` wraps that HTML in core blocks exactly as the editor serialises them; `Service\ContentImportService` applies the source-of-truth rule of ADR-005 and `Storage\WordPressContentRepository` writes posts, terms and metas. Two WP-CLI commands drive it: `wp portfolio skills sync` (taxonomy from `content/skills.yaml`) and `wp portfolio import` (articles and projects from Markdown files), see below.
 
-What is **not yet** implemented: Markdown rendering (`league/commonmark`), the storage layer that persists both raw Markdown and derived Gutenberg HTML, the admin UI for Markdown editing, and the custom REST endpoints. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
+What is **not yet** implemented: the import of static pages (`type: page`), image import into the media library, the admin Markdown editor and paste page, the Git webhook, and the custom REST endpoints. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
 
 ## Local setup
 
@@ -69,11 +69,33 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/skills-smoke.php /srv/portfolio-content/skills.yaml
 ```
 
+Import Markdown documents (articles and projects) as posts. Paths are files or directories; `--user` is required so that posts get an author:
+
+```bash
+# See what would happen, write nothing
+podman-compose --profile tools run --rm wpcli wp portfolio import /srv/portfolio-content/projects --dry-run --user=<your admin login>
+
+# Import (idempotent: a second run reports every document as UNCHANGED)
+podman-compose --profile tools run --rm wpcli wp portfolio import /srv/portfolio-content/projects --user=<your admin login>
+
+# One file, created as a draft
+podman-compose --profile tools run --rm wpcli wp portfolio import /srv/portfolio-content/projects/momocad.md --draft --user=<your admin login>
+```
+
+Each document is parsed, rendered to Gutenberg blocks and stored with its verbatim Markdown and SHA-256 (`_portfolio_md_*` metas). The origin recorded is `git` by default (`--source=paste|admin` otherwise), which drives the conflict rule of ADR-005: a document last edited from the admin is reported as `CONFLICT` and left alone unless `--force` is given. Unknown competency codes fail the document (synchronize the grid first); pages are refused for now. The command exits with an error after the full report if any document conflicted or failed.
+
+The import chain has its own smoke test, which creates one article and one project with synthetic content, checks posts, dates, terms, metas, idempotence and the conflict rule, then deletes everything it created (`--user` required):
+
+```bash
+podman-compose --profile tools run --rm wpcli wp eval-file \
+  wp-content/plugins/portfolio-md/tests/Integration/wp-cli/import-smoke.php --user=<your admin login>
+```
+
 ## Tests
 
 Two complementary suites.
 
-**Unit suite (PHPUnit 11, no WordPress).** The registrars call WordPress functions, so `tests/bootstrap.php` loads small stand-ins (`tests/Support/wp-stubs.php`) that record registrations in `WordPressSpy` or mimic WordPress closely enough for the covered cases. The suite checks that every meta is registered with the right type, REST visibility and callbacks, and that every sanitizer accepts and rejects what it should.
+**Unit suite (PHPUnit 11, no WordPress).** The registrars call WordPress functions, so `tests/bootstrap.php` loads small stand-ins (`tests/Support/wp-stubs.php`) that record registrations in `WordPressSpy` or mimic WordPress closely enough for the covered cases. The suite checks that every meta is registered with the right type, REST visibility and callbacks, and that every sanitizer accepts and rejects what it should. The Markdown pipeline (parser, Gutenberg transformer, import service, conflict rule) is covered there too without any stub, including a full render of every sheet in `content/`.
 
 ```bash
 # Host with PHP
@@ -122,6 +144,9 @@ The most frequent issues you'll hit while developing locally are documented in [
 - MariaDB restart loop → conflict between `podman compose` and `podman-compose` stacks sharing the same bind mount
 - A public meta that cannot be written through REST or Gutenberg, even as administrator → its key starts with `_` and it lacks an `auth_callback`; register it with `MetaRegistration::authorizeEditPost` (see ADR-013)
 - Backslashes vanish from a meta written in PHP (`\*` becomes `*`) → `update_post_meta()` unslashes its input; write through `MetaWriter::update()`, which applies `wp_slash()` first
+- Backslashes vanish from a post written in PHP → `wp_insert_post()` and `wp_update_post()` unslash their input the same way; pass the array through `wp_slash()` (see `Storage\WordPressContentRepository`)
+- A code block is flagged as invalid content in the editor → `core/code` validates a bare `<code>`; classes go on the `<pre>` through the `className` attribute, as `GutenbergTransformer` does
+- Task-list checkboxes disappear after saving → `wp_kses_post()` does not allow `<input>`; the repository adds it to the allowed tags explicitly
 
 ## Architecture
 
