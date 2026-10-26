@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Voltz\PortfolioMd;
 
+use Voltz\PortfolioMd\Cli\SkillsCommand;
 use Voltz\PortfolioMd\Meta\CommonMetaRegistrar;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
 use Voltz\PortfolioMd\Meta\ProjectMetaRegistrar;
+use Voltz\PortfolioMd\Parsing\SkillsGridLoader;
 use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
+use Voltz\PortfolioMd\Service\SkillTermSynchronizer;
+use Voltz\PortfolioMd\Storage\WordPressSkillTermGateway;
 use Voltz\PortfolioMd\Taxonomies\TaxonomyRegistrar;
 
 /**
@@ -91,6 +95,27 @@ final class Plugin
         // Hooks de cycle de vie du plugin (activation, désactivation).
         register_activation_hook($this->pluginFile, [$this, 'onActivation']);
         register_deactivation_hook($this->pluginFile, [$this, 'onDeactivation']);
+
+        // Commandes WP-CLI : seulement quand le plugin tourne sous WP-CLI.
+        if (defined('WP_CLI') && WP_CLI) {
+            $this->registerCliCommands();
+        }
+    }
+
+    /**
+     * Enregistre les commandes `wp portfolio …`.
+     *
+     * Les services sont assemblés ici, comme les registrars : la commande
+     * elle-même ne fait que traduire les arguments et afficher le rapport.
+     * Le graphe est explicite : loader YAML (Parsing) → synchroniseur
+     * (Service) → passerelle de termes WordPress (Storage).
+     */
+    private function registerCliCommands(): void
+    {
+        \WP_CLI::add_command('portfolio skills', new SkillsCommand(
+            new SkillsGridLoader(),
+            new SkillTermSynchronizer(new WordPressSkillTermGateway()),
+        ));
     }
 
     /**
