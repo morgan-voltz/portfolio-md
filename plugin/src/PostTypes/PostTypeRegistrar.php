@@ -24,6 +24,16 @@ final class PostTypeRegistrar
     private const TEXT_DOMAIN = 'portfolio-md';
 
     /**
+     * Slug du post type "article" (utilisé dans le code, jamais en dur ailleurs).
+     */
+    public const ARTICLE = 'article';
+
+    /**
+     * Slug du post type "project".
+     */
+    public const PROJECT = 'project';
+
+    /**
      * Méthode appelée par le hook WordPress 'init'.
      * Enregistre tous les post types du plugin dans l'ordre.
      */
@@ -42,7 +52,7 @@ final class PostTypeRegistrar
      */
     private function registerArticle(): void
     {
-        register_post_type('article', [
+        register_post_type(self::ARTICLE, [
             'labels' => [
                 'name'                  => _x('Articles', 'post type general name', self::TEXT_DOMAIN),
                 'singular_name'         => _x('Article', 'post type singular name', self::TEXT_DOMAIN),
@@ -118,7 +128,7 @@ final class PostTypeRegistrar
      */
     private function registerProject(): void
     {
-        register_post_type('project', [
+        register_post_type(self::PROJECT, [
             'labels' => [
                 'name'                  => _x('Projets', 'post type general name', self::TEXT_DOMAIN),
                 'singular_name'         => _x('Projet', 'post type singular name', self::TEXT_DOMAIN),
