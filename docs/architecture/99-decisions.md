@@ -4,7 +4,7 @@
 **Rôle** : trace des décisions structurantes, avec leur contexte et leur justification
 **Format** : inspiré d'ADR (Architecture Decision Records) de Michael Nygard
 **Lectorat** : contributeur, Morgan lui-même à froid, recruteur attentif
-**Dernière mise à jour** : 22 avril 2026
+**Dernière mise à jour** : 26 octobre 2026
 
 ---
 
@@ -43,6 +43,7 @@ Les entrées ne sont jamais supprimées. Si une décision est révisée, on ajou
 | ADR-009 | Pas de MediatR dans la version initiale de l'API | 2026-04-22 | Accepté |
 | ADR-010 | Stack front Vite + React Router + TanStack Query + Tailwind | 2026-04-22 | Accepté |
 | ADR-011 | Modélisation des compétences académiques et du projet fil rouge | 2026-04-22 | Accepté |
+| ADR-012 | Révision du contrat de collaboration : Claude écrit le code, Morgan relit et valide | 2026-10-26 | Accepté |
 
 ---
 
@@ -346,6 +347,35 @@ Le projet fil rouge est marqué par un **champ booléen `is_fil_rouge` dans le f
 ### Conséquences
 
 Le plugin doit enregistrer la classe `PostTypes\SkillTaxonomy` au démarrage, au même titre que `TechStackTaxonomy`. La forme de la réponse de l'API REST `/wp-json/portfolio/v1/projects/{slug}` s'enrichit de deux champs : `skills` (liste des compétences rattachées) et `is_fil_rouge` (booléen). Le front React et le thème WordPress exploitent ces champs pour afficher les compétences sur chaque fiche projet et pour appliquer le traitement éditorial distinctif du fil rouge. Une page archive par compétence devient naturelle à construire via les archives de taxonomie WordPress, ce qui répond directement à l'exigence du jury de pouvoir consulter les projets démontrant une compétence donnée. La liste concrète des codes de compétences n'est pas figée dans le plugin mais vit dans les termes de la taxonomie, ce qui permet d'évoluer sans toucher au code — si les référentiels UHA 4.0 évoluent d'une promotion à l'autre, seuls les termes WordPress changent.
+
+---
+
+## ADR-012 — Révision du contrat de collaboration : Claude écrit le code, Morgan relit et valide
+
+**Date** : 2026-10-26
+**Statut** : Accepté
+
+### Contexte
+
+Le contrat de collaboration initial (`CLAUDE.md` version 1.0, 22 avril 2026) posait une règle cardinale : Claude explique, guide et relit, mais n'écrit jamais le code métier, parce que Morgan apprend en tapant chaque ligne lui-même. Six mois plus tard, le dépôt n'a pas avancé au-delà du modèle de contenu du plugin (post types, taxonomies, quatre post metas) : la contrainte de temps de Morgan, en formation et en emploi, n'a pas permis de tenir le rythme d'écriture. Entre-temps, le besoin s'est précisé : Morgan cherche une alternance et un stage pour janvier 2027 et veut un portfolio présentable pour appuyer ses candidatures. Il n'y a pas de date butoir académique ferme, mais un horizon de quelques mois pour disposer au minimum du site WordPress fonctionnel, idéalement de la stack complète.
+
+### Décision
+
+**Claude écrit le code, les tests et la documentation associée ; Morgan relit, questionne et valide.** La relation reste une revue à deux, mais le clavier change de mains. Chaque lot livré par Claude comprend obligatoirement trois choses : le code, les tests qui le protègent, et un résumé pédagogique qui explique ce qui a été fait, pourquoi, quelles décisions locales ont été prises et ce que Morgan doit vérifier en priorité. Avant d'être présenté à Morgan, chaque lot passe par une relecture indépendante par des agents de revue (bugs, sécurité WordPress, cohérence avec la doc, qualité des tests).
+
+Les garde-fous qui ne changent pas : aucune décision architecturale n'est prise par Claude seul (les options sont présentées, Morgan tranche) ; aucune mention d'IA n'apparaît dans les commits ou les pull requests ; la documentation n'est jamais modifiée silencieusement ; rien n'est supprimé sans confirmation explicite. Côté Git, Claude peut désormais créer les branches, commiter, pousser et ouvrir les pull requests ; **le merge sur `main` reste l'acte de Morgan**, par lequel il atteste avoir lu et compris le lot.
+
+### Alternatives considérées
+
+**Conserver le contrat initial** : pédagogiquement le plus pur, mais le rythme observé (aucun commit entre le 28 avril et le 26 octobre 2026) rend l'objectif de janvier 2027 inatteignable. Un portfolio inexistant n'enseigne rien et ne sert aucune candidature.
+
+**Claude en autonomie complète, sans revue** : le plus rapide sur le papier, mais rompt le lien entre le code et la compréhension de Morgan. Le projet est public et sera discuté en entretien : Morgan doit pouvoir défendre chaque choix. La revue obligatoire et le résumé pédagogique sont la contrepartie du droit d'écrire.
+
+**Pair programming synchrone** (Claude propose ligne à ligne, Morgan tape) : préserve le geste d'écriture, mais coûte presque autant de temps que le contrat initial sans en avoir la valeur formatrice complète. Écarté.
+
+### Conséquences
+
+La vitesse de production augmente nettement : les phases 2 à 5 de la feuille de route (pipeline Markdown, blocs Gutenberg, éditeur admin, API REST) deviennent atteignables avant la fin de l'année. Le risque principal est une compréhension superficielle du code par Morgan ; il est contenu par l'obligation d'explication, par la relecture de chaque PR avant merge, et par les tests qui jouent le rôle de spécification lisible. La discipline documentaire est maintenue à l'identique. Le `README.md` est mis à jour pour rester transparent sur le mode de collaboration, par honnêteté vis-à-vis des recruteurs et des étudiants qui liront le dépôt. `CLAUDE.md` passe en version 1.1 ; les sections 2, 3, 4 et 5.4 sont réécrites en conséquence.
 
 ---
 
