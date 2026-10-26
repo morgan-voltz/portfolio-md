@@ -60,7 +60,14 @@ podman-compose --profile tools run --rm wpcli wp term list skill --fields=term_i
 podman-compose --profile tools run --rm wpcli wp term meta get <term_id> _portfolio_skill_code
 ```
 
-Terms that exist in WordPress but not in the grid are listed as orphans and left untouched; deleting them is a human decision.
+Terms that exist in WordPress but not in the grid are listed as orphans and left untouched; deleting them is a human decision. A term WordPress refuses is reported as `FAILED`, the run continues, and the command exits with an error after the full report.
+
+The WordPress side of the synchronization (`Storage\WordPressSkillTermGateway`) has its own smoke test, run the same way as the metas one:
+
+```bash
+podman-compose --profile tools run --rm wpcli wp eval-file \
+  wp-content/plugins/portfolio-md/tests/Integration/wp-cli/skills-smoke.php /srv/portfolio-content/skills.yaml
+```
 
 ## Tests
 

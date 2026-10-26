@@ -14,7 +14,8 @@
 # Chaque `referential` devient un terme parent de la taxonomie `skill` (slug imposé par
 # `TaxonomyRegistrar::SKILL_REFERENTIALS`), chaque `skill` un terme enfant : `name` est
 # l'intitulé affiché, `slug` le slug WordPress sous le parent, `code` est stocké dans le
-# term meta `_portfolio_skill_code`. Les fiches projet y font référence par le code dans
+# term meta `_portfolio_skill_code`. Les slugs sont uniques dans toute la grille, référentiels
+# compris : WordPress impose l'unicité des slugs sur toute une taxonomie, pas par parent. Les fiches projet y font référence par le code dans
 # leur frontmatter : `skills: ["4.0.1/FR-13", "4.0.2/E07"]`.
 
 referentials:

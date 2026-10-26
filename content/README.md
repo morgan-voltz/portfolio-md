@@ -2,7 +2,7 @@
 
 **Rôle** : ce dossier est la source canonique du contenu du site (ADR-001, ADR-002). Tout ce que WordPress affiche en est une projection : le plugin `portfolio-md` stockera chaque fichier tel quel dans `_portfolio_md_source` et en dérivera le HTML Gutenberg. Jusqu'à l'arrivée du pipeline (phase 2) et du webhook Git (phase 9), les fichiers sont importés à la main ; leur forme, elle, est déjà définitive.
 **Langue** : le contenu est en français, c'est la langue du site. Les identifiants (slugs, codes, clés de frontmatter) restent en anglais.
-**Décision associée** : contenu versionné dans le monorepo, décision du 26 octobre 2026 (à consigner dans `99-decisions.md`).
+**Décision associée** : contenu versionné dans le monorepo, ADR-015 du 26 octobre 2026.
 
 ## Arborescence
 
@@ -46,6 +46,8 @@ skills: ["4.0.1/FR-13", "4.0.2/E07"] # codes de content/skills.yaml
 ```
 
 Les codes de compétences viennent de `skills.yaml` : pour 4.0.1, les intitulés officiels de la feuille de suivi (`FR-nn` techniques, `PM-nn` métier, `TR-nn` transverses) ; pour 4.0.2, les étapes de la consigne du fil rouge (`Enn`, `Onn`) en attendant la feuille de suivi de l'année. Une fiche ne cite que les compétences que le projet démontre concrètement.
+
+Seules `title`, `slug` et `type` sont obligatoires, plus `status` pour un projet ; les autres clés peuvent être omises et valent alors vide ou `false`. Une fiche complète les renseigne toutes, comme ci-dessus. Les booléens s'écrivent `true` ou `false` (pas `yes`), les dates `AAAA-MM-JJ`, et le parseur refuse toute clé qu'il ne connaît pas.
 
 Pas de champ `category` : la taxonomie native n'est pas utilisée (`04-structure-wordpress.md` §4.4), les tags techniques suffisent. Les flags `needs_mermaid` / `needs_katex` viendront avec le pipeline (ADR-013).
 

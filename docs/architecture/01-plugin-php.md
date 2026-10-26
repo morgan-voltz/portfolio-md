@@ -57,6 +57,7 @@ portfolio-md/
 │   │   ├── ContentType.php            # Enum : Article, Project, Page                    ✅
 │   │   ├── ProjectStatus.php          # Enum des statuts de projet (= taxonomie)         ✅
 │   │   ├── Skill.php, Referential.php, SkillsGrid.php   # Grille de compétences (ADR-014)  ✅
+│   │   ├── Patterns.php               # Formes partagées : slug, codes de compétence       ✅
 │   │   └── (Article.php, Project.php ci-dessus restent à venir)
 │   │
 │   ├── PostTypes/
@@ -112,12 +113,14 @@ portfolio-md/
 │
 └── tests/
     ├── bootstrap.php                  # Autoload + doublures WordPress                   ✅
-    ├── Support/                       # WordPressSpy (enregistre les appels) + wp-stubs  ✅
+    ├── Support/                       # WordPressSpy + wp-stubs + InMemorySkillTermGateway ✅
     ├── Unit/                          # Sans WordPress, ultra-rapides                     ✅
     │   ├── Domain/, Meta/, PostTypes/, Taxonomies/
     │   └── Parsing/, Service/ (pipeline et synchronisation des compétences)              ✅
     └── Integration/
-        └── wp-cli/meta-smoke.php      # Test de fumée joué dans WordPress via wp eval-file ✅
+        └── wp-cli/                    # Tests de fumée joués via `wp eval-file` :
+            ├── meta-smoke.php         #   modèle de contenu (metas, capacités, REST)       ✅
+            └── skills-smoke.php       #   synchronisation des compétences, passerelle WP  ✅
 ```
 
 Deux écarts volontaires par rapport au plan d'origine. Le fichier `Storage/MetaKeys.php` prévu pour centraliser les clés meta n'existe pas : chaque clé est une **constante publique du registrar** qui l'enregistre (`CommonMetaRegistrar::FEATURED`, `InternalMetaRegistrar::MD_SOURCE`, …), ce qui empêche la clé et son enregistrement de dériver l'un de l'autre. Et les classes `ProjectPostType` / `TechStackTaxonomy` ont été remplacées par deux registrars (`PostTypeRegistrar`, `TaxonomyRegistrar`) qui portent chacun tous les types ou toutes les taxonomies : moins de fichiers, même responsabilité par fichier.
