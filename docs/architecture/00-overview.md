@@ -76,7 +76,6 @@ title: "Pourquoi Rust a changé ma façon de penser la mémoire"
 slug: "rust-ownership-intuition"
 date: 2026-04-22
 type: "article"
-category: "Architecture"
 tags: [rust, systems, ownership]
 seo_description: "Une intuition visuelle du borrow checker."
 reading_time: 8

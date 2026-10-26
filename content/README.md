@@ -96,3 +96,12 @@ La commande est idempotente ; les termes présents dans WordPress mais absents d
 - Le Markdown est du GFM strict (ADR-002) : tableaux, listes de tâches, barré, liens automatiques. Pas de HTML inline.
 - Les images vivent à côté du fichier qui les utilise (`projects/<slug>/`) et sont référencées en chemin relatif ; le pipeline les importera dans la médiathèque (`01-plugin-php.md` §8).
 - Les antislashs sont permis partout (`\*`, `C:\chemin`) : le plugin les préserve (`MetaWriter`, ADR-013).
+
+## Validation
+
+Avant de proposer une fiche, la passer au validateur, qui vérifie le frontmatter, les codes de compétences, les sections obligatoires et l'absence de HTML ou de données de contact (sans PHP sur la machine, via un conteneur) :
+
+```bash
+podman run --rm -v "$PWD:/repo:z" -w /repo docker.io/library/php:8.3-cli \
+  php plugin/tools/validate-content.php content/skills.yaml content/projects/*.md content/pages/*.md
+```
