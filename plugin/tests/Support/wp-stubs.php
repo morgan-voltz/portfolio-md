@@ -195,6 +195,30 @@ if (!function_exists('apply_filters')) {
     }
 }
 
+// The text passes of the front end: each one is recorded like a filter under
+// its own name, and transforms the text as a test primed it to.
+
+if (!function_exists('do_blocks')) {
+    function do_blocks(string $content): string
+    {
+        return apply_filters('do_blocks', $content);
+    }
+}
+
+if (!function_exists('wptexturize')) {
+    function wptexturize(string $text, bool $reset = false): string
+    {
+        return apply_filters('wptexturize', $text);
+    }
+}
+
+if (!function_exists('convert_smilies')) {
+    function convert_smilies(string $text): string
+    {
+        return apply_filters('convert_smilies', $text);
+    }
+}
+
 // --- Admin screens ---------------------------------------------------------
 
 if (!function_exists('add_meta_box')) {

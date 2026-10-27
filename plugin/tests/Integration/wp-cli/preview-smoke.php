@@ -14,7 +14,8 @@
  *
  * `--user` is required: the route needs a user who may edit posts. The
  * script creates a subscriber (zz-smoke-subscriber) to check the refusal
- * and deletes it at the end; it writes no post.
+ * and deletes it at the end (and first, if an interrupted run left it
+ * behind); it writes no post.
  *
  * No `declare(strict_types=1)`: `wp eval-file` runs the file through eval().
  */
@@ -108,6 +109,15 @@ try {
     $blocks = (new ContentRenderer(new MarkdownParser(), new GutenbergTransformer()))->render((new FrontmatterParser())->parse($document)->body);
     $check('the kses pass of the store leaves the rendered document untouched', HtmlSanitizer::sanitize($blocks) === $blocks);
 
+    // Nothing of the document runs: a shortcode stays as typed, an embed fetches nothing and writes no oEmbed cache.
+    $oembedCache = static fn (): int => count(get_posts(['post_type' => 'oembed_cache', 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids']));
+    $cacheBefore = $oembedCache();
+    $data = $preview(['markdown' => str_replace('Un paragraphe', "[embed]http://example.com/[/embed]\n\n[gallery]\n\nUn paragraphe", $document)])->get_data();
+    $html = (string) ($data['html'] ?? '');
+    $check('a shortcode is shown as typed, not run', str_contains($html, '[gallery]'), $html);
+    $check('an embed is shown as typed, not fetched', str_contains($html, '[embed]http://example.com/[/embed]') && !str_contains($html, '<a href="http://example.com/"'), $html);
+    $check('and no oEmbed cache entry is written', $oembedCache() === $cacheBefore);
+
     // 2. What the import would refuse ----------------------------------------------------------------
 
     $data = $preview(['markdown' => str_replace('skills: []', 'skills: ["4.0.2/E99"]', $document)])->get_data();
@@ -131,6 +141,12 @@ try {
     wp_set_current_user($adminId);
     $check('an anonymous call is refused with 401', $response->get_status() === 401 && ($response->get_data()['code'] ?? '') === 'rest_forbidden', 'status ' . $response->get_status());
 
+    require_once ABSPATH . 'wp-admin/includes/user.php';
+    $leftover = get_user_by('login', 'zz-smoke-subscriber');
+    if ($leftover instanceof WP_User) {
+        // An interrupted run never reached its cleanup: this one starts clean.
+        wp_delete_user($leftover->ID);
+    }
     $subscriberId = wp_insert_user(['user_login' => 'zz-smoke-subscriber', 'user_pass' => wp_generate_password(32), 'role' => 'subscriber']);
     if ($subscriberId instanceof WP_Error) {
         $check('a subscriber can be created for the test', false, $subscriberId->get_error_message());
@@ -188,7 +204,6 @@ try {
 } finally {
     wp_set_current_user($adminId);
     if ($subscriberId > 0) {
-        require_once ABSPATH . 'wp-admin/includes/user.php';
         wp_delete_user($subscriberId);
     }
 }

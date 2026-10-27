@@ -74,7 +74,8 @@ final class PreviewControllerTest extends TestCase
     #[Test]
     public function answers_the_rendering_as_the_site_would_print_it(): void
     {
-        WordPressSpy::$filterResults['the_content'] = static fn (string $html): string => '<div class="site">' . $html . '</div>';
+        WordPressSpy::$filterResults['do_blocks'] = static fn (string $html): string => '<div class="blocks">' . $html . '</div>';
+        WordPressSpy::$filterResults['wptexturize'] = static fn (string $html): string => str_replace('"', '&#8220;', $html);
 
         $response = $this->controller->handle(self::request(self::DOCUMENT));
         $data = $response->get_data();
@@ -84,15 +85,25 @@ final class PreviewControllerTest extends TestCase
         self::assertSame([], $data['problems']);
         self::assertSame('Article', $data['title']);
         self::assertSame(['type' => 'article', 'slug' => 'article', 'date' => '', 'skills' => '', 'tags' => 'php'], (array) $data['summary']);
-        self::assertStringStartsWith('<div class="site"><!-- wp:paragraph -->', $data['html']);
+        self::assertStringStartsWith('<div class=&#8220;blocks&#8220;><!-- wp:paragraph -->', $data['html']);
         self::assertStringContainsString('<p>Un paragraphe.</p>', $data['html']);
 
-        // The kses pass of the store first, with the task-list checkbox allowed, then the front-end filters.
+        // The kses pass of the store first, with the task-list checkbox allowed, then the front end's text passes in order.
         self::assertCount(1, WordPressSpy::$ksesCalls);
         self::assertStringContainsString('<p>Un paragraphe.</p>', WordPressSpy::$ksesCalls[0]['content']);
         self::assertSame(['type' => true, 'checked' => true, 'disabled' => true], WordPressSpy::$ksesCalls[0]['allowed']['input']);
-        self::assertSame('the_content', WordPressSpy::$appliedFilters[0]['hook']);
+        self::assertSame(['do_blocks', 'wptexturize', 'convert_smilies'], array_column(WordPressSpy::$appliedFilters, 'hook'));
         self::assertSame(WordPressSpy::$ksesCalls[0]['content'], WordPressSpy::$appliedFilters[0]['value']);
+    }
+
+    #[Test]
+    public function never_runs_the_content_chain_so_shortcodes_and_embeds_stay_as_typed(): void
+    {
+        $data = $this->controller->handle(self::request(str_replace('Un paragraphe.', "[embed]http://example.com/[/embed]\n\n[gallery]", self::DOCUMENT)))->get_data();
+
+        self::assertNotContains('the_content', array_column(WordPressSpy::$appliedFilters, 'hook'));
+        self::assertStringContainsString('<p>[embed]http://example.com/[/embed]</p>', $data['html']);
+        self::assertStringContainsString('<p>[gallery]</p>', $data['html']);
     }
 
     #[Test]

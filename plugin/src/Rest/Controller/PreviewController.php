@@ -17,15 +17,21 @@ use WP_REST_Server;
  * The request carries the whole document (`markdown`); the answer carries
  * the title, the HTML as the site would print it, a summary of the
  * frontmatter and the problems the import would raise. The HTML goes
- * through the same kses pass as the stored content and then through
- * `the_content`, the filter chain of the front end (blocks, texturize,
- * shortcodes, image attributes): what the preview shows is what the site
- * shows, up to the theme's stylesheet.
+ * through the same kses pass as the stored content, then through the
+ * rendering of the blocks and the typography of the front end (do_blocks,
+ * wptexturize, convert_smilies), and not through the whole `the_content`
+ * chain: do_shortcode and the oEmbed handlers hooked there run registered
+ * shortcodes and fetch remote URLs (writing an oEmbed cache post) for a
+ * text that is merely being typed, and whatever a theme or a plugin hooks
+ * there expects a post in the loop. What the preview shows is what the
+ * site shows, up to the theme's stylesheet and the shortcodes, which the
+ * preview leaves as typed.
  *
- * The route takes `edit_posts`: it writes nothing and reveals nothing but
- * the rendering of what the caller just typed, which is what the editor of
- * any article or project needs. Cookie authentication requires the REST
- * nonce, which `wp-api-fetch` adds and renews for the editor.
+ * The route takes `edit_posts`: it writes nothing, runs nothing of the
+ * document, and reveals nothing but the rendering of what the caller just
+ * typed, which is what the editor of any article or project needs. Cookie
+ * authentication requires the REST nonce, which `wp-api-fetch` adds and
+ * renews for the editor.
  */
 final class PreviewController
 {
@@ -70,7 +76,7 @@ final class PreviewController
 
         $html = $result->html;
         if ($html !== null) {
-            $html = (string) apply_filters('the_content', HtmlSanitizer::sanitize($html));
+            $html = self::presentLikeTheSite(HtmlSanitizer::sanitize($html));
         }
 
         return new WP_REST_Response([
@@ -80,5 +86,17 @@ final class PreviewController
             'summary' => (object) $result->summary,
             'html' => $html,
         ]);
+    }
+
+    /**
+     * The members of the front end's `the_content` chain that only
+     * transform the text, in their order on the front end: the blocks are
+     * rendered (which is also where block supports add their classes) and
+     * the typography is applied. Nothing here runs a shortcode, fetches a
+     * URL or writes anything.
+     */
+    private static function presentLikeTheSite(string $html): string
+    {
+        return convert_smilies(wptexturize(do_blocks($html)));
     }
 }
