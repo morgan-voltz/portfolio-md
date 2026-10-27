@@ -6,7 +6,8 @@
  * Checks the frontmatter keys and types, the slug/file name match, the status
  * enum, ISO dates, http(s) URLs, the skills codes against content/skills.yaml,
  * the required sections of a project sheet, the absence of inline HTML and,
- * for pages, the absence of contact data.
+ * for pages, the absence of contact data; and that no body repeats its
+ * title as an h1, which the theme already displays from the frontmatter.
  *
  * Stop-gap until the plugin's FrontmatterParser exists (roadmap phase 2); it
  * only needs symfony/yaml from the plugin's vendor/.
@@ -95,6 +96,10 @@ foreach (array_slice($argv, 2) as $file) {
     }
     if (preg_match('/<(script|iframe|div|span|style)\b/i', $body)) {
         $errors[] = "HTML inline interdit";
+    }
+    $prose = preg_replace('/^```.*?^```[ \t]*$/ms', '', $body) ?? $body;
+    if (preg_match('/^#\s/mu', $prose)) {
+        $errors[] = "h1 dans le corps : le titre vient du frontmatter, le thème l'affiche";
     }
 
     if ($type === 'page') {
