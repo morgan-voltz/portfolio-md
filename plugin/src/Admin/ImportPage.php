@@ -114,7 +114,7 @@ final class ImportPage
 
         echo '<form method="post">';
         wp_nonce_field(self::NONCE_ACTION, self::NONCE_FIELD);
-        echo '<textarea name="markdown" rows="24" class="large-text code" spellcheck="false" placeholder="---&#10;title: &quot;…&quot;&#10;slug: &quot;…&quot;&#10;type: &quot;article&quot;&#10;---">'
+        echo '<textarea name="markdown" rows="24" class="large-text code" spellcheck="false" ' . EditorAssets::MARKER . '="1" placeholder="---&#10;title: &quot;…&quot;&#10;slug: &quot;…&quot;&#10;type: &quot;article&quot;&#10;---">'
             . "\n" . esc_textarea($this->markdown) . '</textarea>';
         echo '<p><label><input type="checkbox" name="draft" value="1"' . checked($this->draft, true, false) . '> '
             . esc_html__('Créer le post en brouillon (un post existant garde son statut)', 'portfolio-md')

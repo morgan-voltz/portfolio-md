@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Voltz\PortfolioMd;
 
 use Voltz\PortfolioMd\Admin\EditScreen;
+use Voltz\PortfolioMd\Admin\EditorAssets;
 use Voltz\PortfolioMd\Admin\EditorMetaBox;
 use Voltz\PortfolioMd\Admin\ImportPage;
 use Voltz\PortfolioMd\Cli\ImportCommand;
@@ -148,14 +149,16 @@ final class Plugin
     /**
      * Hooks the two admin doors of 01-plugin-php.md §6: the Markdown box on
      * the edit screens of articles and projects (with the screen trimmed of
-     * the fields the document owns) and the paste page under the plugin
-     * menu. Both call the same import service as the WP-CLI command.
+     * the fields the document owns, and the editor and preview script on
+     * top) and the paste page under the plugin menu. Both call the same
+     * import service as the WP-CLI command.
      */
     private function registerAdmin(): void
     {
         (new EditScreen())->hook();
         (new EditorMetaBox($this->importService()))->hook();
         (new ImportPage($this->importService()))->hook();
+        (new EditorAssets($this->pluginFile))->hook();
     }
 
     /**
