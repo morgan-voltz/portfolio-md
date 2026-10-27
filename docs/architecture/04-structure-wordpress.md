@@ -428,7 +428,7 @@ WordPress
 
 **2026-10-26 (portes admin)**
 
-- Les écrans d'édition des `article` et `project` passent en écran classique avec une métabox « Document Markdown » (`01-plugin-php.md` §6.1) : Gutenberg coupé, éditeur de contenu, éditeur de permalien, boîtes de slug et de taxonomies, Quick Edit et Bulk Edit retirés, parce que le document est la seule source du titre, du slug, de la date, des termes et des champs. Restent la boîte de publication, l'auteur, l'image mise en avant, les révisions et les champs personnalisés.
+- Les écrans d'édition des `article` et `project` passent en écran classique avec une métabox « Document Markdown » (`01-plugin-php.md` §6.1) : Gutenberg coupé, champ titre, éditeur de contenu, éditeur de permalien, boîtes de slug et de taxonomies, Quick Edit et Bulk Edit retirés, parce que le document est la seule source du titre, du slug, de la date, des termes et des champs. Restent la boîte de publication, l'auteur, l'image mise en avant, les révisions et les champs personnalisés.
 - Page « Portfolio → Importer » pour coller un document (`01-plugin-php.md` §6.3), capacité `edit_others_posts` (section 6).
 
 ---

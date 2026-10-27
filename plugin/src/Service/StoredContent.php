@@ -15,12 +15,19 @@ use Voltz\PortfolioMd\Domain\ContentSource;
  */
 final readonly class StoredContent
 {
+    /**
+     * @param ?string $documentSlug the slug written in the document the post holds, when the
+     *                              store read it (findById); null when the post holds none.
+     *                              It may differ from the post's own URL slug if that one was
+     *                              changed behind the document's back: the document wins.
+     */
     public function __construct(
         public int $id,
         public string $hash,
         public ?ContentSource $source,
         public string $renderVersion,
         public bool $inTrash = false,
+        public ?string $documentSlug = null,
     ) {
     }
 

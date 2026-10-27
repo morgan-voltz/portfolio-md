@@ -35,10 +35,13 @@ use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
  *     names every file after its slug);
  *   - a slug whose post sits in the trash is refused: the post was retired
  *     by hand, and WordPress would let a second one be created next to it;
- *   - with a target post, the slug must be free or already the target's
- *     own, and a post that holds a document keeps its slug: renaming it
- *     from the admin would orphan its Markdown file, whose next import
- *     would create a second post;
+ *   - with a target post, the post must exist with the document's type and
+ *     must not be in the trash; the slug must be free or already the
+ *     target's own; and a post that holds a document keeps the slug written
+ *     in that document: renaming it from the admin would orphan its
+ *     Markdown file, whose next import would create a second post (a URL
+ *     slug changed behind the document's back, through the REST API, does
+ *     not count: the document wins at its next write);
  *   - competency codes are not created on the fly: the grid in
  *     content/skills.yaml is the source of the official names, so an unknown
  *     code is a mistake in the document and the import says so (ADR-014,
@@ -162,8 +165,8 @@ final class ContentImportService
         if ($owner !== null && $owner->id !== $postId) {
             throw ImportException::slugTaken($type, $slug, $owner->id, $postId);
         }
-        if ($owner === null && $target->holdsDocument()) {
-            throw ImportException::slugChanged($type, $postId, $slug);
+        if ($target->holdsDocument() && $target->documentSlug !== $slug) {
+            throw ImportException::slugChanged($type, $postId, $target->documentSlug, $slug);
         }
 
         return $target->holdsDocument() ? $target : null;

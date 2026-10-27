@@ -80,7 +80,7 @@ final class PostTypeRegistrar
             'publicly_queryable'  => true,
             'show_ui'             => true,
             'show_in_menu'        => true,
-            'show_in_rest'        => true, // Indispensable pour Gutenberg.
+            'show_in_rest'        => true, // Native REST representation; the block editor itself is off for this type (Admin\EditScreen).
             'has_archive'         => true,
 
             // URL : /articles/<slug>/.
@@ -102,7 +102,7 @@ final class PostTypeRegistrar
 
             // Fonctionnalités prises en charge par l'éditeur :
             // - title    : champ titre
-            // - editor   : éditeur Gutenberg
+            // - editor   : content editor (hidden on the edit screen by Admin\EditScreen: the Markdown document is the editor)
             // - excerpt  : champ extrait (résumé)
             // - revisions: historique des modifications
             // - author   : suivi de l'auteur

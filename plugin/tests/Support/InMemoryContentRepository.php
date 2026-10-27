@@ -63,6 +63,7 @@ final class InMemoryContentRepository implements ContentRepository
             $record->hash,
             $record->source,
             $record->renderVersion,
+            documentSlug: $record->frontmatter->slug,
         ));
 
         return $id;

@@ -35,7 +35,6 @@ final class EditScreenTest extends TestCase
         self::assertSame([
             'filter:use_block_editor_for_post_type',
             'filter:get_sample_permalink_html',
-            'filter:enter_title_here',
             'filter:post_row_actions',
             'action:load-post.php',
             'action:load-post-new.php',
@@ -67,13 +66,6 @@ final class EditScreenTest extends TestCase
     }
 
     #[Test]
-    public function tells_where_the_title_comes_from_on_its_posts_only(): void
-    {
-        self::assertStringContainsString('document Markdown', $this->screen->titlePlaceholder('Add title', new WP_Post(['post_type' => 'article'])));
-        self::assertSame('Add title', $this->screen->titlePlaceholder('Add title', new WP_Post(['post_type' => 'post'])));
-    }
-
-    #[Test]
     public function withdraws_quick_edit_from_its_rows_only(): void
     {
         $actions = ['edit' => 'Edit', 'inline hide-if-no-js' => 'Quick Edit', 'trash' => 'Trash', 'view' => 'View'];
@@ -89,11 +81,14 @@ final class EditScreenTest extends TestCase
     }
 
     #[Test]
-    public function removes_the_content_editor_from_the_screens_of_its_types_only(): void
+    public function removes_the_content_editor_and_the_title_field_from_the_screens_of_its_types_only(): void
     {
         WordPressSpy::$currentScreen = (object) ['post_type' => 'project'];
         $this->screen->trimCurrentScreen();
-        self::assertSame([['postType' => 'project', 'feature' => 'editor']], WordPressSpy::$removedSupports);
+        self::assertSame([
+            ['postType' => 'project', 'feature' => 'editor'],
+            ['postType' => 'project', 'feature' => 'title'],
+        ], WordPressSpy::$removedSupports);
 
         WordPressSpy::$removedSupports = [];
         WordPressSpy::$currentScreen = (object) ['post_type' => 'post'];
