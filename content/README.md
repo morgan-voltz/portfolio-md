@@ -111,7 +111,7 @@ Une fiche se modifie aussi depuis l'admin WordPress, dans la boîte « Document 
 
 ## Validation
 
-Avant de proposer une fiche, la passer au validateur, qui vérifie le frontmatter, les codes de compétences, les sections obligatoires et l'absence de HTML ou de données de contact (sans PHP sur la machine, via un conteneur) :
+Avant de proposer une fiche, la passer au validateur, qui vérifie le frontmatter, les codes de compétences, les sections obligatoires, l'absence de HTML ou de données de contact, et qu'aucun corps ne répète son titre en h1 (sans PHP sur la machine, via un conteneur) :
 
 ```bash
 podman run --rm -v "$PWD:/repo:z" -w /repo docker.io/library/php:8.3-cli \
