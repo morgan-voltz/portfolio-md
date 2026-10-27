@@ -10,8 +10,8 @@ status: "stable"
 role: "Conception produit, architecture, développement backend et frontend, infrastructure et gouvernance, en solo"
 period_start: ""
 period_end: ""
-repo_url: ""
-demo_url: ""
+repo_url: "https://github.com/Kovelt/carbon-fr"
+demo_url: "https://carbon-fr.kovelt.fr/dashboard"
 client: ""
 is_fil_rouge: false
 tags: [rust, postgresql, architecture-hexagonale, typescript, axum, machine-learning, open-data, docker, self-hosted, openapi]
@@ -69,7 +69,8 @@ Et qu'un projet solo n'oblige pas à sacrifier la discipline d'équipe : les ADR
 
 ## Liens
 
-- Dépôt : public sur GitHub, organisation Kovelt, double licence MIT / Apache-2.0.
-- Démo : tableau de bord public, carte interactive, vues régionales et widget du créneau le plus vert.
+- Dépôt : public, sur GitHub (`github.com/Kovelt/carbon-fr`), organisation Kovelt, double licence MIT / Apache-2.0.
+- Démo : tableau de bord public (`carbon-fr.kovelt.fr/dashboard`) : carte interactive, vues régionales et widget du créneau le plus vert.
 - SDK : `@carbon-fr/sdk`, publié en TypeScript.
+- Documentation : référence OpenAPI de l'API (`carbon-fr-api.kovelt.fr/docs`).
 - Référencement : réutilisation listée sur data.gouv.fr.
