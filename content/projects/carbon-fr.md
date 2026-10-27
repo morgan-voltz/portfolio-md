@@ -22,7 +22,7 @@ skills: ["4.0.1/FR-09", "4.0.2/E09"]
 
 carbon-fr est une API civique open source qui expose en temps réel l'intensité carbone de l'électricité française, à l'échelle nationale et pour les douze régions, avec un tableau de bord public. C'est l'équivalent français du carbonintensity.org.uk britannique, un service qui n'existait pas en France alors que les données ouvertes nécessaires — RTE, ADEME, ENTSO-E — y sont parmi les meilleures d'Europe. Double licence MIT / Apache-2.0, réutilisation référencée sur data.gouv.fr.
 
-Au 26 octobre 2026, le projet est en version 0.7.1, stable : environ 25 endpoints documentés, un tableau de bord public, un SDK TypeScript publié. Je le conçois, le développe et l'héberge seul, et je continue à le faire évoluer.
+Au 26 octobre 2026, le projet est en version 0.11.0, stable : 30 endpoints documentés, un tableau de bord public, un SDK TypeScript publié. Je le conçois, le développe et l'héberge seul, et je continue à le faire évoluer.
 
 ## Le problème
 
@@ -56,13 +56,13 @@ Et qu'un projet solo n'oblige pas à sacrifier la discipline d'équipe : les ADR
 
 ## En chiffres
 
-- Version 0.7.1, stable ; v0.7.0 = release d'audit, dix-neuf défauts confirmés et corrigés sur une revue adversariale complète du workspace
-- Environ 25 endpoints sous `/v1`, documentés en OpenAPI
-- Backend en Rust (édition 2024, tokio) : workspace Cargo de dix crates et un binaire serveur, architecture hexagonale
+- Version 0.11.0 (release du 20 octobre 2026), stable ; v0.7.0 = release d'audit, dix-neuf défauts confirmés et corrigés sur une revue adversariale complète du workspace
+- 30 endpoints sous `/v1`, documentés en OpenAPI
+- Backend en Rust (édition 2024, tokio) : workspace Cargo de onze crates et un binaire serveur, architecture hexagonale
 - Persistance PostgreSQL en SQL natif (sqlx), sans ORM
 - Couverture géographique : national + 12 régions ; 3 méthodologies carbone servies en parallèle (`rte-direct`, `acv-ademe@1`, `acv-ademe@2`)
 - 2 référentiels d'éligibilité hydrogène (RFNBO, bas-carbone) ; 233 électrolyseurs européens cartographiés (European Hydrogen Observatory)
-- 29 ADR (Architecture Decision Records) gouvernant le projet
+- 35 ADR (Architecture Decision Records) gouvernant le projet
 - Double licence MIT / Apache-2.0 ; SDK TypeScript publié (`@carbon-fr/sdk`)
 - Infrastructure 100 % UE : API sur VPS Hetzner derrière Traefik, vitrine chez o2switch (France) ; image Docker publiée par la CI à chaque tag de version, auto-hébergeable (un tier hébergé à clés API coexiste)
 - Marque déposée à l'INPI ; réutilisation des données référencée sur data.gouv.fr
