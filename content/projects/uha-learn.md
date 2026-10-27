@@ -18,8 +18,6 @@ tags: [php, react, mysql, redis, docker, jwt, rest-api, mvc, bootstrap, vite]
 skills: ["4.0.1/FR-03", "4.0.1/FR-04", "4.0.1/FR-06", "4.0.1/FR-08", "4.0.1/FR-09", "4.0.1/FR-10", "4.0.1/FR-11", "4.0.1/FR-13", "4.0.1/FR-15", "4.0.1/FR-16"]
 ---
 
-# UHA Learn
-
 UHA Learn est mon projet fil rouge de première année du parcours UHA 4.0.1, avant MomoCad, mon fil rouge de deuxième année. La consigne demande de construire seul un site web complet autour de données tierces, du HTML et du CSS jusqu'à une API PHP maison, avec Git, une base MySQL et un script de déploiement.
 
 Le projet a été livré et soutenu en décembre 2025. Il n'est plus maintenu depuis : c'est un dossier fermé, et mon premier projet mené seul de bout en bout.

@@ -8,7 +8,7 @@ seo_description: "GeoForge, addon open source pour Godot 4 (C#/.NET), calcule re
 featured: false
 status: "prototype"
 role: "Conception, développement, tests et documentation, en solo"
-period_start: ""
+period_start: 2026-03-19
 period_end: ""
 repo_url: ""
 demo_url: ""
@@ -17,8 +17,6 @@ is_fil_rouge: false
 tags: [godot, csharp, dotnet, clean-architecture, solid, design-patterns, generation-procedurale, openstreetmap, xunit, open-source]
 skills: []
 ---
-
-# GeoForge, l'addon Godot
 
 GeoForge est un addon open source que je développe pour Godot 4, qui génère des terrains à partir de données géographiques réelles ou d'une sculpture manuelle dans l'éditeur. Je précise le nom tout de suite : un autre de mes projets, mon fil rouge de deuxième année, s'appelle lui aussi GeoForge (un puzzle géométrique en React et Phaser). Les deux ne partagent que le nom ; celui dont il est question ici est l'addon Godot, en C#/.NET, personnel, sous licence MIT.
 

@@ -5,10 +5,10 @@ type: "project"
 date: 2026-10-26
 subtitle: "Une suite de productivité personnelle en Rust de bout en bout, pensée pour fonctionner hors ligne sans jamais monétiser les données de l'utilisateur"
 seo_description: "Vefta, suite de productivité privacy-first et offline-first en Rust (Axum, Dioxus, PostgreSQL), développée en solo pour Kovelt SAS."
-featured: false
+featured: true
 status: "en-cours"
 role: "Fondateur et unique développeur, Kovelt SAS"
-period_start: ""
+period_start: 2026-06-02
 period_end: ""
 repo_url: ""
 demo_url: ""
@@ -17,8 +17,6 @@ is_fil_rouge: false
 tags: [rust, axum, dioxus, postgresql, webassembly, architecture-hexagonale, offline-first, privacy-first, ci-cd, sync]
 skills: ["4.0.2/E09"]
 ---
-
-# Vefta
 
 Vefta est la suite de productivité personnelle que je développe pour Kovelt SAS, l'entreprise que j'ai fondée et où j'en suis l'unique développeur. Jusqu'en juillet 2026, elle s'appelait Chronos. L'idée de départ : un seul outil qui tienne l'agenda, les tâches, les contacts, les notes, le mail et les messageries d'une personne, qui fonctionne sans connexion et dont les données ne quittent jamais le contrôle de l'utilisateur.
 

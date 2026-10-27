@@ -5,24 +5,22 @@ type: "project"
 date: 2026-10-26
 subtitle: "Une API qui mesure l'intensité carbone de l'électricité française sans jamais trancher les débats qu'elle informe"
 seo_description: "carbon-fr est une API open source en Rust qui mesure l'intensité carbone de l'électricité française, référencée comme réutilisation sur data.gouv.fr."
-featured: false
+featured: true
 status: "stable"
 role: "Conception produit, architecture, développement backend et frontend, infrastructure et gouvernance, en solo"
-period_start: ""
+period_start: 2026-06-14
 period_end: ""
-repo_url: ""
-demo_url: ""
+repo_url: "https://github.com/Kovelt/carbon-fr"
+demo_url: "https://carbon-fr.kovelt.fr/dashboard"
 client: ""
 is_fil_rouge: false
 tags: [rust, postgresql, architecture-hexagonale, typescript, axum, machine-learning, open-data, docker, self-hosted, openapi]
 skills: ["4.0.1/FR-09", "4.0.2/E09"]
 ---
 
-# carbon-fr
-
 carbon-fr est une API civique open source qui expose en temps réel l'intensité carbone de l'électricité française, à l'échelle nationale et pour les douze régions, avec un tableau de bord public. C'est l'équivalent français du carbonintensity.org.uk britannique, un service qui n'existait pas en France alors que les données ouvertes nécessaires — RTE, ADEME, ENTSO-E — y sont parmi les meilleures d'Europe. Double licence MIT / Apache-2.0, réutilisation référencée sur data.gouv.fr.
 
-Au 26 octobre 2026, le projet est en version 0.7.1, stable : environ 25 endpoints documentés, un tableau de bord public, un SDK TypeScript publié. Je le conçois, le développe et l'héberge seul, et je continue à le faire évoluer.
+Au 26 octobre 2026, le projet est en version 0.11.0, stable : 30 endpoints documentés, un tableau de bord public, un SDK TypeScript publié. Je le conçois, le développe et l'héberge seul, et je continue à le faire évoluer.
 
 ## Le problème
 
@@ -34,7 +32,7 @@ Le problème n'était donc pas l'absence de données, mais l'absence d'un instru
 
 ## Les décisions techniques
 
-**L'architecture est hexagonale, pour isoler le calcul du carbone de sources qui changent sans prévenir.** Le domaine (`core`, `eligibility`) est écrit en types purs, sans dépendance externe ; les adaptateurs (ODRÉ, ENTSO-E, météo, prévision, GBDT, Postgres, axum, webhooks) se branchent sur des ports. Les sources de données publiques changent de format, de fréquence et de disponibilité sans préavis ; l'hexagonal rend chaque source remplaçable et testable isolément. Preuve : un workspace Cargo de dix crates et un seul binaire serveur.
+**L'architecture est hexagonale, pour isoler le calcul du carbone de sources qui changent sans prévenir.** Le domaine (`core`, `eligibility`) est écrit en types purs, sans dépendance externe ; les adaptateurs (ODRÉ, ENTSO-E, météo, prévision, GBDT, Postgres, axum, webhooks) se branchent sur des ports. Les sources de données publiques changent de format, de fréquence et de disponibilité sans préavis ; l'hexagonal rend chaque source remplaçable et testable isolément. Preuve : un workspace Cargo de onze crates et un seul binaire serveur.
 
 **Chaque valeur porte un `vintage`, parce que RTE révise ses propres chiffres.** Une même heure passe par trois états successifs — temps réel, consolidé, définitif — avec des valeurs différentes à chaque étape ; une API naïve servirait silencieusement des chiffres contradictoires selon le moment de la requête. L'ingestion repose sur un upsert à clé composite (région, timestamp, méthodologie) complété d'un champ `vintage`. Conséquence directe : pas d'ORM, persistance en SQL natif via sqlx (requêtes vérifiées à la compilation), pour garder un contrôle fin sur ces upserts.
 
@@ -56,20 +54,21 @@ Et qu'un projet solo n'oblige pas à sacrifier la discipline d'équipe : les ADR
 
 ## En chiffres
 
-- Version 0.7.1, stable ; v0.7.0 = release d'audit, dix-neuf défauts confirmés et corrigés sur une revue adversariale complète du workspace
-- Environ 25 endpoints sous `/v1`, documentés en OpenAPI
-- Backend en Rust (édition 2024, tokio) : workspace Cargo de dix crates et un binaire serveur, architecture hexagonale
+- Version 0.11.0 (release du 20 octobre 2026), stable ; v0.7.0 = release d'audit, dix-neuf défauts confirmés et corrigés sur une revue adversariale complète du workspace
+- 30 endpoints sous `/v1`, documentés en OpenAPI
+- Backend en Rust (édition 2024, tokio) : workspace Cargo de onze crates et un binaire serveur, architecture hexagonale
 - Persistance PostgreSQL en SQL natif (sqlx), sans ORM
 - Couverture géographique : national + 12 régions ; 3 méthodologies carbone servies en parallèle (`rte-direct`, `acv-ademe@1`, `acv-ademe@2`)
 - 2 référentiels d'éligibilité hydrogène (RFNBO, bas-carbone) ; 233 électrolyseurs européens cartographiés (European Hydrogen Observatory)
-- 29 ADR (Architecture Decision Records) gouvernant le projet
+- 35 ADR (Architecture Decision Records) gouvernant le projet
 - Double licence MIT / Apache-2.0 ; SDK TypeScript publié (`@carbon-fr/sdk`)
 - Infrastructure 100 % UE : API sur VPS Hetzner derrière Traefik, vitrine chez o2switch (France) ; image Docker publiée par la CI à chaque tag de version, auto-hébergeable (un tier hébergé à clés API coexiste)
 - Marque déposée à l'INPI ; réutilisation des données référencée sur data.gouv.fr
 
 ## Liens
 
-- Dépôt : public sur GitHub, organisation Kovelt, double licence MIT / Apache-2.0.
-- Démo : tableau de bord public, carte interactive, vues régionales et widget du créneau le plus vert.
+- Dépôt : public, sur GitHub (`github.com/Kovelt/carbon-fr`), organisation Kovelt, double licence MIT / Apache-2.0.
+- Démo : tableau de bord public (`carbon-fr.kovelt.fr/dashboard`), avec carte interactive, vues régionales et widget du créneau le plus vert.
 - SDK : `@carbon-fr/sdk`, publié en TypeScript.
+- Documentation : référence OpenAPI de l'API (`carbon-fr-api.kovelt.fr/docs`).
 - Référencement : réutilisation listée sur data.gouv.fr.

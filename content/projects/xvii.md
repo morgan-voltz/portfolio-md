@@ -18,8 +18,6 @@ tags: [rust, dioxus, cpal, symphonia, rubato, audio-temps-reel, dsp, mcp]
 skills: []
 ---
 
-# xvii
-
 XVII est un studio audio seize pistes en Rust et Dioxus, pensé pour annoter mes morceaux de metal : poser une structure (couplet, riff A, breakdown, solo), caler un tempo qui varie en cours de route, et synchroniser des paroles ligne par ligne puis mot à mot. Le nom vient du chiffre romain dix-sept : la dix-septième piste, celle des paroles, qui s'ajoute aux seize pistes audio.
 
 Au 26 octobre 2026, seule la phase 1 sur 6 de la feuille de route est livrée : lire un fichier audio passé en argument dans une fenêtre minimale, avec un gain général réglable. L'architecture complète, elle, a été actée par écrit avant la première ligne de code.

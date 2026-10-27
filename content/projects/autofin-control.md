@@ -5,7 +5,7 @@ type: "project"
 date: 2026-10-26
 subtitle: "Lire des bilans PDF hétérogènes par géométrie plutôt que par IA, pour un contrôle financier qui doit rester en local"
 seo_description: "AUTOFIN Control extrait et vérifie des données comptables de PDF pour le contrôle financier des associations subventionnées par m2A, en .NET 10."
-featured: false
+featured: true
 status: "stable"
 role: "Développeur principal, équipe de 7 à 8"
 period_start: 2026-01-09
@@ -17,8 +17,6 @@ is_fil_rouge: false
 tags: [csharp, dotnet, wpf, mvvm, clean-architecture, pdf-extraction, sqlite, excel, xunit, msix]
 skills: ["4.0.1/PM-01", "4.0.1/PM-02", "4.0.1/PM-08", "4.0.1/FR-01", "4.0.1/FR-15"]
 ---
-
-# AUTOFIN Control
 
 AUTOFIN Control est le projet client de ma première année UHA 4.0 : une application de bureau pour le service de contrôle financier de m2A, l'agglomération de Mulhouse. Développé avec une équipe de sept à huit étudiants entre janvier et mai 2026, j'y ai tenu le rôle de développeur principal — environ 38 % des trois cent quatre-vingt-treize commits, l'architecture, le pipeline d'extraction, et une bonne partie des conventions et de la documentation d'équipe.
 

@@ -59,7 +59,7 @@ Chaque fiche raconte le projet dans l'ordre où un recruteur ou un jury veut le 
 2. **Les décisions techniques** : trois à six décisions avec leur pourquoi et, quand c'est possible, la preuve dans le code (fichier, classe, chiffre). C'est la section qui distingue une fiche d'un README.
 3. **Ce que j'en ai appris** : ce qui a changé dans la manière de travailler, ce qu'on referait autrement.
 
-Puis deux blocs courts : **En chiffres** (taille, tests, commits, durée) et **Liens** (dépôt, démo, documentation). Les titres de section sont libres mais ces cinq temps sont toujours présents.
+Puis deux blocs courts : **En chiffres** (taille, tests, commits, durée) et **Liens** (dépôt, démo, documentation). Les titres de section sont libres mais ces cinq temps sont toujours présents. Le corps ne commence pas par un `# Titre` : le titre vient du frontmatter et le thème l'affiche en tête de page ; un h1 dans le corps le ferait apparaître deux fois.
 
 Le projet fil rouge 4.0.2 suit le même patron avec, en plus, une section **Correspondance avec les étapes du fil rouge** qui, pour chaque étape de la consigne, pointe vers l'élément du projet qui la réalise.
 
@@ -77,7 +77,7 @@ seo_description: "Une phrase complète de 160 caractères au plus."
 ---
 ```
 
-Corps en GFM, à la première personne, sans donnée de contact : l'adresse e-mail n'apparaît que sur la page Contact. La page CV est une version web lisible, pas une copie de la mise en page du PDF ; elle renvoie aux fiches projet par des liens relatifs (`../projects/<slug>.md`), que le pipeline réécrit en liens du site (`/projets/<slug>/`) au rendu.
+Corps en GFM, sans `# Titre` en tête (même règle que les fiches), à la première personne, sans donnée de contact : l'adresse e-mail n'apparaît que sur la page Contact. La page CV est une version web lisible, pas une copie de la mise en page du PDF ; elle renvoie aux fiches projet par des liens relatifs (`../projects/<slug>.md`), que le pipeline réécrit en liens du site (`/projets/<slug>/`) au rendu.
 
 ## Import dans WordPress
 
@@ -111,7 +111,7 @@ Une fiche se modifie aussi depuis l'admin WordPress, dans la boîte « Document 
 
 ## Validation
 
-Avant de proposer une fiche, la passer au validateur, qui vérifie le frontmatter, les codes de compétences, les sections obligatoires et l'absence de HTML ou de données de contact (sans PHP sur la machine, via un conteneur) :
+Avant de proposer une fiche, la passer au validateur, qui vérifie le frontmatter, les codes de compétences, les sections obligatoires, l'absence de HTML ou de données de contact, et qu'aucun corps ne répète son titre en h1 (sans PHP sur la machine, via un conteneur) :
 
 ```bash
 podman run --rm -v "$PWD:/repo:z" -w /repo docker.io/library/php:8.3-cli \

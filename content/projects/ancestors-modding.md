@@ -18,8 +18,6 @@ tags: [python, tkinter, reverse-engineering, unreal-engine, modding, binary-patc
 skills: []
 ---
 
-# ancestors-modding
-
 ancestors-modding est un projet personnel, publié en licence MIT : une boîte à outils de rétro-ingénierie et de modding pour *Ancestors: The Humankind Odyssey*, un jeu sous Unreal Engine 4.20 que son studio a cessé de développer en 2020.
 
 Je l'ai construit et publié en une seule session, le 23 mars 2026 — quatre commits en 38 minutes — et je n'y suis pas retourné depuis. Le dépôt ne contient aucun asset du jeu, seulement des outils et de la documentation : onze documents Markdown et deux scripts Python.
