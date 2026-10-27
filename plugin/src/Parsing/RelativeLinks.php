@@ -22,8 +22,12 @@ use Voltz\PortfolioMd\Domain\ContentType;
  */
 final class RelativeLinks
 {
-    /** `../<folder>/<slug>.md`, optionally `./`-prefixed, with an optional `#fragment`. */
-    private const PATTERN = '~(?<=href=")(?:\./)?\.\./(articles|projects|pages)/([a-z0-9]+(?:-[a-z0-9]+)*)\.md(#[^"]*)?(?=")~';
+    /**
+     * `../<folder>/<slug>.md`, optionally `./`-prefixed, with an optional
+     * `#fragment`, as the value of an `href` attribute (not of an attribute
+     * whose name merely ends in `href`).
+     */
+    private const PATTERN = '~(?<=href=")(?<![\w-]href=")(?:\./)?\.\./(articles|projects|pages)/([a-z0-9]+(?:-[a-z0-9]+)*)\.md(#[^"]*)?(?=")~';
 
     private function __construct()
     {

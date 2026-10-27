@@ -42,6 +42,7 @@ final class RelativeLinksTest extends TestCase
             '<a href="../drafts/x.md">unknown folder</a>',
             '<a href="x.md">a sibling, which the content does not use</a>',
             '<img src="../projects/x.md">',
+            '<a data-href="../projects/x.md">an attribute whose name only ends in href</a>',
         ];
 
         foreach ($untouched as $html) {
