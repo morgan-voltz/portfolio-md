@@ -256,12 +256,24 @@ final class ContentImportServiceTest extends TestCase
     }
 
     #[Test]
-    public function pages_are_refused(): void
+    public function creates_a_page_without_terms_nor_competency_codes(): void
     {
-        $this->expectException(ImportException::class);
-        $this->expectExceptionMessage('type "page"');
+        $markdown = "---\ntitle: \"À propos\"\nslug: \"a-propos\"\ntype: \"page\"\ndate: 2026-10-26\nseo_description: \"Qui je suis.\"\n---\n\n# À propos\n\nCorps.\n";
 
-        $this->service->import("---\ntitle: \"À propos\"\nslug: \"a-propos\"\ntype: \"page\"\n---\n\nCorps.\n", new ImportOptions());
+        $result = $this->service->import($markdown, new ImportOptions());
+
+        self::assertSame(ImportOutcome::Created, $result->outcome);
+        self::assertSame(ContentType::Page, $result->type);
+        self::assertSame('a-propos', $result->slug);
+        $record = $this->repository->lastSaved();
+        self::assertSame(ContentType::Page, $record->frontmatter->type);
+        self::assertSame('Qui je suis.', $record->frontmatter->seoDescription);
+        self::assertSame([], $record->frontmatter->tags);
+        self::assertSame([], $record->skillTermIds);
+        self::assertStringContainsString('<p>Corps.</p>', $record->html);
+        self::assertSame($markdown, $record->markdown);
+
+        self::assertSame(ImportOutcome::Unchanged, $this->service->import($markdown, new ImportOptions())->outcome);
     }
 
     #[Test]

@@ -49,8 +49,9 @@ use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
  *     to be written, so a grid that changed never fails a document that
  *     did not.
  *
- * Pages are not imported yet: the metas that make an import idempotent are
- * only registered on articles and projects.
+ * Pages (content/pages) take the same path as articles and projects, into
+ * the native page type: no terms, no competency codes, the SEO description
+ * and the internal metas only.
  */
 final class ContentImportService
 {
@@ -80,9 +81,6 @@ final class ContentImportService
         $document = $this->frontmatterParser->parse($markdown);
         $frontmatter = $document->frontmatter;
 
-        if ($frontmatter->type === ContentType::Page) {
-            throw ImportException::unsupportedType($frontmatter->type);
-        }
         if ($expectedSlug !== null && $frontmatter->slug !== $expectedSlug) {
             throw ImportException::slugMismatch($frontmatter->slug, $expectedSlug);
         }

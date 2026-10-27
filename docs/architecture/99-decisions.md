@@ -48,6 +48,7 @@ Les entrées ne sont jamais supprimées. Si une décision est révisée, on ajou
 | ADR-014 | Taxonomie `skill` hiérarchique par référentiel, code officiel en term meta | 2026-10-26 | Accepté |
 | ADR-015 | Contenu versionné dans le monorepo, grille de compétences et périmètre des fiches | 2026-10-26 | Accepté |
 | ADR-016 | Éditeur CodeMirror 6 avec prévisualisation rendue par le serveur | 2026-10-27 | Accepté |
+| ADR-017 | Les pages natives dans le pipeline, éditées comme leur document quand elles en portent un | 2026-10-27 | Accepté |
 
 ---
 
@@ -504,6 +505,32 @@ L'éditeur est CodeMirror 6, assemblé à partir de ses paquets (`@codemirror/st
 ### Conséquences
 
 L'aperçu montre ce que le site affichera, à deux écarts près, voulus : la feuille de style du thème (le cadre charge les styles des blocs, pas ceux de GeneratePress) et la chaîne `the_content`, dont la relecture du lot a montré qu'elle exécute les codes courts et les embeds de WordPress (requête HTTP sortante et cache oEmbed écrit en base pour une URL tapée par n'importe quel contributeur) : l'aperçu rend les blocs et la typographie, et montre un code court tel quel. Les liens de l'aperçu s'ouvrent dans un nouvel onglet sans `opener` ni referrer. Chaque pause de frappe coûte une requête REST authentifiée (nonce porté et renouvelé par `wp-api-fetch`) qui rend le document entier : acceptable pour des fiches de quelques dizaines de kilooctets, et borné côté serveur à un million de caractères. Le plugin a désormais une chaîne de construction JavaScript (Node 20+, esbuild, 63 paquets npm) à côté de Composer, un bundle de 560 Ko servi une fois puis mis en cache, et une suite de tests Node (`node --test`, jsdom). Les blocs de code ne sont pas colorés dans l'éditeur (ils le sont dans l'aperçu) : charger les grammaires à la demande demanderait un bundle en modules ES découpés, un levier gardé pour plus tard. Le premier endpoint du namespace `portfolio/v1` existe (`Rest\RouteRegistrar`), ce qui prépare la phase 5.
+
+---
+
+## ADR-017 — Les pages natives dans le pipeline, éditées comme leur document quand elles en portent un
+
+**Date** : 2026-10-27
+**Statut** : Accepté
+
+### Contexte
+
+Les pages `À propos` et `CV` existent dans `content/pages/` depuis ADR-015, avec un frontmatter réduit (`title`, `slug`, `type`, `date`, `seo_description`), mais `wp portfolio import` les refusait : les cinq champs internes qui rendent un import idempotent (ADR-005) et la description SEO n'étaient enregistrés que sur `article` et `project`, et le dépôt ne savait pas écrire le type natif `page`. `04-structure-wordpress.md` §3.4 laissait le choix ouvert entre enregistrer ces champs sur `page` et saisir les deux pages à la main. La page Contact, elle, se fera à la main dans l'éditeur de blocs : un formulaire, pas un document. Et la page CV renvoie aux fiches par des liens de fichier (`../projects/<slug>.md`), que le site ne sait pas suivre.
+
+### Décision
+
+Les pages entrent dans le pipeline, dans le type natif `page` : les cinq champs internes et `_portfolio_seo_description` sont enregistrés aussi sur `page` (`MetaRegistration::MARKDOWN_POST_TYPES`), le service accepte `type: page`, le dépôt écrit une page sans terme et sans les autres champs publics. Côté admin, la boîte « Document Markdown » et l'écran épuré s'appliquent **post par post** : à une page qui porte un document (son hash interne est écrit), jamais à une page faite à la main ; « Ajouter une page » garde l'éditeur de blocs. Une page documentée vit à la racine du site : sa boîte d'attributs (parent, modèle, ordre) est retirée et le dépôt remet son parent à zéro à chaque écriture. Coller une page demande `edit_others_pages` en plus de `edit_others_posts`. Les liens d'un document vers un autre sont réécrits en liens du site au rendu (`Parsing\RelativeLinks`), les bases d'URL (`articles`, `projets`, racine pour les pages) étant portées par `Domain\ContentType` et partagées avec le registrar des types.
+
+### Alternatives considérées
+
+- **Saisir les deux pages à la main** : zéro code, mais deux exemplaires à entretenir (le CV change souvent) et le Markdown cesse d'être la source pour elles (ADR-001).
+- **Un troisième type personnalisé** : toute la mécanique du plugin, mais la perte des gabarits, menus et hiérarchie que le thème offre aux pages natives, pour deux pages.
+- **La boîte sur toutes les pages** : plus simple que le choix post par post, mais elle aurait privé Contact, et toute page faite à la main, de l'éditeur de blocs.
+- **Réécrire les liens au moment de l'affichage** (filtre `the_content`) plutôt qu'au rendu : le HTML stocké aurait gardé des liens morts, contraire à ADR-001, qui veut un `post_content` complet.
+
+### Conséquences
+
+Les deux pages s'importent, se relisent et se modifient comme les fiches, avec la même règle de conflit. Le type natif `page` porte désormais six champs du plugin ; une page documentée ne redevient pas une page ordinaire sans supprimer ces champs (à outiller si le besoin apparaît). `ContentRenderer::VERSION` passe à 1.1.0 : au prochain import, toutes les fiches sont re-rendues, sans changement visible hors la page CV, dont les liens vers les fiches fonctionnent. Les bases d'URL sont une donnée du domaine que le registrar des types et le réécriveur de liens partagent : les changer se fait à un seul endroit.
 
 ---
 

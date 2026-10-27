@@ -253,13 +253,30 @@ try {
     }
     $check('an unknown competency code is refused', $refused !== null && str_contains($refused, '9.9.9/ZZ-99'), (string) $refused);
 
-    $refused = null;
-    try {
-        $service->import("---\ntitle: \"Page\"\nslug: \"zz-smoke-page\"\ntype: \"page\"\n---\n\nCorps.\n", new ImportOptions());
-    } catch (ImportException $exception) {
-        $refused = $exception->getMessage();
+    // A page goes to the native page type: no term, the SEO description and the internal metas only.
+    $pageDocument = "---\ntitle: \"Page de fumée\"\nslug: \"zz-smoke-page\"\ntype: \"page\"\ndate: 2026-10-26\nseo_description: \"Description de la page de fumée.\"\n---\n\n# Page de fumée\n\nCorps de la page.\n";
+    $pageResult = $service->import($pageDocument, new ImportOptions());
+    $pageId = $pageResult->postId ?? 0;
+    if ($pageId > 0) {
+        $createdPosts[] = $pageId;
     }
-    $check('a page is refused for now', $refused !== null && str_contains($refused, 'page'), (string) $refused);
+    $page = $pageId > 0 ? get_post($pageId) : null;
+    $check('a page is created in the native page type', $pageResult->outcome === ImportOutcome::Created && $page instanceof WP_Post && $page->post_type === 'page', $pageResult->outcome->value);
+    $check('with its title, slug and rendered body', $page instanceof WP_Post && $page->post_title === 'Page de fumée' && $page->post_name === 'zz-smoke-page' && str_contains($page->post_content, 'Corps de la page.'));
+    $check('its SEO description and the internal metas', $meta($pageId, CommonMetaRegistrar::SEO_DESCRIPTION) === 'Description de la page de fumée.' && $meta($pageId, InternalMetaRegistrar::MD_SOURCE) === $pageDocument && $meta($pageId, InternalMetaRegistrar::MD_HASH) === hash('sha256', $pageDocument) && $meta($pageId, InternalMetaRegistrar::SOURCE_TYPE) === 'git');
+    $check('and none of the other public metas', $meta($pageId, CommonMetaRegistrar::FEATURED) === '' && $meta($pageId, CommonMetaRegistrar::SUBTITLE) === '' && $meta($pageId, CommonMetaRegistrar::READING_TIME) === '');
+    $check('and no term of ours', wp_get_object_terms($pageId, TaxonomyRegistrar::TECH_TAG, ['fields' => 'ids']) === []);
+    $check('importing the page again writes nothing', $service->import($pageDocument, new ImportOptions())->outcome === ImportOutcome::Unchanged);
+
+    // A parent given behind the document's back (REST, WP-CLI) is undone by its next write: documented pages live at the root.
+    $parentId = wp_insert_post(['post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Parent de fumée', 'post_name' => 'zz-smoke-parent'], true);
+    if (is_int($parentId) && $parentId > 0 && $pageId > 0) {
+        $createdPosts[] = $parentId;
+        wp_update_post(['ID' => $pageId, 'post_parent' => $parentId]);
+        $check('a parent can be set behind the document', (int) get_post($pageId)->post_parent === $parentId);
+        $service->import(str_replace('Corps de la page.', 'Corps de la page, revu.', $pageDocument), new ImportOptions());
+        $check('and the next write of the document puts the page back at the root', (int) get_post($pageId)->post_parent === 0);
+    }
 
     $dry = $service->import(str_replace('zz-smoke-article', 'zz-smoke-dry', $article), new ImportOptions(dryRun: true));
     $check('a dry run reports a creation', $dry->outcome === ImportOutcome::Created && $dry->postId === null, $dry->outcome->value);
@@ -335,7 +352,7 @@ try {
     }
 }
 
-$check('the smoke posts are cleaned up', $countBySlug(PostTypeRegistrar::ARTICLE, $articleSlug) === 0 && $countBySlug(PostTypeRegistrar::PROJECT, $projectSlug) === 0);
+$check('the smoke posts are cleaned up', $countBySlug(PostTypeRegistrar::ARTICLE, $articleSlug) === 0 && $countBySlug(PostTypeRegistrar::PROJECT, $projectSlug) === 0 && $countBySlug('page', 'zz-smoke-page') === 0 && $countBySlug('page', 'zz-smoke-parent') === 0);
 $check('the smoke tag is cleaned up', get_term_by('slug', $tagSlug, TaxonomyRegistrar::TECH_TAG) === false);
 
 if ($failures > 0) {

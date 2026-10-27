@@ -9,7 +9,8 @@ use Voltz\PortfolioMd\Domain\ContentSource;
 /**
  * Registers the metas the plugin keeps for its own bookkeeping.
  *
- * Five fields, present on both post types, written exclusively by the plugin
+ * Five fields, present on the three post types that hold a document
+ * (articles, projects, native pages), written exclusively by the plugin
  * (the Markdown pipeline, later the Git sync): the canonical Markdown source,
  * its hash, the origin of the last write, the last sync time and the version
  * of the renderer that produced the stored HTML.
@@ -32,7 +33,7 @@ final class InternalMetaRegistrar
     public const RENDER_VERSION = '_portfolio_render_version';
 
     /**
-     * Registers all internal metas on both post types.
+     * Registers all internal metas on every post type that holds a document.
      */
     public function register(): void
     {
@@ -74,7 +75,7 @@ final class InternalMetaRegistrar
      */
     private function registerMeta(string $metaKey, string $description, array $sanitizeCallback): void
     {
-        MetaRegistration::registerForPostTypes(MetaRegistration::PORTFOLIO_POST_TYPES, $metaKey, [
+        MetaRegistration::registerForPostTypes(MetaRegistration::MARKDOWN_POST_TYPES, $metaKey, [
             'type' => 'string',
             'single' => true,
             'default' => '',

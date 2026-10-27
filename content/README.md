@@ -65,7 +65,7 @@ Le projet fil rouge 4.0.2 suit le même patron avec, en plus, une section **Corr
 
 ## Frontmatter d'une page statique
 
-Les pages `À propos` et `CV` utilisent le type natif `page` de WordPress, sans champ personnalisé :
+Les pages `À propos` et `CV` utilisent le type natif `page` de WordPress ; le plugin y garde la description SEO et ses champs internes, rien d'autre :
 
 ```markdown
 ---
@@ -77,7 +77,7 @@ seo_description: "Une phrase complète de 160 caractères au plus."
 ---
 ```
 
-Corps en GFM, à la première personne, sans donnée de contact : l'adresse e-mail n'apparaît que sur la page Contact. La page CV est une version web lisible, pas une copie de la mise en page du PDF ; elle renvoie aux fiches projet par des liens relatifs (`../projects/<slug>.md`), que le pipeline réécrira en liens du site.
+Corps en GFM, à la première personne, sans donnée de contact : l'adresse e-mail n'apparaît que sur la page Contact. La page CV est une version web lisible, pas une copie de la mise en page du PDF ; elle renvoie aux fiches projet par des liens relatifs (`../projects/<slug>.md`), que le pipeline réécrit en liens du site (`/projets/<slug>/`) au rendu.
 
 ## Import dans WordPress
 
@@ -95,9 +95,10 @@ Les fiches projet (et, le jour venu, les articles) s'importent ensuite avec `wp 
 ```bash
 podman-compose --profile tools run --rm wpcli wp portfolio import /srv/portfolio-content/projects --dry-run --user=<login admin>
 podman-compose --profile tools run --rm wpcli wp portfolio import /srv/portfolio-content/projects --user=<login admin>
+podman-compose --profile tools run --rm wpcli wp portfolio import /srv/portfolio-content/pages --user=<login admin>
 ```
 
-Chaque fiche donne un post publié (`--draft` pour un brouillon), avec son Markdown verbatim dans `_portfolio_md_source` et son HTML Gutenberg dans `post_content`. Un second passage sur un fichier inchangé ne réécrit rien (`UNCHANGED`). Un fichier modifié met à jour le même post, sauf si le post a été modifié entre-temps depuis l'admin : l'import signale alors un `CONFLICT` et ne touche à rien tant qu'on ne relance pas avec `--force` (règle d'ADR-005). Les codes de compétences doivent exister dans la taxonomie, donc dans `skills.yaml` synchronisé ; un code inconnu fait échouer la fiche. Trois garde-fous protègent les posts existants : le nom du fichier doit être le slug (`<slug>.md`), si bien qu'une fiche copiée d'une autre sans changer son `slug` est refusée au lieu d'écraser son modèle ; un post mis à la corbeille dans l'admin bloque l'import de son fichier tant qu'il n'est pas restauré ou supprimé définitivement, pour ne jamais créer un second post à côté ; une `date` dans le futur est refusée pour un post publié (WordPress le programmerait au lieu de l'afficher). Les pages (`type: page`) ne sont pas encore importées (`04-structure-wordpress.md` §3.4).
+Chaque fiche donne un post publié (`--draft` pour un brouillon), avec son Markdown verbatim dans `_portfolio_md_source` et son HTML Gutenberg dans `post_content`. Un second passage sur un fichier inchangé ne réécrit rien (`UNCHANGED`). Un fichier modifié met à jour le même post, sauf si le post a été modifié entre-temps depuis l'admin : l'import signale alors un `CONFLICT` et ne touche à rien tant qu'on ne relance pas avec `--force` (règle d'ADR-005). Les codes de compétences doivent exister dans la taxonomie, donc dans `skills.yaml` synchronisé ; un code inconnu fait échouer la fiche. Trois garde-fous protègent les posts existants : le nom du fichier doit être le slug (`<slug>.md`), si bien qu'une fiche copiée d'une autre sans changer son `slug` est refusée au lieu d'écraser son modèle ; un post mis à la corbeille dans l'admin bloque l'import de son fichier tant qu'il n'est pas restauré ou supprimé définitivement, pour ne jamais créer un second post à côté ; une `date` dans le futur est refusée pour un post publié (WordPress le programmerait au lieu de l'afficher). Les pages (`type: page`) vont dans le type natif `page`, sans terme (`04-structure-wordpress.md` §3.4) ; une page importée s'édite ensuite comme une fiche, par sa boîte « Document Markdown », tandis qu'une page créée à la main dans WordPress garde l'éditeur de blocs.
 
 Une fiche se modifie aussi depuis l'admin WordPress, dans la boîte « Document Markdown » de son écran d'édition (éditeur avec aperçu rendu par le même pipeline), ou se colle dans « Portfolio → Importer » : c'est le même document, et une fiche modifiée là est protégée du prochain import Git par la règle de conflit ci-dessus. Pour la ramener dans le dépôt, copier le document de la boîte dans son fichier : le hash redevient le même et l'import suivant ne signale rien.
 

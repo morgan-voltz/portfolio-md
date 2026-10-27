@@ -6,8 +6,9 @@ namespace Voltz\PortfolioMd\Parsing;
 
 /**
  * Phases two and three of the pipeline in one call: Markdown body →
- * Gutenberg HTML. It is what the import service depends on, and the owner
- * of the render version stored next to every post.
+ * Gutenberg HTML, with the links between documents rewritten into links
+ * of the site in between. It is what the import service depends on, and
+ * the owner of the render version stored next to every post.
  */
 final class ContentRenderer
 {
@@ -17,7 +18,7 @@ final class ContentRenderer
      * changes its output: content whose stored version differs is rendered
      * again at the next import even if its Markdown did not change.
      */
-    public const VERSION = '1.0.1';
+    public const VERSION = '1.1.0';
 
     public function __construct(
         private readonly MarkdownParser $parser,
@@ -27,6 +28,6 @@ final class ContentRenderer
 
     public function render(string $markdownBody): string
     {
-        return $this->transformer->transform($this->parser->render($markdownBody));
+        return $this->transformer->transform(RelativeLinks::rewrite($this->parser->render($markdownBody)));
     }
 }

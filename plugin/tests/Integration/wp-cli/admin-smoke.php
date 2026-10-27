@@ -175,6 +175,59 @@ try {
     $check('the publish box and the featured image stay', $live('side', 'submitdiv') && $live('side', 'postimagediv'));
     $check('the Markdown box is registered high in the main column', !empty($registered['normal']['high'][EditorMetaBox::ID]));
 
+    // 1 bis. A page is edited as its document only when it holds one ------------------------------
+
+    $liveIn = static function (array $boxes, string $context, string $id): bool {
+        foreach (['high', 'core', 'default', 'low'] as $priority) {
+            if (!empty($boxes[$context][$priority][$id])) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    $bareId = wp_insert_post(['post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Page nue', 'post_name' => 'zz-smoke-bare-page'], true);
+    if (!is_int($bareId) || $bareId === 0) {
+        WP_CLI::error('Cannot create the bare page: ' . (is_wp_error($bareId) ? $bareId->get_error_message() : 'no id'));
+    }
+    $createdPosts[] = $bareId;
+    $pageDocument = "---\ntitle: \"Page de fumée\"\nslug: \"zz-smoke-page\"\ntype: \"page\"\ndate: 2026-10-26\nseo_description: \"Page de fumée.\"\n---\n\n# Page de fumée\n\nCorps.\n";
+    $pageId = $service->import($pageDocument, new ImportOptions())->postId ?? 0;
+    if ($pageId > 0) {
+        $createdPosts[] = $pageId;
+    }
+    $check('a page holding a document loses the block editor, a bare page keeps it', $pageId > 0 && !use_block_editor_for_post($pageId) && use_block_editor_for_post($bareId));
+
+    set_current_screen('page');
+    $_GET['post'] = (string) $pageId;
+    $screen->trimCurrentScreen();
+    $check('its screen loses the content editor and the title field', !post_type_supports('page', 'editor') && !post_type_supports('page', 'title'));
+    add_post_type_support('page', 'editor');
+    add_post_type_support('page', 'title');
+    $_GET['post'] = (string) $bareId;
+    $screen->trimCurrentScreen();
+    $check('the screen of a bare page keeps them', post_type_supports('page', 'editor') && post_type_supports('page', 'title'));
+    unset($_GET['post']);
+
+    $check('the permalink editor is hidden for the documented page only', get_sample_permalink_html($pageId) === '' && get_sample_permalink_html($bareId) !== '');
+    // Pages are hierarchical: their list goes through page_row_actions, not post_row_actions.
+    $documentedActions = apply_filters('page_row_actions', ['edit' => 'e', 'inline hide-if-no-js' => 'q'], get_post($pageId));
+    $bareActions = apply_filters('page_row_actions', ['edit' => 'e', 'inline hide-if-no-js' => 'q'], get_post($bareId));
+    $check('Quick Edit is withdrawn from the documented page only', !isset($documentedActions['inline hide-if-no-js']) && isset($bareActions['inline hide-if-no-js']));
+
+    $wp_meta_boxes = [];
+    register_and_do_post_meta_boxes(get_post($pageId));
+    $pageBoxes = $wp_meta_boxes['page'] ?? [];
+    $check('the documented page gets the Markdown box and loses its slug and attributes boxes', !empty($pageBoxes['normal']['high'][EditorMetaBox::ID]) && !$liveIn($pageBoxes, 'normal', 'slugdiv') && !$liveIn($pageBoxes, 'side', 'pageparentdiv') && $liveIn($pageBoxes, 'side', 'submitdiv'));
+    $check('and shows its document in the box', str_contains($renderBox($pageId), 'slug: &quot;zz-smoke-page&quot;'));
+
+    $wp_meta_boxes = [];
+    register_and_do_post_meta_boxes(get_post($bareId));
+    $bareBoxes = $wp_meta_boxes['page'] ?? [];
+    $check('the bare page keeps its slug and attributes boxes and gets no Markdown box', $liveIn($bareBoxes, 'normal', 'slugdiv') && $liveIn($bareBoxes, 'side', 'pageparentdiv') && empty($bareBoxes['normal']['high'][EditorMetaBox::ID]));
+    set_current_screen(PostTypeRegistrar::PROJECT);
+
     // 2. A post just created receives its first document through the box ----------------------
 
     $html = $renderBox($shellId);
@@ -328,6 +381,9 @@ try {
 
 foreach (['zz-smoke-shell', 'zz-smoke-admin', 'zz-smoke-drifted', 'zz-smoke-other', 'zz-smoke-fresh', 'zz-smoke-pasted'] as $slug) {
     $check("the smoke post {$slug} is cleaned up", $countBySlug(PostTypeRegistrar::PROJECT, $slug) === 0);
+}
+foreach (['zz-smoke-page', 'zz-smoke-bare-page'] as $slug) {
+    $check("the smoke page {$slug} is cleaned up", $countBySlug('page', $slug) === 0);
 }
 $check('the smoke tag is cleaned up', get_term_by('slug', $tagSlug, TaxonomyRegistrar::TECH_TAG) === false);
 

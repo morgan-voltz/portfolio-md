@@ -112,9 +112,9 @@ Les **projets**, en revanche, n'ont pas d'équivalent natif et nécessitent obli
 
 ### 3.4. Pages standards
 
-Les pages `À propos` et `Contact` utilisent le type natif `page` de WordPress. Pas de spécificité, pas de custom field.
+Les pages `À propos` et `CV` (`content/pages/`) utilisent le type natif `page` de WordPress et passent par le pipeline Markdown comme les articles et les projets (ADR-017, 27 octobre 2026) : `wp portfolio import /srv/portfolio-content/pages`, la page de collage ou la boîte « Document Markdown ». Une page importée porte la description SEO (section 5.1) et les cinq champs internes (section 5.3), aucun terme (les taxonomies du plugin ne sont pas rattachées au type `page`) et aucun autre champ. Sur le site, elle vit à la racine (`/a-propos/`, `/cv/`), sans parent ni modèle choisis dans l'admin (la boîte d'attributs est retirée de son écran, et le dépôt remet `post_parent` à zéro à chaque écriture), et les liens qu'elle fait vers des fiches (`../projects/<slug>.md`) sont réécrits en liens du site au rendu (`/projets/<slug>/`, `01-plugin-php.md` §4.2).
 
-Elles ne passent pas encore par le pipeline Markdown : `wp portfolio import` refuse `type: page`, parce que les champs internes qui rendent un import idempotent (section 5.3) ne sont enregistrés que sur `article` et `project`, et que `seo_description` n'aurait nulle part où aller. Point ouvert au 26 octobre 2026 : enregistrer ces champs sur `page` aussi, ou saisir les deux pages (`content/pages/`) à la main.
+La boîte « Document Markdown » et l'écran épuré ne s'appliquent qu'à une page qui porte un document (sa marque : le hash interne écrit par le pipeline). Une page faite à la main dans l'éditeur de blocs, Contact par exemple, reste une page ordinaire, et « Ajouter une page » ouvre toujours l'éditeur de blocs : une page nouvelle en Markdown entre par le collage ou la commande. Dans la liste des pages, les deux sortes cohabitent ; seules les pages documentées perdent Quick Edit, et Bulk Edit reste à toutes.
 
 ---
 
@@ -223,7 +223,7 @@ Chaque clé est exposée en constante publique sur son registrar (`CommonMetaReg
 
 ### 5.1. Champs publics communs
 
-Enregistrés sur `article` **et** `project` par `CommonMetaRegistrar`. `subtitle` et `reading_time` n'ont de sens éditorial que pour les articles, mais les enregistrer aussi sur les projets ne coûte rien et évite un quatrième registrar pour un champ.
+Enregistrés sur `article` **et** `project` par `CommonMetaRegistrar`. `subtitle` et `reading_time` n'ont de sens éditorial que pour les articles, mais les enregistrer aussi sur les projets ne coûte rien et évite un quatrième registrar pour un champ. La description SEO est enregistrée aussi sur le type natif `page`, dont les documents en portent une (section 3.4) ; les trois autres champs n'ont pas de sens sur une page et n'y sont pas.
 
 | Clé | Type | Défaut | REST | Utilité |
 |---|---|---|---|---|
@@ -251,7 +251,7 @@ Tous sont exposés en REST en lecture et en écriture pour qui peut éditer le p
 
 ### 5.3. Champs internes de gestion
 
-Enregistrés sur `article` et `project` par `InternalMetaRegistrar`. Ces champs sont utilisés par le plugin pour son propre fonctionnement et ne sont jamais affichés : `show_in_rest => false` et `auth_callback => '__return_false'`, donc **aucun utilisateur ne peut les écrire**, quel que soit son rôle. Seul le code du plugin les écrit, via `update_post_meta()`, qui ne passe pas par les capabilities.
+Enregistrés sur `article`, `project` et le type natif `page` (`MetaRegistration::MARKDOWN_POST_TYPES`) par `InternalMetaRegistrar`. Ces champs sont utilisés par le plugin pour son propre fonctionnement et ne sont jamais affichés : `show_in_rest => false` et `auth_callback => '__return_false'`, donc **aucun utilisateur ne peut les écrire**, quel que soit son rôle. Seul le code du plugin les écrit, via `update_post_meta()`, qui ne passe pas par les capabilities.
 
 ⚠️ **Toute écriture depuis PHP passe par `Meta\MetaWriter::update()`.** `update_post_meta()` applique `wp_unslash()` à sa valeur avant de la sanitizer et de la stocker (héritage des *magic quotes*) : écrit naïvement, un Markdown contenant `\*` ou `C:\chemin` perdrait ses antislashs, et son hash ne correspondrait plus. Le helper applique `wp_slash()` au préalable, exactement comme le fait l'API REST de WordPress. Vérifié par le test de fumée.
 
@@ -318,7 +318,7 @@ WordPress dispose d'un système de rôles et de capacités (`capabilities`) gran
 
 Pas besoin de rôle « auteur », « contributeur », « éditeur » à ce stade.
 
-Deux écrans du plugin ont leur propre exigence : la métabox « Document Markdown » n'enregistre que si l'utilisateur peut éditer le post (`edit_post`), et la page « Portfolio → Importer » demande `edit_others_posts`, parce qu'un document collé met à jour le post qui porte son slug, quel qu'en soit l'auteur (`01-plugin-php.md` §11).
+Deux écrans du plugin ont leur propre exigence : la métabox « Document Markdown » n'enregistre que si l'utilisateur peut éditer le post (`edit_post`), et la page « Portfolio → Importer » demande `edit_others_posts`, parce qu'un document collé met à jour le post qui porte son slug, quel qu'en soit l'auteur (`01-plugin-php.md` §11). Pour une page, `edit_post` se résout en capacités de pages (`edit_page`, `edit_others_pages`…), que l'administrateur a toutes ; la page de collage garde `edit_others_posts` et demande en plus `edit_others_pages` pour un document de type `page`.
 
 Les deux post types sont déclarés avec `capability_type => 'post'` : ils réutilisent les capacités natives des articles WordPress. À garder en tête le jour où un rôle natif (`author`, `editor`, `contributor`) serait attribué à quelqu'un : cette personne obtiendrait automatiquement les mêmes droits sur `article` et `project` que sur les posts natifs. Il faudra alors soit l'accepter explicitement ici, soit donner aux deux types leurs propres capacités.
 
@@ -349,7 +349,7 @@ WordPress
 ├── Types de contenu
 │   ├── article (custom post type) ......... PostTypeRegistrar::registerArticle
 │   ├── project (custom post type) ......... PostTypeRegistrar::registerProject
-│   └── page (natif, pour À propos et Contact)
+│   └── page (natif : À propos et CV importées de content/pages, Contact à la main)
 │
 ├── Taxonomies
 │   ├── tech_tag (sur article + project) ... TaxonomyRegistrar::registerTechTag
@@ -360,11 +360,11 @@ WordPress
 │       └── term meta _portfolio_skill_code
 │
 ├── Champs personnalisés (tous préfixés _portfolio_, ADR-013)
-│   ├── communs (4, article + project) ..... Meta/CommonMetaRegistrar
+│   ├── communs (4, article + project ; seo_description aussi sur page) ... Meta/CommonMetaRegistrar
 │   │   └── seo_description, featured, reading_time, subtitle
 │   ├── projet (8, project) ................ Meta/ProjectMetaRegistrar
 │   │   └── project_status, role, period_start/end, repo_url, demo_url, client, is_fil_rouge
-│   └── internes (5, article + project) .... Meta/InternalMetaRegistrar
+│   └── internes (5, article + project + page) ... Meta/InternalMetaRegistrar
 │       └── md_source, md_hash, source_type, last_sync_at, render_version
 │
 ├── Rôles
@@ -434,5 +434,9 @@ WordPress
 **2026-10-27 (éditeur et aperçu)**
 
 - La métabox « Document Markdown » et la page de collage reçoivent l'éditeur CodeMirror 6 et un aperçu rendu par le serveur, `POST /wp-json/portfolio/v1/preview` sous `edit_posts` (`01-plugin-php.md` §6.1, ADR-016). Le modèle de contenu ne change pas.
+
+**2026-10-27 (pages)**
+
+- Les pages `À propos` et `CV` entrent dans le pipeline (section 3.4, ADR-017) : les cinq champs internes et `seo_description` sont enregistrés aussi sur le type natif `page` ; la boîte « Document Markdown » et l'écran épuré s'appliquent à une page seulement quand elle porte un document. Les liens entre documents (`../projects/<slug>.md`) sont réécrits en liens du site au rendu (`ContentRenderer` 1.1.0).
 
 ---

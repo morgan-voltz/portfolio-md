@@ -10,6 +10,7 @@ use Voltz\PortfolioMd\Domain\ContentSource;
 use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
+use Voltz\PortfolioMd\Meta\MetaRegistration;
 use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
 use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
 use Voltz\PortfolioMd\Service\ContentImportService;
@@ -18,8 +19,9 @@ use Voltz\PortfolioMd\Service\ImportOptions;
 use WP_Post;
 
 /**
- * The Markdown box on the edit screen of an article or a project: the first
- * door of 01-plugin-php.md §6.1.
+ * The Markdown box on the edit screen of an article or a project, and of
+ * a native page that holds a document: the first door of 01-plugin-php.md
+ * §6.1.
  *
  * The box shows the whole document, frontmatter included, reloaded from
  * `_portfolio_md_source` at each visit, in a textarea that is both the
@@ -63,15 +65,19 @@ final class EditorMetaBox
 
     public function hook(): void
     {
-        foreach ([PostTypeRegistrar::ARTICLE, PostTypeRegistrar::PROJECT] as $postType) {
+        foreach (MetaRegistration::MARKDOWN_POST_TYPES as $postType) {
             add_action("add_meta_boxes_{$postType}", [$this, 'addMetaBox']);
             add_action("save_post_{$postType}", [$this, 'save'], 10, 2);
         }
     }
 
-    /** Action `add_meta_boxes_{type}`. */
+    /** Action `add_meta_boxes_{type}`: always for the plugin's types, for a page that holds a document. */
     public function addMetaBox(WP_Post $post): void
     {
+        if (!MarkdownPosts::editsDocument($post)) {
+            return;
+        }
+
         add_meta_box(self::ID, __('Document Markdown', 'portfolio-md'), [$this, 'render'], $post->post_type, 'normal', 'high');
     }
 
@@ -123,7 +129,7 @@ final class EditorMetaBox
             $this->service->import($markdown, new ImportOptions(source: ContentSource::Admin), targetPostId: $postId);
         } catch (MalformedDocumentException | InvalidFrontmatterException | ImportException | RuntimeException $failure) {
             $this->rememberFailure($postId, self::reasonFor($failure), $markdown);
-            if (!self::holdsDocument($postId)) {
+            if (!MarkdownPosts::holdsDocument($postId)) {
                 // WordPress may just have published an empty post: nothing goes live without a document.
                 wp_update_post(['ID' => $postId, 'post_status' => 'draft']);
             }
@@ -139,11 +145,15 @@ final class EditorMetaBox
     public static function templateFor(ContentType $type, string $today): string
     {
         $lines = ['---', 'title: ""', 'slug: ""', "type: \"{$type->value}\"", "date: {$today}"];
-        if ($type === ContentType::Project) {
-            $lines[] = 'status: "en-cours"';
-            $lines[] = 'skills: []';
+        if ($type === ContentType::Page) {
+            $lines[] = 'seo_description: ""';
+        } else {
+            if ($type === ContentType::Project) {
+                $lines[] = 'status: "en-cours"';
+                $lines[] = 'skills: []';
+            }
+            $lines[] = 'tags: []';
         }
-        $lines[] = 'tags: []';
         $lines[] = '---';
         $lines[] = '';
         $lines[] = '';
@@ -153,7 +163,11 @@ final class EditorMetaBox
 
     private static function template(WP_Post $post): string
     {
-        $type = $post->post_type === PostTypeRegistrar::PROJECT ? ContentType::Project : ContentType::Article;
+        $type = match ($post->post_type) {
+            PostTypeRegistrar::PROJECT => ContentType::Project,
+            PostTypeRegistrar::PAGE => ContentType::Page,
+            default => ContentType::Article,
+        };
 
         return self::templateFor($type, (string) wp_date('Y-m-d'));
     }
@@ -165,13 +179,6 @@ final class EditorMetaBox
     public static function feedbackKey(int $postId, int $userId): string
     {
         return self::FEEDBACK_TRANSIENT . $postId . '_' . $userId;
-    }
-
-    private static function holdsDocument(int $postId): bool
-    {
-        $hash = get_post_meta($postId, InternalMetaRegistrar::MD_HASH, true);
-
-        return is_string($hash) && $hash !== '';
     }
 
     /**

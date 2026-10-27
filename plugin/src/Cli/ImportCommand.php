@@ -29,7 +29,7 @@ final class ImportCommand
     }
 
     /**
-     * Imports Markdown articles and projects (content/README.md) as posts.
+     * Imports Markdown articles, projects and pages (content/README.md) as posts.
      *
      * Each document is parsed, rendered to Gutenberg blocks and stored with
      * its verbatim Markdown. A document whose Markdown did not change since
@@ -73,6 +73,7 @@ final class ImportCommand
      *
      *     wp portfolio import /srv/portfolio-content/projects/momocad.md --user=morgan
      *     wp portfolio import /srv/portfolio-content/projects --dry-run --user=morgan
+     *     wp portfolio import /srv/portfolio-content/pages --user=morgan
      *
      * @param list<string>         $args
      * @param array<string, mixed> $assocArgs

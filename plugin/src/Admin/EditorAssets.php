@@ -10,7 +10,8 @@ use Voltz\PortfolioMd\Rest\RouteRegistrar;
 /**
  * The browser side of the Markdown box (01-plugin-php.md §6.1): the
  * CodeMirror 6 editor and the server-rendered preview, loaded on the edit
- * screens of articles and projects and on the paste page.
+ * screens of articles and projects, on those of the pages that hold a
+ * document, and on the paste page.
  *
  * The textarea of the box stays the form field and the fallback: the
  * script replaces it on the page with the editor, copies every change
@@ -83,8 +84,10 @@ final class EditorAssets
             return false;
         }
         $postType = get_current_screen()?->post_type;
+        // A post being created holds no document, whatever the query string says.
+        $postId = $hookSuffix === 'post.php' ? EditScreen::requestedPostId() : 0;
 
-        return is_string($postType) && EditScreen::handles($postType);
+        return is_string($postType) && MarkdownPosts::editsDocumentOf($postType, $postId);
     }
 
     /**

@@ -106,16 +106,14 @@ MD;
     }
 
     #[Test]
-    public function a_page_is_rendered_but_reported_as_not_importable(): void
+    public function a_page_is_rendered_and_importable_like_the_others(): void
     {
         $result = $this->service->preview("---\ntitle: \"À propos\"\nslug: \"a-propos\"\ntype: \"page\"\n---\n\nQui je suis.\n");
 
-        self::assertFalse($result->importable());
-        self::assertCount(1, $result->problems);
-        self::assertStringContainsString('cannot be imported yet', $result->problems[0]);
+        self::assertTrue($result->importable());
         self::assertSame('À propos', $result->title);
         self::assertStringContainsString('<p>Qui je suis.</p>', (string) $result->html);
-        self::assertSame('page', $result->summary['type']);
+        self::assertSame(['type' => 'page', 'slug' => 'a-propos', 'date' => '', 'skills' => '', 'tags' => ''], $result->summary);
     }
 
     #[Test]

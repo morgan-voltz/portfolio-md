@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Voltz\PortfolioMd\Service;
 
 use RuntimeException;
-use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Domain\Frontmatter;
 use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
 use Voltz\PortfolioMd\Parsing\ContentRenderer;
@@ -18,7 +17,7 @@ use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
  * import, without the store.
  *
  * The preview reports what the import would refuse (a document that does
- * not parse, a page, a competency code missing from the grid) but still
+ * not parse, a competency code missing from the grid) but still
  * renders whatever can be rendered, so that the author sees the text and
  * the problem at once. What it cannot know is the state of the posts: a
  * slug taken by another post, or a conflict with Git, only shows up at the
@@ -43,9 +42,6 @@ final class PreviewService
 
         $frontmatter = $document->frontmatter;
         $problems = [];
-        if ($frontmatter->type === ContentType::Page) {
-            $problems[] = ImportException::unsupportedType($frontmatter->type)->getMessage();
-        }
         $unknown = array_values(array_filter(
             $frontmatter->skills,
             fn (string $code): bool => $this->skills->findByCode($code) === null,

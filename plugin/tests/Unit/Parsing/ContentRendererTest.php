@@ -53,7 +53,18 @@ final class ContentRendererTest extends TestCase
 
             self::assertStringNotContainsString('<!-- wp:html -->', $html, basename($file) . ' needs the raw HTML fallback');
             self::assertGreaterThan(5, substr_count($html, '<!-- /wp:'), basename($file) . ' renders too few blocks');
+            self::assertStringNotContainsString('href="../', $html, basename($file) . ' keeps a link to a file of the repository');
         }
+    }
+
+    #[Test]
+    public function the_cv_page_links_to_the_project_sheets_of_the_site(): void
+    {
+        $html = $this->renderer->render($this->frontmatter->parse((string) file_get_contents(self::CONTENT_DIR . '/pages/cv.md'))->body);
+
+        self::assertStringContainsString('href="/projets/vefta/"', $html);
+        self::assertStringContainsString('href="/projets/momocad/"', $html);
+        self::assertStringNotContainsString('.md"', $html);
     }
 
     #[Test]

@@ -12,7 +12,9 @@ use Voltz\PortfolioMd\Domain\Frontmatter;
  * Four public fields (exposed in the REST API, editable by anyone allowed to
  * edit the post). `subtitle` and `reading_time` only make editorial sense on
  * articles but are registered on both post types: an unused meta on a project
- * costs nothing, while a fourth registrar for a single field would.
+ * costs nothing, while a fourth registrar for a single field would. The SEO
+ * description is also registered on the native page type, whose documents
+ * (content/pages) carry one.
  *
  * Hooked on the WordPress `init` action by the composition root (`Plugin`).
  * See docs/architecture/04-structure-wordpress.md section 5.1.
@@ -29,7 +31,8 @@ final class CommonMetaRegistrar
     public const READING_TIME_MAX_MINUTES = Frontmatter::READING_TIME_MAX_MINUTES;
 
     /**
-     * Registers all shared post metas on both post types.
+     * Registers all shared post metas on both post types, and the SEO
+     * description on pages as well.
      */
     public function register(): void
     {
@@ -37,8 +40,9 @@ final class CommonMetaRegistrar
             self::SEO_DESCRIPTION,
             'string',
             '',
-            'Custom SEO description for this article or project.',
+            'Custom SEO description for this article, project or page.',
             [self::class, 'sanitizeSeoDescription'],
+            MetaRegistration::MARKDOWN_POST_TYPES,
         );
 
         $this->registerMeta(
@@ -68,6 +72,7 @@ final class CommonMetaRegistrar
 
     /**
      * @param array{0: class-string, 1: string} $sanitizeCallback
+     * @param list<string>                      $postTypes
      */
     private function registerMeta(
         string $metaKey,
@@ -75,8 +80,9 @@ final class CommonMetaRegistrar
         string|bool|int $default,
         string $description,
         array $sanitizeCallback,
+        array $postTypes = MetaRegistration::PORTFOLIO_POST_TYPES,
     ): void {
-        MetaRegistration::registerForPostTypes(MetaRegistration::PORTFOLIO_POST_TYPES, $metaKey, [
+        MetaRegistration::registerForPostTypes($postTypes, $metaKey, [
             'type' => $type,
             'single' => true,
             'default' => $default,

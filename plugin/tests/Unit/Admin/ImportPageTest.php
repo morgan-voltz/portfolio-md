@@ -117,6 +117,29 @@ final class ImportPageTest extends TestCase
     }
 
     #[Test]
+    public function a_pasted_page_takes_the_capability_of_pages_on_top(): void
+    {
+        $page = "---\ntitle: \"À propos\"\nslug: \"a-propos\"\ntype: \"page\"\n---\n\nQui je suis.\n";
+        WordPressSpy::$capabilityResults['edit_others_posts'] = true;
+        WordPressSpy::$capabilityResults['edit_others_pages'] = false;
+        $this->post(['markdown' => wp_slash($page), 'mode' => 'import']);
+
+        try {
+            $this->page->handleSubmission();
+            self::fail('A page pasted without edit_others_pages should be refused.');
+        } catch (RuntimeException $refusal) {
+            self::assertStringContainsString('wp_die', $refusal->getMessage());
+        }
+        self::assertSame([], $this->repository->saved);
+
+        WordPressSpy::$capabilityResults['edit_others_pages'] = true;
+        $this->page->handleSubmission();
+
+        self::assertCount(1, $this->repository->saved);
+        self::assertSame(ContentType::Page, $this->repository->lastSaved()->frontmatter->type);
+    }
+
+    #[Test]
     public function imports_a_pasted_document_with_paste_as_its_source(): void
     {
         $this->post(['markdown' => wp_slash(self::DOCUMENT), 'mode' => 'import']);

@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Voltz\PortfolioMd\Admin\EditorAssets;
+use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
 use Voltz\PortfolioMd\Tests\Support\WordPressSpy;
 
 /**
@@ -24,6 +25,8 @@ final class EditorAssetsTest extends TestCase
     protected function setUp(): void
     {
         WordPressSpy::reset();
+        $_GET = [];
+        $_POST = [];
 
         $this->directory = sys_get_temp_dir() . '/portfolio-md-assets-' . bin2hex(random_bytes(4));
         mkdir($this->directory . '/assets/dist', 0o777, true);
@@ -36,6 +39,8 @@ final class EditorAssetsTest extends TestCase
 
     protected function tearDown(): void
     {
+        $_GET = [];
+        $_POST = [];
         foreach (['/assets/dist/admin-editor.js', '/assets/css/admin-editor.css'] as $file) {
             if (file_exists($this->directory . $file)) {
                 unlink($this->directory . $file);
@@ -97,6 +102,31 @@ final class EditorAssetsTest extends TestCase
         self::assertSame('Masquer l’aperçu', $config['labels']['hidePreview']);
         self::assertSame(['type', 'slug', 'date', 'status', 'skills', 'tags'], array_keys($config['labels']['summary']));
         self::assertSame('Compétences', $config['labels']['summary']['skills']);
+    }
+
+    #[Test]
+    public function loads_the_editor_on_the_edit_screen_of_a_page_that_holds_a_document_only(): void
+    {
+        WordPressSpy::$postMetaValues[9][InternalMetaRegistrar::MD_HASH] = str_repeat('c', 64);
+        WordPressSpy::$currentScreen = (object) ['post_type' => 'page'];
+
+        $_GET['post'] = '9';
+        $this->assets->enqueue('post.php');
+        self::assertArrayHasKey('portfolio-md-editor', WordPressSpy::$enqueuedScripts);
+
+        WordPressSpy::$enqueuedScripts = [];
+        $_GET['post'] = '10';
+        $this->assets->enqueue('post.php');
+        self::assertSame([], WordPressSpy::$enqueuedScripts);
+
+        $_GET = [];
+        $this->assets->enqueue('post-new.php');
+        self::assertSame([], WordPressSpy::$enqueuedScripts);
+
+        // "Add new page" with a documented page's id smuggled into the query: still a new page.
+        $_GET['post'] = '9';
+        $this->assets->enqueue('post-new.php');
+        self::assertSame([], WordPressSpy::$enqueuedScripts);
     }
 
     #[Test]

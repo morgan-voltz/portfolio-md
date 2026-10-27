@@ -71,8 +71,23 @@ final class EditorMetaBoxTest extends TestCase
             'action:save_post_article',
             'action:add_meta_boxes_project',
             'action:save_post_project',
+            'action:add_meta_boxes_page',
+            'action:save_post_page',
         ], $names);
         self::assertSame(2, WordPressSpy::hooksOn('action', 'save_post_project')[0]['args']);
+    }
+
+    #[Test]
+    public function adds_the_box_to_a_page_only_when_it_holds_a_document(): void
+    {
+        WordPressSpy::$postMetaValues[9][InternalMetaRegistrar::MD_HASH] = str_repeat('b', 64);
+
+        $this->box->addMetaBox(new WP_Post(['ID' => 9, 'post_type' => 'page']));
+        self::assertCount(1, WordPressSpy::$metaBoxes);
+        self::assertSame('page', WordPressSpy::$metaBoxes[0]['screen']);
+
+        $this->box->addMetaBox(new WP_Post(['ID' => 10, 'post_type' => 'page']));
+        self::assertCount(1, WordPressSpy::$metaBoxes);
     }
 
     #[Test]
@@ -112,6 +127,23 @@ final class EditorMetaBoxTest extends TestCase
         self::assertStringContainsString('status: &quot;en-cours&quot;', $project);
         self::assertStringContainsString('type: &quot;article&quot;', $article);
         self::assertStringNotContainsString('status:', $article);
+
+        $page = $this->render(self::post(type: 'page'));
+        self::assertStringContainsString('type: &quot;page&quot;', $page);
+        self::assertStringContainsString('seo_description: &quot;&quot;', $page);
+        self::assertStringNotContainsString('tags:', $page);
+        self::assertStringNotContainsString('skills:', $page);
+    }
+
+    #[Test]
+    public function the_page_template_parses_once_its_title_and_slug_are_filled(): void
+    {
+        $filled = str_replace(['title: ""', 'slug: ""'], ['title: "À propos"', 'slug: "a-propos"'], EditorMetaBox::templateFor(ContentType::Page, '2026-10-27'));
+
+        $document = (new FrontmatterParser())->parse($filled);
+
+        self::assertSame(ContentType::Page, $document->frontmatter->type);
+        self::assertSame('', $document->frontmatter->seoDescription);
     }
 
     #[Test]
