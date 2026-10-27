@@ -34,7 +34,8 @@ final class ContentRendererTest extends TestCase
 
         $html = $this->renderer->render($document->body);
 
-        self::assertStringStartsWith("<!-- wp:heading {\"level\":1} -->\n<h1 class=\"wp-block-heading\">MomoCad</h1>\n<!-- /wp:heading -->", $html);
+        self::assertStringStartsWith("<!-- wp:paragraph -->\n<p>MomoCad est mon projet fil rouge", $html);
+        self::assertStringNotContainsString('<h1 ', $html, 'the title comes from the frontmatter, the body must not repeat it');
         self::assertStringContainsString("<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Le problème</h2>", $html);
         self::assertStringContainsString('<!-- wp:table {"hasFixedLayout":false} -->', $html);
         self::assertStringContainsString('<!-- wp:list -->', $html);
@@ -54,6 +55,7 @@ final class ContentRendererTest extends TestCase
             self::assertStringNotContainsString('<!-- wp:html -->', $html, basename($file) . ' needs the raw HTML fallback');
             self::assertGreaterThan(5, substr_count($html, '<!-- /wp:'), basename($file) . ' renders too few blocks');
             self::assertStringNotContainsString('href="../', $html, basename($file) . ' keeps a link to a file of the repository');
+            self::assertStringNotContainsString('<h1 ', $html, basename($file) . ' repeats its title as a heading');
         }
     }
 
