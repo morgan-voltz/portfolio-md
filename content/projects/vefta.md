@@ -5,7 +5,7 @@ type: "project"
 date: 2026-10-26
 subtitle: "Une suite de productivité personnelle en Rust de bout en bout, pensée pour fonctionner hors ligne sans jamais monétiser les données de l'utilisateur"
 seo_description: "Vefta, suite de productivité privacy-first et offline-first en Rust (Axum, Dioxus, PostgreSQL), développée en solo pour Kovelt SAS."
-featured: false
+featured: true
 status: "en-cours"
 role: "Fondateur et unique développeur, Kovelt SAS"
 period_start: 2026-06-02
