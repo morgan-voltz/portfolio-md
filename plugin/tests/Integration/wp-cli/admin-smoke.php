@@ -219,13 +219,13 @@ try {
     $wp_meta_boxes = [];
     register_and_do_post_meta_boxes(get_post($pageId));
     $pageBoxes = $wp_meta_boxes['page'] ?? [];
-    $check('the documented page gets the Markdown box, loses the slug box and keeps its attributes', !empty($pageBoxes['normal']['high'][EditorMetaBox::ID]) && !$liveIn($pageBoxes, 'normal', 'slugdiv') && $liveIn($pageBoxes, 'side', 'pageparentdiv'));
+    $check('the documented page gets the Markdown box and loses its slug and attributes boxes', !empty($pageBoxes['normal']['high'][EditorMetaBox::ID]) && !$liveIn($pageBoxes, 'normal', 'slugdiv') && !$liveIn($pageBoxes, 'side', 'pageparentdiv') && $liveIn($pageBoxes, 'side', 'submitdiv'));
     $check('and shows its document in the box', str_contains($renderBox($pageId), 'slug: &quot;zz-smoke-page&quot;'));
 
     $wp_meta_boxes = [];
     register_and_do_post_meta_boxes(get_post($bareId));
     $bareBoxes = $wp_meta_boxes['page'] ?? [];
-    $check('the bare page keeps its slug box and gets no Markdown box', $liveIn($bareBoxes, 'normal', 'slugdiv') && empty($bareBoxes['normal']['high'][EditorMetaBox::ID]));
+    $check('the bare page keeps its slug and attributes boxes and gets no Markdown box', $liveIn($bareBoxes, 'normal', 'slugdiv') && $liveIn($bareBoxes, 'side', 'pageparentdiv') && empty($bareBoxes['normal']['high'][EditorMetaBox::ID]));
     set_current_screen(PostTypeRegistrar::PROJECT);
 
     // 2. A post just created receives its first document through the box ----------------------

@@ -193,10 +193,27 @@ final class EditScreenTest extends TestCase
     }
 
     #[Test]
-    public function removes_the_slug_box_of_a_page_that_holds_a_document_and_nothing_else(): void
+    public function a_post_being_created_is_never_trimmed_whatever_the_query_says(): void
+    {
+        WordPressSpy::$currentScreen = (object) ['post_type' => 'page'];
+        $_GET['post'] = (string) self::DOCUMENTED_PAGE;
+
+        $this->screen->trimNewScreen();
+        self::assertSame([], WordPressSpy::$removedSupports);
+
+        WordPressSpy::$currentScreen = (object) ['post_type' => 'project'];
+        $this->screen->trimNewScreen();
+        self::assertCount(2, WordPressSpy::$removedSupports);
+    }
+
+    #[Test]
+    public function removes_the_slug_and_attributes_boxes_of_a_page_that_holds_a_document_and_nothing_else(): void
     {
         $this->screen->removeMetaBoxes('page', new WP_Post(['ID' => self::DOCUMENTED_PAGE, 'post_type' => 'page']));
-        self::assertSame([['id' => 'slugdiv', 'screen' => 'page', 'context' => 'normal']], WordPressSpy::$removedMetaBoxes);
+        self::assertSame([
+            ['id' => 'slugdiv', 'screen' => 'page', 'context' => 'normal'],
+            ['id' => 'pageparentdiv', 'screen' => 'page', 'context' => 'side'],
+        ], WordPressSpy::$removedMetaBoxes);
 
         WordPressSpy::$removedMetaBoxes = [];
         $this->screen->removeMetaBoxes('page', new WP_Post(['ID' => self::BARE_PAGE, 'post_type' => 'page']));

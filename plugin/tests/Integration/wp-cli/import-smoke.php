@@ -268,6 +268,16 @@ try {
     $check('and no term of ours', wp_get_object_terms($pageId, TaxonomyRegistrar::TECH_TAG, ['fields' => 'ids']) === []);
     $check('importing the page again writes nothing', $service->import($pageDocument, new ImportOptions())->outcome === ImportOutcome::Unchanged);
 
+    // A parent given behind the document's back (REST, WP-CLI) is undone by its next write: documented pages live at the root.
+    $parentId = wp_insert_post(['post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Parent de fumée', 'post_name' => 'zz-smoke-parent'], true);
+    if (is_int($parentId) && $parentId > 0 && $pageId > 0) {
+        $createdPosts[] = $parentId;
+        wp_update_post(['ID' => $pageId, 'post_parent' => $parentId]);
+        $check('a parent can be set behind the document', (int) get_post($pageId)->post_parent === $parentId);
+        $service->import(str_replace('Corps de la page.', 'Corps de la page, revu.', $pageDocument), new ImportOptions());
+        $check('and the next write of the document puts the page back at the root', (int) get_post($pageId)->post_parent === 0);
+    }
+
     $dry = $service->import(str_replace('zz-smoke-article', 'zz-smoke-dry', $article), new ImportOptions(dryRun: true));
     $check('a dry run reports a creation', $dry->outcome === ImportOutcome::Created && $dry->postId === null, $dry->outcome->value);
     $check('a dry run creates nothing', $countBySlug(PostTypeRegistrar::ARTICLE, 'zz-smoke-dry') === 0);
@@ -342,7 +352,7 @@ try {
     }
 }
 
-$check('the smoke posts are cleaned up', $countBySlug(PostTypeRegistrar::ARTICLE, $articleSlug) === 0 && $countBySlug(PostTypeRegistrar::PROJECT, $projectSlug) === 0 && $countBySlug('page', 'zz-smoke-page') === 0);
+$check('the smoke posts are cleaned up', $countBySlug(PostTypeRegistrar::ARTICLE, $articleSlug) === 0 && $countBySlug(PostTypeRegistrar::PROJECT, $projectSlug) === 0 && $countBySlug('page', 'zz-smoke-page') === 0 && $countBySlug('page', 'zz-smoke-parent') === 0);
 $check('the smoke tag is cleaned up', get_term_by('slug', $tagSlug, TaxonomyRegistrar::TECH_TAG) === false);
 
 if ($failures > 0) {

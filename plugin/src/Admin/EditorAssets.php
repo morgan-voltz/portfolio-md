@@ -84,8 +84,10 @@ final class EditorAssets
             return false;
         }
         $postType = get_current_screen()?->post_type;
+        // A post being created holds no document, whatever the query string says.
+        $postId = $hookSuffix === 'post.php' ? EditScreen::requestedPostId() : 0;
 
-        return is_string($postType) && MarkdownPosts::editsDocumentOf($postType, EditScreen::requestedPostId());
+        return is_string($postType) && MarkdownPosts::editsDocumentOf($postType, $postId);
     }
 
     /**

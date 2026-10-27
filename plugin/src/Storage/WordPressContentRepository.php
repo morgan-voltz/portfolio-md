@@ -129,6 +129,12 @@ final class WordPressContentRepository implements ContentRepository
             'post_content' => HtmlSanitizer::sanitize($record->html),
         ];
 
+        if ($frontmatter->type === ContentType::Page) {
+            // A documented page lives at the root of the site: the links rewritten from the
+            // documents point there, and its attributes box is not on its screen.
+            $postarr['post_parent'] = 0;
+        }
+
         if ($frontmatter->date !== null) {
             // The frontmatter date is a calendar day; it becomes midnight in the site's timezone.
             $local = $frontmatter->date->format('Y-m-d') . ' 00:00:00';

@@ -122,6 +122,11 @@ final class EditorAssetsTest extends TestCase
         $_GET = [];
         $this->assets->enqueue('post-new.php');
         self::assertSame([], WordPressSpy::$enqueuedScripts);
+
+        // "Add new page" with a documented page's id smuggled into the query: still a new page.
+        $_GET['post'] = '9';
+        $this->assets->enqueue('post-new.php');
+        self::assertSame([], WordPressSpy::$enqueuedScripts);
     }
 
     #[Test]
