@@ -18,8 +18,11 @@ use Voltz\PortfolioMd\Parsing\GutenbergTransformer;
 use Voltz\PortfolioMd\Parsing\MarkdownParser;
 use Voltz\PortfolioMd\Parsing\SkillsGridLoader;
 use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
+use Voltz\PortfolioMd\Rest\Controller\PreviewController;
+use Voltz\PortfolioMd\Rest\RouteRegistrar;
 use Voltz\PortfolioMd\Service\ConflictResolver;
 use Voltz\PortfolioMd\Service\ContentImportService;
+use Voltz\PortfolioMd\Service\PreviewService;
 use Voltz\PortfolioMd\Service\SkillTermSynchronizer;
 use Voltz\PortfolioMd\Service\SystemClock;
 use Voltz\PortfolioMd\Storage\WordPressContentRepository;
@@ -79,6 +82,9 @@ final class Plugin
      */
     private ?ContentImportService $importService = null;
 
+    /** The Markdown → Gutenberg renderer, shared by the import and the preview. */
+    private ?ContentRenderer $renderer = null;
+
     public function __construct(string $pluginFile)
     {
         $this->pluginFile = $pluginFile;
@@ -119,10 +125,24 @@ final class Plugin
             $this->registerCliCommands();
         }
 
+        // The REST routes: built on `rest_api_init` only, since most requests never reach the API.
+        add_action('rest_api_init', [$this, 'registerRoutes']);
+
         // The admin doors: only on admin requests (edit screens, the paste page).
         if (is_admin()) {
             $this->registerAdmin();
         }
+    }
+
+    /**
+     * Action `rest_api_init`: the routes of 01-plugin-php.md §7 under
+     * `portfolio/v1`. One so far, the preview of the admin editor, which
+     * renders a document with the same parser and renderer as the import.
+     */
+    public function registerRoutes(): void
+    {
+        $preview = new PreviewService(new FrontmatterParser(), $this->renderer(), new WordPressSkillTermGateway());
+        (new RouteRegistrar(new PreviewController($preview)))->register();
     }
 
     /**
@@ -148,12 +168,17 @@ final class Plugin
     {
         return $this->importService ??= new ContentImportService(
             new FrontmatterParser(),
-            new ContentRenderer(new MarkdownParser(), new GutenbergTransformer()),
+            $this->renderer(),
             new WordPressContentRepository(),
             new WordPressSkillTermGateway(),
             new ConflictResolver(),
             new SystemClock(),
         );
+    }
+
+    private function renderer(): ContentRenderer
+    {
+        return $this->renderer ??= new ContentRenderer(new MarkdownParser(), new GutenbergTransformer());
     }
 
     /**
