@@ -176,7 +176,7 @@ Le projet est découpé en douze phases indépendantes, conçues pour être atta
 
 **Phase 1** : plugin squelette. Le plugin s'active, enregistre ses Custom Post Types `article` et `project`, ses taxonomies `tech_tag`, `project_status` et `skill`, et ses champs personnalisés. Rien ne parse encore de Markdown, mais la structure est prête. *(Terminée le 26 octobre 2026.)*
 
-**Phase 2** : parser Markdown et stockage. Intégration de `league/commonmark` et `symfony/yaml`. Un script WP-CLI permet d'importer un fichier `.md` et de créer un article WordPress correctement rempli. *(Terminée le 26 octobre 2026 : `wp portfolio import` importe articles et projets ; les pages statiques attendent.)*
+**Phase 2** : parser Markdown et stockage. Intégration de `league/commonmark` et `symfony/yaml`. Un script WP-CLI permet d'importer un fichier `.md` et de créer un article WordPress correctement rempli. *(Terminée : `wp portfolio import` importe articles et projets depuis le 26 octobre 2026, et les pages statiques depuis le 27 octobre, ADR-017.)*
 
 **Phase 3** : conversion HTML vers blocs Gutenberg. Le `post_content` résultant est reconnu par Gutenberg comme un article éditable en mode bloc. *(Terminée le 26 octobre 2026, dans le même lot que la phase 2.)*
 

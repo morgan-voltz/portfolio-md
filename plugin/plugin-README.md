@@ -16,7 +16,9 @@ Phases 2 and 3 are done (26 October 2026): `Parsing\FrontmatterParser` turns a M
 
 The two admin doors are in (26 October 2026, server side): `Admin\EditorMetaBox` puts the whole document in a « Document Markdown » box on the classic edit screen of articles and projects (`Admin\EditScreen` turns the block editor off there and removes the native controls the document owns), and `Admin\ImportPage` adds « Portfolio → Importer », a paste page. Both call the same `ContentImportService` as the WP-CLI command; see "Admin screens" below. Since 27 October 2026 the box is a CodeMirror 6 editor with a preview rendered by the server (`POST /wp-json/portfolio/v1/preview`, the first route of the plugin's REST namespace, ADR-016); the browser side lives in `assets/` and is built with esbuild.
 
-What is **not yet** implemented: the import of static pages (`type: page`), image import into the media library, the Git webhook, and the public REST endpoints. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
+Static pages (`type: page`, 27 October 2026) take the same path into the native page type: no term, the SEO description and the internal metas only; a page that holds a document is edited through the Markdown box, a page made by hand keeps the block editor (ADR-017). Links between documents (`../projects/<slug>.md`) are rewritten into links of the site at render time (`Parsing\RelativeLinks`, render version 1.1.0).
+
+What is **not yet** implemented: image import into the media library, the Git webhook, and the public REST endpoints. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
 
 ## Local setup
 
@@ -76,7 +78,7 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/skills-smoke.php /srv/portfolio-content/skills.yaml
 ```
 
-Import Markdown documents (articles and projects) as posts. Paths are files or directories; `--user` is required so that posts get an author:
+Import Markdown documents (articles, projects and pages) as posts. Paths are files or directories; `--user` is required so that posts get an author:
 
 ```bash
 # See what would happen, write nothing
@@ -87,9 +89,12 @@ podman-compose --profile tools run --rm wpcli wp portfolio import /srv/portfolio
 
 # One file, created as a draft
 podman-compose --profile tools run --rm wpcli wp portfolio import /srv/portfolio-content/projects/momocad.md --draft --user=<your admin login>
+
+# The static pages, into the native page type
+podman-compose --profile tools run --rm wpcli wp portfolio import /srv/portfolio-content/pages --user=<your admin login>
 ```
 
-Each document is parsed, rendered to Gutenberg blocks and stored with its verbatim Markdown and SHA-256 (`_portfolio_md_*` metas). The origin recorded is `git` by default (`--source=paste|admin` otherwise), which drives the conflict rule of ADR-005: a document last edited from the admin is reported as `CONFLICT` and left alone unless `--force` is given. Unknown competency codes fail the document (synchronize the grid first); pages are refused for now. Three guards protect existing posts: a file must be named after its slug (a sheet copied from another one still carries the slug of its model), a slug whose post is in the trash is refused until the post is restored or deleted permanently, and a future `date` is refused for a published post (WordPress would schedule it). The command exits with an error after the full report if any document conflicted or failed.
+Each document is parsed, rendered to Gutenberg blocks and stored with its verbatim Markdown and SHA-256 (`_portfolio_md_*` metas). The origin recorded is `git` by default (`--source=paste|admin` otherwise), which drives the conflict rule of ADR-005: a document last edited from the admin is reported as `CONFLICT` and left alone unless `--force` is given. Unknown competency codes fail the document (synchronize the grid first). Three guards protect existing posts: a file must be named after its slug (a sheet copied from another one still carries the slug of its model), a slug whose post is in the trash is refused until the post is restored or deleted permanently, and a future `date` is refused for a published post (WordPress would schedule it). The command exits with an error after the full report if any document conflicted or failed.
 
 The import chain has its own smoke test, which creates one article and one project with synthetic content, checks posts, dates, terms, metas, idempotence, the conflict rule and the guards above, then deletes everything it created (`--user` required):
 
@@ -105,6 +110,8 @@ Articles and projects open in the **classic edit screen** with a « Document Mar
 Four refusals protect the post being edited: the post must exist with the document's type, it must not be in the trash, the document's slug must be free or already the post's own, and a post that holds a document keeps the slug written in that document (rename the file in the repository instead; a URL slug changed through the REST API does not count, the document wins at its next write). A refusal that names another post is detailed only to a user who may edit that post. A refused document leaves the post as it was; the reason and the text are shown in the box at the next visit; a post that never held a document goes back to draft, so that nothing empty is published. The text of the form is normalised (CRLF → LF, final newline) before hashing, so a document saved without changes keeps the hash of its Git file.
 
 « Portfolio → Importer » (`edit_others_posts`) takes a pasted document through the same service with `paste` as source: « Vérifier sans écrire » is the `--dry-run` of the command, « Importer » writes, and a checkbox creates the post as a draft.
+
+A **page** gets the same treatment only when it holds a document (`Admin\MarkdownPosts` reads the internal hash): the block editor is turned off for that page, its screen loses the title field, the content editor, the permalink editor and the slug box (the attributes box stays), and Quick Edit leaves its row. A page made by hand keeps the block editor, and so does « Add New Page »: a new page in Markdown comes through the paste page or `wp portfolio import`.
 
 On both screens the textarea is dressed by the **editor bundle** (`Admin\EditorAssets`, `assets/dist/admin-editor.js`): a CodeMirror 6 editor (YAML frontmatter and GFM highlighting, line wrapping, history, search with Ctrl+F, Tab indents and Escape-then-Tab leaves) next to a **preview rendered by the server**. The textarea stays the form field: every change is copied into it, so the save path above is unchanged. After 600 ms without typing, the whole document goes to `POST /wp-json/portfolio/v1/preview` through `wp.apiFetch` (which carries the REST nonce and renews it); the server parses and renders it with the import's own parser and renderer, applies the kses pass of the store (`Storage\HtmlSanitizer`), then renders the blocks and the typography as the front end does (`do_blocks`, `wptexturize`, `convert_smilies`) but not the shortcodes nor the embeds, which would run code and fetch remote URLs for a text that is only being typed, and answers with the title, a summary of the frontmatter, the HTML, and the problems the import would raise (unreadable document, `page` type, unknown competency code). The HTML is shown in a sandboxed `<iframe>` that loads only the core block stylesheets: what you see is what the site prints, minus the theme's CSS and the shortcodes (shown as typed), nothing in the frame can run, and its links open in a new tab without opener nor referrer. Problems are listed above the frame while the last rendering stays, dimmed; what the preview cannot know (a slug taken by another post, a conflict with Git) only shows at the save. A button hides the preview and the browser remembers it. The route takes `edit_posts`, writes nothing, and caps the document at a million characters.
 
@@ -197,6 +204,8 @@ The most frequent issues you'll hit while developing locally are documented in [
 - The preview says « Aperçu indisponible : … » → the request failed: a nonce that expired is renewed by `wp.apiFetch` on its own, so reload the page if it persists, and check that the REST API answers (`/wp-json/portfolio/v1/preview` needs a logged-in user with `edit_posts`)
 - The preview looks plainer than the site → by design: the frame loads the core block styles, not the theme's stylesheet; the HTML is the one the site prints
 - A shortcode or an `[embed]` URL stays literal in the preview → by design: the preview runs no shortcode and fetches nothing; the site will run it once the post is published
+- A page imported from Markdown opens in the classic screen with the Markdown box instead of the block editor → by design (`Admin\MarkdownPosts`): it holds a document; a page made by hand keeps the block editor. To make a documented page an ordinary one again, delete its `_portfolio_*` metas (`wp post meta delete`)
+- Links of the CV page to the project sheets are broken on the site → import the page again: `ContentRenderer` 1.1.0 rewrites `../projects/<slug>.md` into `/projets/<slug>/`, and a post stored with an older render version is rendered again at its next import
 - Images referenced by a relative path are broken in the preview → expected until the media import exists; the site shows the same thing
 - The Tab key stays in the editor → it indents; press Escape, then Tab, to move the focus out
 - The bundle weighs about 560 KB → CodeMirror and its Markdown, YAML and HTML grammars; it is served once and cached. Splitting it into ES modules loaded on demand is the lever if it ever matters
