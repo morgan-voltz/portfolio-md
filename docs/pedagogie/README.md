@@ -4,4 +4,4 @@ Ce dossier accueillera la documentation pédagogique du projet, écrite en fran�
 
 Contrairement à la documentation d'architecture (`../architecture/`) qui est une référence technique, les documents de ce dossier racontent le projet de manière narrative. Ils expliquent le *pourquoi* plus que le *comment*, et visent la compréhension plutôt que la consultation.
 
-**État actuel** : sept chapitres rédigés (`01-pourquoi-ce-projet-existe.md` à `07-la-discipline-qui-rend-un-projet-durable.md`), à lire dans l'ordre, plus un guide opérationnel transverse, `containers-et-wp-cli.md`, sur la stack de conteneurs et ses pièges.
+**État actuel** : sept chapitres rédigés (`01-pourquoi-ce-projet-existe.md` à `07-la-discipline-qui-rend-un-projet-durable.md`), à lire dans l'ordre, plus deux guides transverses : `containers-et-wp-cli.md`, sur la stack de conteneurs et ses pièges, et `editeur-admin-cote-navigateur.md`, sur l'éditeur de l'admin, son aperçu rendu par le serveur et la route REST qui le sert.
