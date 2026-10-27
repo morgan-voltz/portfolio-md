@@ -31,7 +31,7 @@ The development environment runs WordPress and MariaDB in containers (Podman roo
 - Podman 4+ with `podman-compose`, or Docker 24+ with Docker Compose v2
 - PHP 8.2+ and Composer 2 for the WordPress plugin, or no PHP at all: [`plugin/plugin-README.md`](plugin/plugin-README.md) shows how to run Composer and PHPUnit through containers
 - .NET 10 SDK (for the C# API)
-- Node.js 20+ and npm (for the React frontend)
+- Node.js 20+ and npm (for the React frontend, and to build the Markdown editor of the WordPress admin)
 - A `.env` file at the repository root (copy from `.env.example` if provided, otherwise set `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, and optionally `WP_PORT`)
 
 ### WordPress + MariaDB (containers)
@@ -107,9 +107,12 @@ composer install
 
 # Run the plugin unit test suite
 composer test
+
+# Build the Markdown editor of the admin (CodeMirror 6 + preview); its tests run with `npm test`
+cd assets && npm ci && npm run build
 ```
 
-The plugin source is mounted into the WordPress container via the bind mount declared in `docker-compose.yml`. After `composer install`, activate the plugin from the WP admin (`http://localhost:8000/wp-admin`).
+The plugin source is mounted into the WordPress container via the bind mount declared in `docker-compose.yml`. After `composer install`, activate the plugin from the WP admin (`http://localhost:8000/wp-admin`). The editor bundle (`plugin/assets/dist/`) is not committed: without it the admin falls back to a plain textarea and says how to build it.
 
 ### C# API
 
