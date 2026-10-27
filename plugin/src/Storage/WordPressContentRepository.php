@@ -35,8 +35,8 @@ use WP_Term;
  * WordPress rules shape it:
  *   - wp_insert_post() and wp_update_post() unslash their input like
  *     update_post_meta() does, so every string goes through wp_slash();
- *   - the stored HTML passes through kses (01-plugin-php.md §11), with the
- *     checkbox of a GFM task list added to the allowed tags;
+ *   - the stored HTML passes through kses (01-plugin-php.md §11, the pass
+ *     of HtmlSanitizer, shared with the preview route);
  *   - WordPress may silently change a slug (wp_unique_post_slug), which
  *     would break the link with the Markdown file: a changed slug is an error;
  *   - a trashed post is renamed to free its slug and left out of the usual
@@ -125,7 +125,7 @@ final class WordPressContentRepository implements ContentRepository
             'post_type' => self::postType($frontmatter->type),
             'post_title' => $frontmatter->title,
             'post_name' => $frontmatter->slug,
-            'post_content' => self::sanitizeHtml($record->html),
+            'post_content' => HtmlSanitizer::sanitize($record->html),
         ];
 
         if ($frontmatter->date !== null) {
@@ -307,20 +307,6 @@ final class WordPressContentRepository implements ContentRepository
         MetaWriter::update($postId, InternalMetaRegistrar::SOURCE_TYPE, $record->source->value);
         MetaWriter::update($postId, InternalMetaRegistrar::LAST_SYNC_AT, $record->syncedAt->setTimezone(new \DateTimeZone('UTC'))->format(self::LAST_SYNC_FORMAT));
         MetaWriter::update($postId, InternalMetaRegistrar::RENDER_VERSION, $record->renderVersion);
-    }
-
-    /**
-     * Last line of defence on the derived HTML (01-plugin-php.md §11). The
-     * Markdown parser already escapes raw HTML, so on real content this is a
-     * no-op; the smoke test checks it. GFM task lists render as checkboxes,
-     * which the `post` context of kses does not know.
-     */
-    private static function sanitizeHtml(string $html): string
-    {
-        $allowed = wp_kses_allowed_html('post');
-        $allowed['input'] = ['type' => true, 'checked' => true, 'disabled' => true];
-
-        return wp_kses($html, $allowed);
     }
 
     private static function stored(WP_Post $post, bool $inTrash, ?string $documentSlug = null): StoredContent
