@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Voltz\PortfolioMd\Storage;
 
-use InvalidArgumentException;
 use RuntimeException;
 use Throwable;
 use Voltz\PortfolioMd\Domain\ContentSource;
@@ -29,6 +28,8 @@ use WP_Term;
 /**
  * ContentRepository on top of wp_posts, the taxonomies and the post metas:
  * phases four and five of the pipeline (01-plugin-php.md §4.4 and §4.5).
+ * Articles and projects go to the plugin's post types; pages go to the
+ * native page type, with no term and only the metas a page carries.
  *
  * This is the only class of the import that talks to WordPress, and it is
  * exercised by the WP-CLI smoke test rather than by the unit suite. Five
@@ -222,6 +223,11 @@ final class WordPressContentRepository implements ContentRepository
     private function resolveTerms(ContentRecord $record): array
     {
         $frontmatter = $record->frontmatter;
+        if ($frontmatter->type === ContentType::Page) {
+            // None of the plugin's taxonomies is attached to the native page type.
+            return [];
+        }
+
         $terms = [TaxonomyRegistrar::TECH_TAG => $this->ensureTechTags($frontmatter->tags)];
 
         if ($frontmatter->type === ContentType::Project) {
@@ -287,9 +293,12 @@ final class WordPressContentRepository implements ContentRepository
         $frontmatter = $record->frontmatter;
 
         MetaWriter::update($postId, CommonMetaRegistrar::SEO_DESCRIPTION, $frontmatter->seoDescription);
-        MetaWriter::update($postId, CommonMetaRegistrar::FEATURED, $frontmatter->featured);
-        MetaWriter::update($postId, CommonMetaRegistrar::READING_TIME, $frontmatter->readingTime ?? 0);
-        MetaWriter::update($postId, CommonMetaRegistrar::SUBTITLE, $frontmatter->subtitle);
+        if ($frontmatter->type !== ContentType::Page) {
+            // The other public metas are registered on the plugin's types only.
+            MetaWriter::update($postId, CommonMetaRegistrar::FEATURED, $frontmatter->featured);
+            MetaWriter::update($postId, CommonMetaRegistrar::READING_TIME, $frontmatter->readingTime ?? 0);
+            MetaWriter::update($postId, CommonMetaRegistrar::SUBTITLE, $frontmatter->subtitle);
+        }
 
         if ($frontmatter->type === ContentType::Project) {
             MetaWriter::update($postId, ProjectMetaRegistrar::PROJECT_STATUS, $frontmatter->status?->value ?? '');
@@ -335,7 +344,7 @@ final class WordPressContentRepository implements ContentRepository
         return match ($type) {
             ContentType::Article => PostTypeRegistrar::ARTICLE,
             ContentType::Project => PostTypeRegistrar::PROJECT,
-            ContentType::Page => throw new InvalidArgumentException('Pages are not stored by this repository.'),
+            ContentType::Page => PostTypeRegistrar::PAGE,
         };
     }
 }

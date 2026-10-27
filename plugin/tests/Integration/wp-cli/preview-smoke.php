@@ -123,6 +123,9 @@ try {
     $data = $preview(['markdown' => str_replace('skills: []', 'skills: ["4.0.2/E99"]', $document)])->get_data();
     $check('an unknown competency code is reported and the body still rendered', ($data['importable'] ?? null) === false && str_contains((string) ($data['problems'][0] ?? ''), '4.0.2/E99') && is_string($data['html'] ?? null));
 
+    $data = $preview(['markdown' => "---\ntitle: \"Page\"\nslug: \"zz-smoke-preview-page\"\ntype: \"page\"\n---\n\nCorps.\n"])->get_data();
+    $check('a page is importable and rendered like the others', ($data['importable'] ?? null) === true && is_string($data['html'] ?? null) && (((array) ($data['summary'] ?? []))['type'] ?? '') === 'page');
+
     $data = $preview(['markdown' => "No frontmatter here.\n"])->get_data();
     $check('a document without frontmatter is refused without HTML', ($data['importable'] ?? null) === false && array_key_exists('html', $data) && $data['html'] === null && array_key_exists('title', $data) && $data['title'] === null && count($data['problems'] ?? []) === 1);
 

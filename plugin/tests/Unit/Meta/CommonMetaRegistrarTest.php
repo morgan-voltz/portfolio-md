@@ -29,12 +29,13 @@ final class CommonMetaRegistrarTest extends TestCase
     }
 
     #[Test]
-    public function registers_the_four_shared_metas_on_articles_and_projects_only(): void
+    public function registers_the_four_shared_metas_on_articles_and_projects_and_the_seo_description_on_pages(): void
     {
         self::assertSame(self::EXPECTED_KEYS, WordPressSpy::postMetaKeys('article'));
         self::assertSame(self::EXPECTED_KEYS, WordPressSpy::postMetaKeys('project'));
+        self::assertSame([CommonMetaRegistrar::SEO_DESCRIPTION], WordPressSpy::postMetaKeys('page'));
         self::assertSame([], WordPressSpy::postMetaKeys('post'));
-        self::assertSame([], WordPressSpy::postMetaKeys('page'));
+        self::assertSame(WordPressSpy::postMeta('article', CommonMetaRegistrar::SEO_DESCRIPTION), WordPressSpy::postMeta('page', CommonMetaRegistrar::SEO_DESCRIPTION));
     }
 
     #[Test]

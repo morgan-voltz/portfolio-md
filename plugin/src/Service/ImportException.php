@@ -21,11 +21,6 @@ final class ImportException extends RuntimeException
         parent::__construct($message);
     }
 
-    public static function unsupportedType(ContentType $type): self
-    {
-        return new self("Documents of type \"{$type->value}\" cannot be imported yet: only articles and projects can.");
-    }
-
     public static function slugMismatch(string $slug, string $fileName): self
     {
         return new self(

@@ -30,10 +30,11 @@ final class InternalMetaRegistrarTest extends TestCase
     }
 
     #[Test]
-    public function registers_the_five_internal_metas_on_articles_and_projects(): void
+    public function registers_the_five_internal_metas_on_articles_projects_and_pages(): void
     {
         self::assertSame(self::EXPECTED_KEYS, WordPressSpy::postMetaKeys('article'));
         self::assertSame(self::EXPECTED_KEYS, WordPressSpy::postMetaKeys('project'));
+        self::assertSame(self::EXPECTED_KEYS, WordPressSpy::postMetaKeys('page'));
         self::assertSame([], WordPressSpy::postMetaKeys('post'));
     }
 
@@ -41,7 +42,7 @@ final class InternalMetaRegistrarTest extends TestCase
     #[DataProvider('definitionProvider')]
     public function each_meta_is_hidden_from_rest_and_locked_for_users(string $metaKey, string $sanitizer): void
     {
-        foreach (['article', 'project'] as $postType) {
+        foreach (['article', 'project', 'page'] as $postType) {
             $args = WordPressSpy::postMeta($postType, $metaKey);
 
             self::assertNotNull($args, "{$metaKey} on {$postType}");

@@ -21,6 +21,14 @@ final class MetaRegistration
      */
     public const PORTFOLIO_POST_TYPES = [PostTypeRegistrar::ARTICLE, PostTypeRegistrar::PROJECT];
 
+    /**
+     * Post types that can hold a Markdown document: the plugin's two, and
+     * the native page (content/pages). They carry the internal metas and
+     * the SEO description; the other public metas stay on the plugin's own
+     * types, where they mean something.
+     */
+    public const MARKDOWN_POST_TYPES = [PostTypeRegistrar::ARTICLE, PostTypeRegistrar::PROJECT, PostTypeRegistrar::PAGE];
+
     private function __construct()
     {
     }
@@ -29,7 +37,8 @@ final class MetaRegistration
      * Registers the same meta definition on each given post type.
      *
      * Registering per post type (rather than passing '' as post type, which
-     * means "every post type") keeps the metas off native posts and pages.
+     * means "every post type") keeps the metas off native posts, and off
+     * pages for the metas that pages do not carry.
      *
      * @param list<string>         $postTypes
      * @param array<string, mixed> $args      Arguments for `register_post_meta()`.
