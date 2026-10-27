@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Voltz\PortfolioMd\PostTypes;
 
+use Voltz\PortfolioMd\Domain\ContentType;
+
 /**
  * Enregistre les custom post types du portfolio.
  *
@@ -32,6 +34,13 @@ final class PostTypeRegistrar
      * Slug du post type "project".
      */
     public const PROJECT = 'project';
+
+    /**
+     * WordPress's own page type. The plugin does not register it, but it
+     * writes it (the static pages of content/pages) and keeps the document
+     * metas on it; see Meta\MetaRegistration::MARKDOWN_POST_TYPES.
+     */
+    public const PAGE = 'page';
 
     /**
      * Méthode appelée par le hook WordPress 'init'.
@@ -83,9 +92,9 @@ final class PostTypeRegistrar
             'show_in_rest'        => true, // Native REST representation; the block editor itself is off for this type (Admin\EditScreen).
             'has_archive'         => true,
 
-            // URL : /articles/<slug>/.
+            // URL : /articles/<slug>/ (base partagée avec le domaine, qui réécrit les liens entre documents).
             'rewrite' => [
-                'slug'       => 'articles',
+                'slug'       => ContentType::Article->urlBase(),
                 'with_front' => false,
             ],
 
@@ -158,9 +167,9 @@ final class PostTypeRegistrar
             'show_in_rest'        => true,
             'has_archive'         => true,
 
-            // URL : /projets/<slug>/.
+            // URL : /projets/<slug>/ (base partagée avec le domaine, qui réécrit les liens entre documents).
             'rewrite' => [
-                'slug'       => 'projets',
+                'slug'       => ContentType::Project->urlBase(),
                 'with_front' => false,
             ],
 
