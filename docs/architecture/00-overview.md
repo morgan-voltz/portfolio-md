@@ -82,9 +82,11 @@ reading_time: 8
 needs_mermaid: true
 ---
 
-# Le vrai problème que Rust résout
+Le contenu de l'article commence ici, en Markdown GFM standard, sans répéter le titre : le thème l'affiche depuis le frontmatter.
 
-Le contenu de l'article commence ici, en Markdown GFM standard.
+## Le vrai problème que Rust résout
+
+Première section.
 ```
 
 Le champ `type` distingue un article de blog (`"article"`) d'une étude de cas projet (`"project"`), ce qui guide le plugin vers le bon type de post WordPress. Les champs `needs_mermaid` et `needs_katex` permettent au renderer de charger les librairies correspondantes uniquement sur les pages qui en ont besoin, selon le principe de *progressive enhancement*.
