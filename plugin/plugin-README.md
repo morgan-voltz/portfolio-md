@@ -14,9 +14,9 @@ The **content model is complete** (roadmap phase 1). The plugin registers:
 
 Phases 2 and 3 are done (26 October 2026): `Parsing\FrontmatterParser` turns a Markdown document into a typed `Domain\Frontmatter` plus its body (strict validation, explicit exceptions); `Parsing\MarkdownParser` renders GFM to HTML with server-side code highlighting (`HighlightedCodeRenderer`, highlight.php); `Parsing\GutenbergTransformer` wraps that HTML in core blocks exactly as the editor serialises them; `Service\ContentImportService` applies the source-of-truth rule of ADR-005 and `Storage\WordPressContentRepository` writes posts, terms and metas. Two WP-CLI commands drive it: `wp portfolio skills sync` (taxonomy from `content/skills.yaml`) and `wp portfolio import` (articles and projects from Markdown files), see below.
 
-The two admin doors are in (26 October 2026, server side): `Admin\EditorMetaBox` puts the whole document in a « Document Markdown » box on the classic edit screen of articles and projects (`Admin\EditScreen` turns the block editor off there and removes the native controls the document owns), and `Admin\ImportPage` adds « Portfolio → Importer », a paste page. Both call the same `ContentImportService` as the WP-CLI command; see "Admin screens" below.
+The two admin doors are in (26 October 2026, server side): `Admin\EditorMetaBox` puts the whole document in a « Document Markdown » box on the classic edit screen of articles and projects (`Admin\EditScreen` turns the block editor off there and removes the native controls the document owns), and `Admin\ImportPage` adds « Portfolio → Importer », a paste page. Both call the same `ContentImportService` as the WP-CLI command; see "Admin screens" below. Since 27 October 2026 the box is a CodeMirror 6 editor with a preview rendered by the server (`POST /wp-json/portfolio/v1/preview`, the first route of the plugin's REST namespace, ADR-016); the browser side lives in `assets/` and is built with esbuild.
 
-What is **not yet** implemented: the rich Markdown editor and the preview of the box (a JavaScript library to choose), the import of static pages (`type: page`), image import into the media library, the Git webhook, and the custom REST endpoints. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
+What is **not yet** implemented: the import of static pages (`type: page`), image import into the media library, the Git webhook, and the public REST endpoints. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
 
 ## Local setup
 
@@ -29,6 +29,9 @@ composer install
 
 # 1 bis. Same thing without PHP on the host: run Composer in a container
 podman run --rm -v "$PWD:/app:z" docker.io/library/composer:2 install
+
+# 1 ter. Build the admin editor (Node.js 20+): CodeMirror 6 + preview, served from assets/dist
+cd assets && npm ci && npm run build && cd ..
 
 # 2. (From the repo root) make sure the WordPress stack is running
 podman-compose up -d
@@ -43,6 +46,8 @@ podman-compose --profile tools run --rm wpcli wp term list skill --fields=name,s
 ```
 
 For a full setup from scratch (containers + database + WordPress install + plugin activation), use the [`bootstrap.sh`](../bootstrap.sh) script at the repo root.
+
+The bundle (`assets/dist/`) is not committed: build it once after cloning and again after changing anything in `assets/src/` (`npm run watch` rebuilds on save). Without it the admin still works, with a plain textarea and a notice saying how to build.
 
 Activation matters: `Plugin::onActivation()` seeds the closed `project_status` terms and the two `skill` referential parents, then flushes rewrite rules. After changing anything in that method, deactivate and re-activate the plugin.
 
@@ -101,6 +106,8 @@ Four refusals protect the post being edited: the post must exist with the docume
 
 « Portfolio → Importer » (`edit_others_posts`) takes a pasted document through the same service with `paste` as source: « Vérifier sans écrire » is the `--dry-run` of the command, « Importer » writes, and a checkbox creates the post as a draft.
 
+On both screens the textarea is dressed by the **editor bundle** (`Admin\EditorAssets`, `assets/dist/admin-editor.js`): a CodeMirror 6 editor (YAML frontmatter and GFM highlighting, line wrapping, history, search with Ctrl+F, Tab indents and Escape-then-Tab leaves) next to a **preview rendered by the server**. The textarea stays the form field: every change is copied into it, so the save path above is unchanged. After 600 ms without typing, the whole document goes to `POST /wp-json/portfolio/v1/preview` through `wp.apiFetch` (which carries the REST nonce and renews it); the server parses and renders it with the import's own parser and renderer, applies the kses pass of the store (`Storage\HtmlSanitizer`), then renders the blocks and the typography as the front end does (`do_blocks`, `wptexturize`, `convert_smilies`) but not the shortcodes nor the embeds, which would run code and fetch remote URLs for a text that is only being typed, and answers with the title, a summary of the frontmatter, the HTML, and the problems the import would raise (unreadable document, `page` type, unknown competency code). The HTML is shown in a sandboxed `<iframe>` that loads only the core block stylesheets: what you see is what the site prints, minus the theme's CSS and the shortcodes (shown as typed), nothing in the frame can run, and its links open in a new tab without opener nor referrer. Problems are listed above the frame while the last rendering stays, dimmed; what the preview cannot know (a slug taken by another post, a conflict with Git) only shows at the save. A button hides the preview and the browser remembers it. The route takes `edit_posts`, writes nothing, and caps the document at a million characters.
+
 The admin doors have their own smoke test, which plays the form submissions through the real hooks and cleans up after itself (`--user` required):
 
 ```bash
@@ -108,9 +115,16 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/admin-smoke.php --user=<your admin login>
 ```
 
+The preview route and the editor assets have theirs, which calls the route through the REST server (route, permissions, parameters, front-end rendering, kses pass) and checks what loads on each screen; it needs the bundle built, creates a subscriber to check the refusal and deletes it:
+
+```bash
+podman-compose --profile tools run --rm wpcli wp eval-file \
+  wp-content/plugins/portfolio-md/tests/Integration/wp-cli/preview-smoke.php --user=<your admin login>
+```
+
 ## Tests
 
-Two complementary suites.
+Three complementary suites.
 
 **Unit suite (PHPUnit 11, no WordPress).** The registrars call WordPress functions, so `tests/bootstrap.php` loads small stand-ins (`tests/Support/wp-stubs.php`) that record registrations in `WordPressSpy` or mimic WordPress closely enough for the covered cases. The suite checks that every meta is registered with the right type, REST visibility and callbacks, and that every sanitizer accepts and rejects what it should. The Markdown pipeline (parser, Gutenberg transformer, import service, conflict rule) is covered there too without any stub, including a full render of every sheet in `content/`.
 
@@ -123,6 +137,12 @@ composer test            # or: composer test:unit
 podman run --rm -v "$PWD:/app:z" -w /app docker.io/library/php:8.3-cli vendor/bin/phpunit
 ```
 
+**Browser suite (Node, no browser).** `assets/tests/` covers the JavaScript with Node's own test runner: the preview loop (debounce, stale answers, failures) and the document of the preview frame are pure; the mounting on the textarea runs in a jsdom document with a fake editor and fake requests. CodeMirror itself is not tested. Run it from `plugin/assets` after `npm ci`:
+
+```bash
+npm test
+```
+
 **Smoke test in the real WordPress (WP-CLI).** `tests/Integration/wp-cli/meta-smoke.php` runs inside the `wpcli` container against the live install: effective registrations, sanitization through `update_post_meta()`, capability rules, REST representation. It creates one draft project and deletes it. Run it from the repo root with the stack up and the plugin activated:
 
 ```bash
@@ -131,7 +151,7 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   --user=<your admin login>
 ```
 
-`--user` is required for the capability checks. The official `wp-phpunit` framework will come with the storage, REST and admin layers.
+`--user` is required for the capability checks. The other smoke scripts (`skills`, `import`, `admin`, `preview`) are listed in their sections above. The official `wp-phpunit` framework will come if the smoke scripts stop being enough.
 
 ## Quick debug references
 
@@ -173,6 +193,13 @@ The most frequent issues you'll hit while developing locally are documented in [
 - The box shows a text that is not the stored document → it is the text refused at the last save; reload the page to get the stored document back
 - `wp portfolio import` reports a `CONFLICT` right after a save from the admin → expected when the text changed (the admin edit is protected; `--force` or copy the box into the file); unexpected for an unchanged text, since the box normalises line endings: check that the file is LF-terminated and ends with a newline
 - « Portfolio → Importer » is not in the menu → it needs `edit_others_posts` (editors and administrators)
+- The box is a plain textarea and a notice talks about `npm ci && npm run build` → the editor bundle is not built (`assets/dist/` is not committed); build it in `plugin/assets`
+- The preview says « Aperçu indisponible : … » → the request failed: a nonce that expired is renewed by `wp.apiFetch` on its own, so reload the page if it persists, and check that the REST API answers (`/wp-json/portfolio/v1/preview` needs a logged-in user with `edit_posts`)
+- The preview looks plainer than the site → by design: the frame loads the core block styles, not the theme's stylesheet; the HTML is the one the site prints
+- A shortcode or an `[embed]` URL stays literal in the preview → by design: the preview runs no shortcode and fetches nothing; the site will run it once the post is published
+- Images referenced by a relative path are broken in the preview → expected until the media import exists; the site shows the same thing
+- The Tab key stays in the editor → it indents; press Escape, then Tab, to move the focus out
+- The bundle weighs about 560 KB → CodeMirror and its Markdown, YAML and HTML grammars; it is served once and cached. Splitting it into ES modules loaded on demand is the lever if it ever matters
 
 ## Architecture
 

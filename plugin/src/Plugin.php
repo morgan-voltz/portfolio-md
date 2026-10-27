@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Voltz\PortfolioMd;
 
 use Voltz\PortfolioMd\Admin\EditScreen;
+use Voltz\PortfolioMd\Admin\EditorAssets;
 use Voltz\PortfolioMd\Admin\EditorMetaBox;
 use Voltz\PortfolioMd\Admin\ImportPage;
 use Voltz\PortfolioMd\Cli\ImportCommand;
@@ -18,8 +19,11 @@ use Voltz\PortfolioMd\Parsing\GutenbergTransformer;
 use Voltz\PortfolioMd\Parsing\MarkdownParser;
 use Voltz\PortfolioMd\Parsing\SkillsGridLoader;
 use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
+use Voltz\PortfolioMd\Rest\Controller\PreviewController;
+use Voltz\PortfolioMd\Rest\RouteRegistrar;
 use Voltz\PortfolioMd\Service\ConflictResolver;
 use Voltz\PortfolioMd\Service\ContentImportService;
+use Voltz\PortfolioMd\Service\PreviewService;
 use Voltz\PortfolioMd\Service\SkillTermSynchronizer;
 use Voltz\PortfolioMd\Service\SystemClock;
 use Voltz\PortfolioMd\Storage\WordPressContentRepository;
@@ -79,6 +83,9 @@ final class Plugin
      */
     private ?ContentImportService $importService = null;
 
+    /** The Markdown → Gutenberg renderer, shared by the import and the preview. */
+    private ?ContentRenderer $renderer = null;
+
     public function __construct(string $pluginFile)
     {
         $this->pluginFile = $pluginFile;
@@ -119,6 +126,9 @@ final class Plugin
             $this->registerCliCommands();
         }
 
+        // The REST routes: built on `rest_api_init` only, since most requests never reach the API.
+        add_action('rest_api_init', [$this, 'registerRoutes']);
+
         // The admin doors: only on admin requests (edit screens, the paste page).
         if (is_admin()) {
             $this->registerAdmin();
@@ -126,16 +136,29 @@ final class Plugin
     }
 
     /**
+     * Action `rest_api_init`: the routes of 01-plugin-php.md §7 under
+     * `portfolio/v1`. One so far, the preview of the admin editor, which
+     * renders a document with the same parser and renderer as the import.
+     */
+    public function registerRoutes(): void
+    {
+        $preview = new PreviewService(new FrontmatterParser(), $this->renderer(), new WordPressSkillTermGateway());
+        (new RouteRegistrar(new PreviewController($preview)))->register();
+    }
+
+    /**
      * Hooks the two admin doors of 01-plugin-php.md §6: the Markdown box on
      * the edit screens of articles and projects (with the screen trimmed of
-     * the fields the document owns) and the paste page under the plugin
-     * menu. Both call the same import service as the WP-CLI command.
+     * the fields the document owns, and the editor and preview script on
+     * top) and the paste page under the plugin menu. Both call the same
+     * import service as the WP-CLI command.
      */
     private function registerAdmin(): void
     {
         (new EditScreen())->hook();
         (new EditorMetaBox($this->importService()))->hook();
         (new ImportPage($this->importService()))->hook();
+        (new EditorAssets($this->pluginFile))->hook();
     }
 
     /**
@@ -148,12 +171,17 @@ final class Plugin
     {
         return $this->importService ??= new ContentImportService(
             new FrontmatterParser(),
-            new ContentRenderer(new MarkdownParser(), new GutenbergTransformer()),
+            $this->renderer(),
             new WordPressContentRepository(),
             new WordPressSkillTermGateway(),
             new ConflictResolver(),
             new SystemClock(),
         );
+    }
+
+    private function renderer(): ContentRenderer
+    {
+        return $this->renderer ??= new ContentRenderer(new MarkdownParser(), new GutenbergTransformer());
     }
 
     /**

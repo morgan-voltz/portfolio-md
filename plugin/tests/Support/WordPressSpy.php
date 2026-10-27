@@ -93,6 +93,27 @@ final class WordPressSpy
     /** @var list<array<string, mixed>> */
     public static array $submenuPages = [];
 
+    /** @var list<array{namespace: string, route: string, args: array<string, mixed>}> */
+    public static array $restRoutes = [];
+
+    /** @var list<array{hook: string, value: mixed}> what apply_filters() received */
+    public static array $appliedFilters = [];
+
+    /** @var array<string, callable> hook name => what apply_filters() does to the value, when primed */
+    public static array $filterResults = [];
+
+    /** @var list<array{content: string, allowed: array<string, mixed>}> */
+    public static array $ksesCalls = [];
+
+    /** @var array<string, array<string, mixed>> handle => src, deps, ver, args */
+    public static array $enqueuedScripts = [];
+
+    /** @var array<string, array<string, mixed>> handle => src, deps, ver */
+    public static array $enqueuedStyles = [];
+
+    /** @var list<array{handle: string, data: string, position: string}> */
+    public static array $inlineScripts = [];
+
     private function __construct()
     {
     }
@@ -126,6 +147,13 @@ final class WordPressSpy
         self::$currentUserId = 1;
         self::$menuPages = [];
         self::$submenuPages = [];
+        self::$restRoutes = [];
+        self::$appliedFilters = [];
+        self::$filterResults = [];
+        self::$ksesCalls = [];
+        self::$enqueuedScripts = [];
+        self::$enqueuedStyles = [];
+        self::$inlineScripts = [];
     }
 
     /**

@@ -19,16 +19,18 @@ use WP_Post;
 
 /**
  * The Markdown box on the edit screen of an article or a project: the first
- * door of 01-plugin-php.md §6.1, without its rich editor yet (a plain
- * textarea; the JavaScript editor and the preview come in a later lot).
+ * door of 01-plugin-php.md §6.1.
  *
  * The box shows the whole document, frontmatter included, reloaded from
- * `_portfolio_md_source` at each visit. When the post is saved, WordPress
- * writes its own fields first and then fires `save_post_{type}`; the handler
- * reads the submitted text and hands it to the import service with the post
- * as target and `admin` as source, so that the document rewrites the post
- * (title, slug, date, content, terms, metas) and the source_of_truth rule
- * of ADR-005 then protects that edit from a Git import.
+ * `_portfolio_md_source` at each visit, in a textarea that is both the
+ * form field and the fallback: Admin\EditorAssets mounts the CodeMirror
+ * editor and the preview on it when the bundle is built. When the post is
+ * saved, WordPress writes its own fields first and then fires
+ * `save_post_{type}`; the handler reads the submitted text and hands it to
+ * the import service with the post as target and `admin` as source, so
+ * that the document rewrites the post (title, slug, date, content, terms,
+ * metas) and the source_of_truth rule of ADR-005 then protects that edit
+ * from a Git import.
  *
  * A document that is refused leaves the post as it was, except that a post
  * which holds no document yet is put back to draft: WordPress may just have
@@ -91,7 +93,7 @@ final class EditorMetaBox
         echo '<p class="description">'
             . esc_html__('Le document entier, frontmatter compris. À l’enregistrement, il réécrit le titre, le slug, la date, le contenu, les tags, le statut, les compétences et les champs du post : rien de tout cela ne se modifie ailleurs.', 'portfolio-md')
             . '</p>';
-        echo '<textarea name="' . esc_attr(self::FIELD) . '" id="' . esc_attr(self::FIELD) . '" rows="28" class="large-text code" spellcheck="false">'
+        echo '<textarea name="' . esc_attr(self::FIELD) . '" id="' . esc_attr(self::FIELD) . '" rows="28" class="large-text code" spellcheck="false" ' . EditorAssets::MARKER . '="1">'
             . "\n" . esc_textarea($text) . '</textarea>';
     }
 

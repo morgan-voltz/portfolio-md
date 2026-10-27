@@ -47,6 +47,7 @@ Les entrées ne sont jamais supprimées. Si une décision est révisée, on ajou
 | ADR-013 | Champs personnalisés : préfixe `_portfolio_` généralisé, trois registrars, autorisation explicite | 2026-10-26 | Accepté |
 | ADR-014 | Taxonomie `skill` hiérarchique par référentiel, code officiel en term meta | 2026-10-26 | Accepté |
 | ADR-015 | Contenu versionné dans le monorepo, grille de compétences et périmètre des fiches | 2026-10-26 | Accepté |
+| ADR-016 | Éditeur CodeMirror 6 avec prévisualisation rendue par le serveur | 2026-10-27 | Accepté |
 
 ---
 
@@ -478,6 +479,31 @@ Le modèle de contenu du plugin est en place (ADR-013, ADR-014) mais le site n'a
 ### Conséquences
 
 Le dossier `content/` devient la source que le pipeline importera (phase 2) puis que le webhook synchronisera (phase 9) ; d'ici là, l'import passe par WP-CLI. Le parser de frontmatter devra lire les dates nues avec `Yaml::PARSE_DATETIME`, sans quoi `symfony/yaml` les convertit en entiers. Les fiches sont rédigées avec l'assistance d'agents sous relecture croisée et validées par Morgan avant fusion (ADR-012) ; un validateur de frontmatter et de structure accompagne le dossier. Les codes 4.0.2 changeront lorsque la feuille de suivi de deuxième année sera fournie : le term meta `_portfolio_skill_code` et les frontmatters seront alors mis à jour ensemble. `01-plugin-php.md` §4.4 et l'exemple de frontmatter de `00-overview.md` perdent le champ `category`.
+
+---
+
+## ADR-016 — Éditeur CodeMirror 6 avec prévisualisation rendue par le serveur
+
+**Date** : 2026-10-27
+**Statut** : Accepté
+
+### Contexte
+
+La métabox « Document Markdown » de l'admin (`01-plugin-php.md` §6.1) était un simple `<textarea>` : pas de coloration, aucun retour avant l'enregistrement, et une erreur de frontmatter ne se voyait qu'après coup, dans la notice du refus. Le plan d'origine laissait ouverts le choix de la librairie d'édition (EasyMDE ou CodeMirror 6) et celui de la prévisualisation : côté client, par un rendu Markdown en JavaScript forcément différent du pipeline PHP (CommonMark avec ses extensions GFM, coloration des blocs de code côté serveur, transformation en blocs Gutenberg, passage kses), ou côté serveur, par ce pipeline lui-même. Morgan a tranché le 27 octobre 2026.
+
+### Décision
+
+L'éditeur est CodeMirror 6, assemblé à partir de ses paquets (`@codemirror/state`, `view`, `commands`, `language`, `search`, `lang-markdown`, et `lang-yaml` pour le frontmatter) et construit avec esbuild en un seul script, `plugin/assets/dist/admin-editor.js`, non versionné (`npm ci && npm run build`). La prévisualisation est rendue par le serveur : `POST /wp-json/portfolio/v1/preview` (`Rest\Controller\PreviewController`, première route du namespace du plugin) passe le document par `Service\PreviewService`, donc par le parseur de frontmatter et le `ContentRenderer` de l'import, puis par le passage kses du stockage (`Storage\HtmlSanitizer`), le rendu des blocs et la typographie du site (`do_blocks`, `wptexturize`, `convert_smilies`), et renvoie ce HTML avec le titre, un résumé du frontmatter et la liste de ce que l'import refuserait. Le navigateur l'affiche dans un cadre `sandbox` qui ne charge que les feuilles de style des blocs du cœur. Le `<textarea>` reste le champ du formulaire et la solution de repli quand le bundle n'est pas construit.
+
+### Alternatives considérées
+
+- **EasyMDE** : un éditeur complet, barre d'outils et aperçu intégrés, mais son aperçu est un rendu Markdown JavaScript (marked) qui ignore la coloration serveur, les blocs, kses et les règles exactes de `league/commonmark` : il aurait menti par construction. EasyMDE repose en outre sur CodeMirror 5, maintenu pour la compatibilité seulement.
+- **Textarea avec aperçu serveur seul** : le même aperçu exact sans éditeur riche. Moins de code et de poids, mais ni coloration, ni historique, ni recherche, et un frontmatter YAML illisible dans un long document.
+- **Aperçu côté client avec CodeMirror 6** : écarté pour la même raison qu'EasyMDE, l'écart entre deux moteurs de rendu.
+
+### Conséquences
+
+L'aperçu montre ce que le site affichera, à deux écarts près, voulus : la feuille de style du thème (le cadre charge les styles des blocs, pas ceux de GeneratePress) et la chaîne `the_content`, dont la relecture du lot a montré qu'elle exécute les codes courts et les embeds de WordPress (requête HTTP sortante et cache oEmbed écrit en base pour une URL tapée par n'importe quel contributeur) : l'aperçu rend les blocs et la typographie, et montre un code court tel quel. Les liens de l'aperçu s'ouvrent dans un nouvel onglet sans `opener` ni referrer. Chaque pause de frappe coûte une requête REST authentifiée (nonce porté et renouvelé par `wp-api-fetch`) qui rend le document entier : acceptable pour des fiches de quelques dizaines de kilooctets, et borné côté serveur à un million de caractères. Le plugin a désormais une chaîne de construction JavaScript (Node 20+, esbuild, 63 paquets npm) à côté de Composer, un bundle de 560 Ko servi une fois puis mis en cache, et une suite de tests Node (`node --test`, jsdom). Les blocs de code ne sont pas colorés dans l'éditeur (ils le sont dans l'aperçu) : charger les grammaires à la demande demanderait un bundle en modules ES découpés, un levier gardé pour plus tard. Le premier endpoint du namespace `portfolio/v1` existe (`Rest\RouteRegistrar`), ce qui prépare la phase 5.
 
 ---
 

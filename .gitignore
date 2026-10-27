@@ -67,6 +67,11 @@ api/**/*.rsuser
 api/**/*.userosscache
 api/**/*.sln.docstates
 
+# ─── Node.js (plugin/assets/) : éditeur de l'admin ───────
+# Le bundle se reconstruit avec `npm ci && npm run build` ; jamais versionné.
+plugin/assets/node_modules/
+plugin/assets/dist/
+
 # ─── Node.js / React / Vite (frontend/) ──────────────────
 frontend/node_modules/
 frontend/dist/

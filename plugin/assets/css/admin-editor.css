@@ -1,0 +1,101 @@
+/*
+ * The Markdown box with its editor and preview side by side
+ * (Admin\EditorAssets). Plain CSS, loaded as is: only the script is built.
+ */
+
+.portfolio-md-editor {
+  container-type: inline-size;
+  margin-top: 8px;
+}
+
+/* The `hidden` attribute must win over the `display` rules below and over the admin's own. */
+.portfolio-md-editor [hidden],
+textarea[data-portfolio-md-editor][hidden] {
+  display: none !important;
+}
+
+.portfolio-md-editor__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.portfolio-md-editor__status {
+  color: #646970;
+  font-style: italic;
+}
+
+.portfolio-md-editor__panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  height: 70vh;
+  min-height: 420px;
+}
+
+.portfolio-md-editor[data-preview="hidden"] .portfolio-md-editor__panes {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.portfolio-md-editor__code,
+.portfolio-md-editor__preview {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid #8c8f94;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.portfolio-md-editor__code .cm-editor {
+  height: 100%;
+}
+
+.portfolio-md-editor__code .cm-editor.cm-focused {
+  outline: 2px solid #2271b1;
+  outline-offset: -2px;
+}
+
+.portfolio-md-editor__code .cm-scroller {
+  font-family: Consolas, Monaco, "Andale Mono", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.portfolio-md-editor__problems {
+  flex: none;
+  margin: 0 !important;
+  border-left: 4px solid #d63638;
+  border-radius: 0;
+}
+
+.portfolio-md-editor__problems ul {
+  margin: 0 0 8px 24px;
+  list-style: disc;
+}
+
+.portfolio-md-editor__frame {
+  flex: 1 1 auto;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.portfolio-md-editor__frame.is-stale {
+  opacity: 0.5;
+}
+
+/* Narrow boxes (small screens, or the admin sidebar taking its share): one pane above the other. */
+@container (max-width: 900px) {
+  .portfolio-md-editor__panes {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+
+  .portfolio-md-editor__code,
+  .portfolio-md-editor__preview {
+    height: 50vh;
+  }
+}

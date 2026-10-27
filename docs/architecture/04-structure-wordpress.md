@@ -431,4 +431,8 @@ WordPress
 - Les écrans d'édition des `article` et `project` passent en écran classique avec une métabox « Document Markdown » (`01-plugin-php.md` §6.1) : Gutenberg coupé, champ titre, éditeur de contenu, éditeur de permalien, boîtes de slug et de taxonomies, Quick Edit et Bulk Edit retirés, parce que le document est la seule source du titre, du slug, de la date, des termes et des champs. Restent la boîte de publication, l'auteur, l'image mise en avant, les révisions et les champs personnalisés.
 - Page « Portfolio → Importer » pour coller un document (`01-plugin-php.md` §6.3), capacité `edit_others_posts` (section 6).
 
+**2026-10-27 (éditeur et aperçu)**
+
+- La métabox « Document Markdown » et la page de collage reçoivent l'éditeur CodeMirror 6 et un aperçu rendu par le serveur, `POST /wp-json/portfolio/v1/preview` sous `edit_posts` (`01-plugin-php.md` §6.1, ADR-016). Le modèle de contenu ne change pas.
+
 ---

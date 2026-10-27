@@ -96,6 +96,7 @@ final class EditorMetaBoxTest extends TestCase
 
         self::assertStringContainsString('name="portfolio_md_nonce" value="nonce-for-portfolio_md_save_5"', $html);
         self::assertStringContainsString('<textarea name="portfolio_md_source" id="portfolio_md_source"', $html);
+        self::assertStringContainsString(' data-portfolio-md-editor="1">', $html);
         self::assertStringContainsString(">\n" . htmlspecialchars(self::DOCUMENT, ENT_QUOTES, 'UTF-8') . '</textarea>', $html);
         self::assertStringContainsString('C:\\chemin', $html);
         self::assertStringNotContainsString('notice-error', $html);

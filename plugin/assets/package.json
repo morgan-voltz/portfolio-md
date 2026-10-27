@@ -1,0 +1,29 @@
+{
+  "name": "portfolio-md-admin-assets",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser side of the Markdown box of the portfolio-md plugin: CodeMirror 6 editor and server-rendered preview.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "esbuild src/admin-editor.js --bundle --minify --sourcemap --format=iife --target=es2020 --outfile=dist/admin-editor.js",
+    "watch": "npm run build -- --watch",
+    "test": "node --test \"tests/**/*.test.js\""
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/lang-yaml": "^6.1.0",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/search": "^6.5.0",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "jsdom": "^30.1.3"
+  }
+}

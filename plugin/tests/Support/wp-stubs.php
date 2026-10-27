@@ -44,7 +44,80 @@ if (!class_exists('WP_Post')) {
     }
 }
 
+if (!class_exists('WP_REST_Server')) {
+    /** Only the method constants the plugin uses. */
+    class WP_REST_Server
+    {
+        public const READABLE = 'GET';
+        public const CREATABLE = 'POST';
+        public const EDITABLE = 'POST, PUT, PATCH';
+        public const DELETABLE = 'DELETE';
+    }
+}
+
+if (!class_exists('WP_REST_Request')) {
+    /** A bag of parameters, which is all a route callback reads from a request here. */
+    class WP_REST_Request
+    {
+        /** @var array<string, mixed> */
+        private array $params = [];
+
+        public function __construct(public string $method = '', public string $route = '')
+        {
+        }
+
+        public function set_param(string $key, mixed $value): void
+        {
+            $this->params[$key] = $value;
+        }
+
+        public function get_param(string $key): mixed
+        {
+            return $this->params[$key] ?? null;
+        }
+
+        /**
+         * @return array<string, mixed>
+         */
+        public function get_params(): array
+        {
+            return $this->params;
+        }
+    }
+}
+
+if (!class_exists('WP_REST_Response')) {
+    class WP_REST_Response
+    {
+        /**
+         * @param array<string, string> $headers
+         */
+        public function __construct(public mixed $data = null, public int $status = 200, public array $headers = [])
+        {
+        }
+
+        public function get_data(): mixed
+        {
+            return $this->data;
+        }
+
+        public function get_status(): int
+        {
+            return $this->status;
+        }
+    }
+}
+
 // --- Registration ----------------------------------------------------------
+
+if (!function_exists('register_rest_route')) {
+    function register_rest_route(string $route_namespace, string $route, array $args = [], bool $override = false): bool
+    {
+        WordPressSpy::$restRoutes[] = ['namespace' => $route_namespace, 'route' => $route, 'args' => $args];
+
+        return true;
+    }
+}
 
 if (!function_exists('register_post_meta')) {
     function register_post_meta(string $post_type, string $meta_key, array $args): bool
@@ -108,6 +181,44 @@ if (!function_exists('add_filter')) {
     }
 }
 
+if (!function_exists('apply_filters')) {
+    /**
+     * Records the call and returns the value, transformed by the callable a
+     * test primed for this hook in WordPressSpy::$filterResults, if any.
+     */
+    function apply_filters(string $hook_name, mixed $value, mixed ...$args): mixed
+    {
+        WordPressSpy::$appliedFilters[] = ['hook' => $hook_name, 'value' => $value];
+        $filter = WordPressSpy::$filterResults[$hook_name] ?? null;
+
+        return $filter === null ? $value : $filter($value, ...$args);
+    }
+}
+
+// The text passes of the front end: each one is recorded like a filter under
+// its own name, and transforms the text as a test primed it to.
+
+if (!function_exists('do_blocks')) {
+    function do_blocks(string $content): string
+    {
+        return apply_filters('do_blocks', $content);
+    }
+}
+
+if (!function_exists('wptexturize')) {
+    function wptexturize(string $text, bool $reset = false): string
+    {
+        return apply_filters('wptexturize', $text);
+    }
+}
+
+if (!function_exists('convert_smilies')) {
+    function convert_smilies(string $text): string
+    {
+        return apply_filters('convert_smilies', $text);
+    }
+}
+
 // --- Admin screens ---------------------------------------------------------
 
 if (!function_exists('add_meta_box')) {
@@ -156,6 +267,83 @@ if (!function_exists('wp_die')) {
     function wp_die(mixed $message = '', mixed $title = '', mixed $args = []): never
     {
         throw new RuntimeException('wp_die: ' . (is_string($message) ? $message : ''));
+    }
+}
+
+// --- Scripts and styles ----------------------------------------------------
+
+if (!function_exists('wp_enqueue_script')) {
+    function wp_enqueue_script(string $handle, string $src = '', array $deps = [], string|bool|null $ver = false, array|bool $args = []): void
+    {
+        WordPressSpy::$enqueuedScripts[$handle] = ['src' => $src, 'deps' => $deps, 'ver' => $ver, 'args' => $args];
+    }
+}
+
+if (!function_exists('wp_enqueue_style')) {
+    function wp_enqueue_style(string $handle, string $src = '', array $deps = [], string|bool|null $ver = false, string $media = 'all'): void
+    {
+        WordPressSpy::$enqueuedStyles[$handle] = ['src' => $src, 'deps' => $deps, 'ver' => $ver];
+    }
+}
+
+if (!function_exists('wp_add_inline_script')) {
+    function wp_add_inline_script(string $handle, string $data, string $position = 'after'): bool
+    {
+        WordPressSpy::$inlineScripts[] = ['handle' => $handle, 'data' => $data, 'position' => $position];
+
+        return true;
+    }
+}
+
+if (!function_exists('wp_scripts_get_suffix')) {
+    function wp_scripts_get_suffix(string $type = ''): string
+    {
+        return '.min';
+    }
+}
+
+if (!function_exists('plugin_dir_path')) {
+    function plugin_dir_path(string $file): string
+    {
+        return rtrim(dirname($file), '/') . '/';
+    }
+}
+
+if (!function_exists('plugins_url')) {
+    function plugins_url(string $path = '', string $plugin = ''): string
+    {
+        return 'http://example.test/wp-content/plugins/' . basename(dirname($plugin)) . '/' . ltrim($path, '/');
+    }
+}
+
+if (!function_exists('includes_url')) {
+    function includes_url(string $path = '', ?string $scheme = null): string
+    {
+        return 'http://example.test/wp-includes/' . ltrim($path, '/');
+    }
+}
+
+if (!function_exists('add_query_arg')) {
+    /** Only the (key, value, url) form used by the plugin. */
+    function add_query_arg(mixed ...$args): string
+    {
+        [$key, $value, $url] = $args;
+
+        return $url . (str_contains($url, '?') ? '&' : '?') . $key . '=' . rawurlencode((string) $value);
+    }
+}
+
+if (!function_exists('get_bloginfo')) {
+    function get_bloginfo(string $show = '', string $filter = 'raw'): string
+    {
+        return $show === 'version' ? '7.1.3' : '';
+    }
+}
+
+if (!function_exists('wp_json_encode')) {
+    function wp_json_encode(mixed $value, int $flags = 0, int $depth = 512): string|false
+    {
+        return json_encode($value, $flags, $depth);
     }
 }
 
@@ -476,6 +664,24 @@ if (!function_exists('wp_insert_term')) {
 }
 
 // --- Sanitization ----------------------------------------------------------
+
+if (!function_exists('wp_kses_allowed_html')) {
+    /** A token list: the real one is exercised by the smoke tests. */
+    function wp_kses_allowed_html(string|array $context = ''): array
+    {
+        return ['p' => [], 'a' => ['href' => true]];
+    }
+}
+
+if (!function_exists('wp_kses')) {
+    /** Records the call and returns the content untouched: the real pass is checked in the smoke tests. */
+    function wp_kses(string $content, array|string $allowed_html, array $allowed_protocols = []): string
+    {
+        WordPressSpy::$ksesCalls[] = ['content' => $content, 'allowed' => is_array($allowed_html) ? $allowed_html : []];
+
+        return $content;
+    }
+}
 
 if (!function_exists('sanitize_text_field')) {
     /**

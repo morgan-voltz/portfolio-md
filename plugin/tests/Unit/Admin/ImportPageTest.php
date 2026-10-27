@@ -95,6 +95,7 @@ final class ImportPageTest extends TestCase
         self::assertSame([], WordPressSpy::$verifiedNonces);
         self::assertStringContainsString('name="portfolio_md_nonce" value="nonce-for-portfolio_md_import"', $html);
         self::assertStringContainsString("<textarea name=\"markdown\"", $html);
+        self::assertStringContainsString(' data-portfolio-md-editor="1" ', $html);
         self::assertStringContainsString(">\n</textarea>", $html);
         self::assertStringContainsString('name="mode" value="import"', $html);
         self::assertStringContainsString('name="mode" value="check"', $html);
