@@ -6,7 +6,9 @@ namespace Voltz\PortfolioMd\Admin;
 
 use RuntimeException;
 use Voltz\PortfolioMd\Domain\ContentSource;
+use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
+use Voltz\PortfolioMd\Parsing\FrontmatterParser;
 use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
 use Voltz\PortfolioMd\Service\ContentImportService;
 use Voltz\PortfolioMd\Service\ImportException;
@@ -27,12 +29,15 @@ use Voltz\PortfolioMd\Service\ImportOptions;
  * The form posts to itself: the result is rendered on the same request,
  * above the pasted text, so that a refused document is fixed in place.
  * Reaching the page takes `edit_others_posts`: a pasted document updates
- * whichever post carries its slug, whoever wrote it.
+ * whichever post carries its slug, whoever wrote it. A document of type
+ * page takes `edit_others_pages` on top: pages have capabilities of their
+ * own, and a role limited to posts must not write the site's pages here.
  */
 final class ImportPage
 {
     public const SLUG = 'portfolio-md-import';
     public const CAPABILITY = 'edit_others_posts';
+    public const PAGE_CAPABILITY = 'edit_others_pages';
 
     private const NONCE_ACTION = 'portfolio_md_import';
     private const NONCE_FIELD = 'portfolio_md_nonce';
@@ -43,8 +48,10 @@ final class ImportPage
 
     private bool $draft = false;
 
-    public function __construct(private readonly ContentImportService $service)
-    {
+    public function __construct(
+        private readonly ContentImportService $service,
+        private readonly FrontmatterParser $frontmatterParser = new FrontmatterParser(),
+    ) {
     }
 
     public function hook(): void
@@ -86,6 +93,9 @@ final class ImportPage
 
         $submitted = $_POST['markdown'] ?? '';
         $this->markdown = SubmittedMarkdown::normalize(is_string($submitted) ? wp_unslash($submitted) : '');
+        if ($this->typeOf($this->markdown) === ContentType::Page && !current_user_can(self::PAGE_CAPABILITY)) {
+            wp_die(esc_html__('Vous n’avez pas le droit d’importer des pages.', 'portfolio-md'), 403);
+        }
         $this->draft = isset($_POST['draft']);
         $dryRun = ($_POST['mode'] ?? '') === 'check';
 
@@ -125,6 +135,16 @@ final class ImportPage
         echo '</p>';
         echo '</form>';
         echo '</div>';
+    }
+
+    /** The type the document declares, or null when it cannot be read (the service then says why). */
+    private function typeOf(string $markdown): ?ContentType
+    {
+        try {
+            return $this->frontmatterParser->parse($markdown)->frontmatter->type;
+        } catch (MalformedDocumentException | InvalidFrontmatterException) {
+            return null;
+        }
     }
 
     private function renderFeedback(): void
