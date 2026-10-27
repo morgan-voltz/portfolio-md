@@ -8,7 +8,7 @@ seo_description: "carbon-fr est une API open source en Rust qui mesure l'intensi
 featured: false
 status: "stable"
 role: "Conception produit, architecture, développement backend et frontend, infrastructure et gouvernance, en solo"
-period_start: ""
+period_start: 2026-06-14
 period_end: ""
 repo_url: "https://github.com/Kovelt/carbon-fr"
 demo_url: "https://carbon-fr.kovelt.fr/dashboard"

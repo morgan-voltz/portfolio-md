@@ -8,7 +8,7 @@ seo_description: "GeoForge, addon open source pour Godot 4 (C#/.NET), calcule re
 featured: false
 status: "prototype"
 role: "Conception, développement, tests et documentation, en solo"
-period_start: ""
+period_start: 2026-03-19
 period_end: ""
 repo_url: ""
 demo_url: ""

@@ -8,7 +8,7 @@ seo_description: "Vefta, suite de productivité privacy-first et offline-first e
 featured: false
 status: "en-cours"
 role: "Fondateur et unique développeur, Kovelt SAS"
-period_start: ""
+period_start: 2026-06-02
 period_end: ""
 repo_url: ""
 demo_url: ""
