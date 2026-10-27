@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { createPreviewer, describeError, stateFromResponse } from '../src/preview.js'
-import { deferred, fakeRequest, fakeTimers, flush, rendered } from './support.js'
+import { fakeRequest, fakeTimers, flush, rendered } from './support.js'
 
 describe('stateFromResponse', () => {
   it('turns an answer with HTML into a rendering', () => {
@@ -141,11 +141,5 @@ describe('createPreviewer', () => {
     await flush()
 
     assert.deepEqual(p.states.map((s) => s.kind), ['loading'])
-  })
-
-  it('lets the deferred double be awaited by itself', async () => {
-    const d = deferred()
-    d.resolve(1)
-    assert.equal(await d.promise, 1)
   })
 })

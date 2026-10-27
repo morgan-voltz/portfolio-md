@@ -84,6 +84,16 @@ MD;
     }
 
     #[Test]
+    public function a_document_with_an_empty_body_is_importable_and_renders_nothing(): void
+    {
+        $result = $this->service->preview("---\ntitle: \"Article\"\nslug: \"article\"\ntype: \"article\"\n---\n\n   \n");
+
+        self::assertTrue($result->importable());
+        self::assertSame('Article', $result->title);
+        self::assertSame('', $result->html);
+    }
+
+    #[Test]
     public function names_the_competency_codes_the_grid_does_not_know_and_still_renders(): void
     {
         $result = $this->service->preview(str_replace('skills: ["4.0.2/E07"]', 'skills: ["4.0.2/E07", "4.0.2/E99", "4.0.1/E01"]', self::PROJECT));

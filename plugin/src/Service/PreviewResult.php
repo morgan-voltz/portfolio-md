@@ -12,7 +12,8 @@ final readonly class PreviewResult
 {
     /**
      * @param string|null           $title    the document's title, null when the frontmatter did not parse
-     * @param string|null           $html     the Gutenberg block markup of the body, null when nothing could be rendered
+     * @param string|null           $html     the Gutenberg block markup of the body ('' for an empty body),
+     *                                        null when the document could not be read or rendered
      * @param array<string, string> $summary  frontmatter lines worth a glance, keyed by a fixed name
      *                                        (type, slug, date, status for a project, skills, tags)
      * @param list<string>          $problems what the import would refuse, in the words of its exceptions
