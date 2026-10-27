@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { escapeHtml, frameDocument } from '../src/preview-frame.js'
+import { detachLinks, escapeHtml, frameDocument } from '../src/preview-frame.js'
 
 const labels = {
   untitled: '(sans titre)',
@@ -10,6 +10,17 @@ const labels = {
 describe('escapeHtml', () => {
   it('neutralises the five characters HTML cares about', () => {
     assert.equal(escapeHtml(`<a href="x">Tom & Jerry's</a>`), '&lt;a href=&quot;x&quot;&gt;Tom &amp; Jerry&#039;s&lt;/a&gt;')
+  })
+})
+
+describe('detachLinks', () => {
+  it('gives every link without rel an opener-less, referrer-less rel and leaves the rest alone', () => {
+    const html = '<p><a href="http://a/">a</a> <A HREF="http://b/">b</A> <a rel="me" href="http://c/">c</a> <abbr title="x">y</abbr></p>'
+
+    assert.equal(
+      detachLinks(html),
+      '<p><a rel="noopener noreferrer" href="http://a/">a</a> <a rel="noopener noreferrer" HREF="http://b/">b</A> <a rel="me" href="http://c/">c</a> <abbr title="x">y</abbr></p>',
+    )
   })
 })
 
@@ -29,6 +40,12 @@ describe('frameDocument', () => {
     assert.ok(page.includes('<h1 class="portfolio-md-preview__title">Titre &lt;b&gt;</h1>'))
     assert.ok(page.includes('<div class="entry-content"><p class="x">Corps</p></div>'))
     assert.ok(!page.includes('<script'))
+  })
+
+  it('detaches the links of the body', () => {
+    const page = frameDocument({ title: 'T', html: '<p><a href="http://site/">lien</a></p>', labels })
+
+    assert.ok(page.includes('<a rel="noopener noreferrer" href="http://site/">lien</a>'))
   })
 
   it('lists the summary in a fixed order, skipping what is absent and marking what is empty', () => {

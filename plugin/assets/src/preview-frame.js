@@ -27,6 +27,16 @@ export function escapeHtml(text) {
 }
 
 /**
+ * Links of the frame open in a new tab (its `<base target="_blank">`),
+ * outside the sandbox: they get no handle on the frame and no referrer,
+ * whatever the browser's defaults. The HTML comes from the server's
+ * renderer, whose anchors are well formed.
+ */
+export function detachLinks(html) {
+  return html.replace(/<a\s(?![^>]*\brel=)/gi, '<a rel="noopener noreferrer" ')
+}
+
+/**
  * @param {object} rendering
  * @param {string} rendering.title
  * @param {string} rendering.html        trusted: the server already passed it through kses
@@ -52,5 +62,5 @@ export function frameDocument({ title, html, summary = {}, stylesheets = [], lab
     + `<style>${FRAME_STYLE}</style></head><body><article class="portfolio-md-preview">`
     + `<h1 class="portfolio-md-preview__title">${heading}</h1>`
     + (rows === '' ? '' : `<dl class="portfolio-md-preview__summary">${rows}</dl>`)
-    + `<div class="entry-content">${html}</div></article></body></html>`
+    + `<div class="entry-content">${detachLinks(html)}</div></article></body></html>`
 }
