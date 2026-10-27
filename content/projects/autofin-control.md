@@ -18,8 +18,6 @@ tags: [csharp, dotnet, wpf, mvvm, clean-architecture, pdf-extraction, sqlite, ex
 skills: ["4.0.1/PM-01", "4.0.1/PM-02", "4.0.1/PM-08", "4.0.1/FR-01", "4.0.1/FR-15"]
 ---
 
-# AUTOFIN Control
-
 AUTOFIN Control est le projet client de ma première année UHA 4.0 : une application de bureau pour le service de contrôle financier de m2A, l'agglomération de Mulhouse. Développé avec une équipe de sept à huit étudiants entre janvier et mai 2026, j'y ai tenu le rôle de développeur principal — environ 38 % des trois cent quatre-vingt-treize commits, l'architecture, le pipeline d'extraction, et une bonne partie des conventions et de la documentation d'équipe.
 
 Le logiciel a été livré au commanditaire en trois versions MSIX signées.

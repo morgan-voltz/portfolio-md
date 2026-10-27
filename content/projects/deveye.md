@@ -18,8 +18,6 @@ tags: [rust, mcp, architecture-hexagonale, wayland, kwin, cdp, dbus, dioxus, ia-
 skills: ["4.0.2/E10"]
 ---
 
-# DevEye
-
 DevEye est un serveur MCP (Model Context Protocol) écrit en Rust qui donne à un agent IA — Claude Code en particulier, mais tout client MCP convient — la capacité d'observer et de piloter une application graphique vivante : captures d'écran, clics, saisies, inspection d'état, lecture de logs, attentes conditionnelles. L'agent s'en sert comme de n'importe quel autre outil, sans intervention humaine.
 
 Le projet est privé (dépôt GitLab personnel Kovelt Utilities) et se développe depuis juin 2026. Les jalons M0 à M7 sont livrés depuis fin juin, et le développement continue par sprints d'extension d'outils. Une publication en open source est prévue à la version 1.0, une fois l'outil stabilisé.

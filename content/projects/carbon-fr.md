@@ -18,8 +18,6 @@ tags: [rust, postgresql, architecture-hexagonale, typescript, axum, machine-lear
 skills: ["4.0.1/FR-09", "4.0.2/E09"]
 ---
 
-# carbon-fr
-
 carbon-fr est une API civique open source qui expose en temps réel l'intensité carbone de l'électricité française, à l'échelle nationale et pour les douze régions, avec un tableau de bord public. C'est l'équivalent français du carbonintensity.org.uk britannique, un service qui n'existait pas en France alors que les données ouvertes nécessaires — RTE, ADEME, ENTSO-E — y sont parmi les meilleures d'Europe. Double licence MIT / Apache-2.0, réutilisation référencée sur data.gouv.fr.
 
 Au 26 octobre 2026, le projet est en version 0.11.0, stable : 30 endpoints documentés, un tableau de bord public, un SDK TypeScript publié. Je le conçois, le développe et l'héberge seul, et je continue à le faire évoluer.

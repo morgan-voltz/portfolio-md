@@ -18,8 +18,6 @@ tags: [csharp, dotnet, architecture-hexagonale, event-sourcing, xunit, plantuml,
 skills: ["4.0.2/E00", "4.0.2/E01", "4.0.2/E02", "4.0.2/E03", "4.0.2/E04", "4.0.2/E05", "4.0.2/E06", "4.0.2/O02"]
 ---
 
-# MomoCad
-
 MomoCad est mon projet fil rouge de deuxième année du parcours UHA 4.0.2. La consigne demande une application et une API qui gèrent des formes géométriques en programmation orientée objet : créer et supprimer des formes, composer des ensembles, calculer leurs caractéristiques mathématiques, et laisser un modèle de langage interroger les données. Le nom vient de « Morgan » et d'AutoCAD, l'outil qui a inspiré l'angle choisi.
 
 Au 26 octobre 2026, la première livraison, le cœur métier, est écrite et couverte à cent pour cent par les tests. Les livraisons suivantes, l'API et sa base, le poste de travail, la synchronisation et le chatbot, sont spécifiées et attendent leur tour.

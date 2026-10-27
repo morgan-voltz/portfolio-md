@@ -18,8 +18,6 @@ tags: [csharp, dotnet, architecture-hexagonale, cqrs, entity-framework-core, pos
 skills: ["4.0.2/E06", "4.0.2/E07", "4.0.2/E08", "4.0.2/E09"]
 ---
 
-# Atlas
-
 Atlas est une plateforme .NET que je développe seul depuis fin mai 2026, pour agréger les données publiques françaises sur les entreprises (registre national RNE) et sur la propriété industrielle (marques, brevets et dessins et modèles via l'INPI), avec un moteur de veille qui ajoute par-dessus les publications légales et l'actualité sectorielle. « Atlas » est un nom de code : le nom définitif sera choisi au moment du lancement commercial, pas avant.
 
 Le backend est complet sur ce premier périmètre — comptes avec double authentification, recherche d'entreprise et de titres de propriété industrielle, favoris, veille avec alertes — et un premier client web est livré. Le modèle économique n'est pas encore tranché entre un SaaS à l'abonnement et une licence annuelle, mais une couche Premium est déjà isolée pour accueillir ce choix sans réécrire le cœur du produit.

@@ -18,8 +18,6 @@ tags: [csharp, dotnet, clean-architecture, react, typescript, phaser, postgresql
 skills: ["4.0.2/E00", "4.0.2/E01", "4.0.2/E02", "4.0.2/E03", "4.0.2/E04", "4.0.2/E06", "4.0.2/E07", "4.0.2/E08", "4.0.2/E11", "4.0.2/E12", "4.0.2/O02", "4.0.2/O03"]
 ---
 
-# GeoForge, le jeu
-
 GeoForge est un jeu web de puzzle géométrique ; à ne pas confondre avec « GeoForge, l'addon Godot », un module de génération de terrains que j'ai développé séparément et qui ne partage que le nom avec ce projet. Celui-ci a été mon projet fil rouge de deuxième année du parcours UHA 4.0.2 pour l'année universitaire 2025-2026, mené seul de février à avril 2026 et soutenu devant le jury. Je suis réinscrit en 4.0.2 pour 2026-2027, cette fois avec MomoCad comme fil rouge officiel.
 
 ## Le problème

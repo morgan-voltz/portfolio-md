@@ -18,8 +18,6 @@ tags: [rust, axum, dioxus, postgresql, webassembly, architecture-hexagonale, off
 skills: ["4.0.2/E09"]
 ---
 
-# Vefta
-
 Vefta est la suite de productivité personnelle que je développe pour Kovelt SAS, l'entreprise que j'ai fondée et où j'en suis l'unique développeur. Jusqu'en juillet 2026, elle s'appelait Chronos. L'idée de départ : un seul outil qui tienne l'agenda, les tâches, les contacts, les notes, le mail et les messageries d'une personne, qui fonctionne sans connexion et dont les données ne quittent jamais le contrôle de l'utilisateur.
 
 Le socle natif et la synchronisation bidirectionnelle avec Google Calendar sont livrés depuis juin 2026 (MVP1). La cellule mail est en test auprès d'alpha-testeurs. Les messageries unifiées sont conçues et documentées, pas encore construites. Le back-office professionnel pour les organisations (Équipes) suit le même principe, mais sa construction reste explicitement gelée derrière une condition de réveil économique mesurable : qu'un utilisateur indépendant préfère Vefta à Google et paie l'abonnement. L'IA embarquée suit un régime différent : c'est un chantier de fond déjà engagé, avec le fine-tuning du petit modèle de langage local en cours — gratuit parce qu'il tourne sur l'appareil de l'utilisateur à coût marginal quasi nul, contrairement à l'IA cloud qui restera payante.

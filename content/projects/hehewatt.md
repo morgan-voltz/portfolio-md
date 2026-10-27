@@ -18,8 +18,6 @@ tags: [php, mysql, javascript, leaflet, openstreetmap, osrm, docker, twig, api-r
 skills: ["4.0.1/PM-01", "4.0.1/PM-07", "4.0.1/PM-08", "4.0.1/FR-07", "4.0.1/FR-09", "4.0.1/FR-13", "4.0.1/FR-14", "4.0.1/FR-15"]
 ---
 
-# HEHEWATT
-
 HEHEWATT est une application de covoiturage développée dans le cadre du projet E-mersion, qui associe le lycée Jean-Jacques Henner d'Altkirch et UHA 4.0, financé par Noria. Le dépôt existe depuis octobre 2024 et a été repris par plusieurs promotions successives : plus d'un millier de commits, entre trente et cinquante contributeurs. Je m'y suis greffé début 2026 comme développeur full-stack sur le cœur métier des trajets et sur le système de notifications, avec environ 93 commits, parmi les quatre premiers contributeurs.
 
 Mon travail sur HEHEWATT s'arrête avec ma première année ; le projet continue d'être repris par les promotions suivantes, ce qui a pesé sur une partie de mes décisions — documentation en tête, pour quelqu'un qui ne me croisera jamais.

@@ -18,8 +18,6 @@ tags: [rust, webassembly, dioxus, penpot, typescript, vite, design-to-code, wasm
 skills: []
 ---
 
-# chronos-penpot-tools
-
 chronos-penpot-tools est un plugin pour Penpot, l'alternative open source à Figma, qui génère un composant Dioxus (RSX) en Rust à partir d'une maquette sélectionnée dans l'éditeur. Je l'ai construit pour outiller mon propre produit : au moment où j'ai écrit la v0.1, ce produit s'appelait encore Chronos ; il est devenu Vefta en juillet 2026. Le plugin, lui, garde pour l'instant son nom d'origine, le renommer n'est pas encore fait.
 
 Le projet est privé et reste à l'état de prototype. La v0.1, livrée en février 2026, couvre les formes, le texte et les mises en page flexibles ; une feuille de route versionnée va jusqu'à une v0.5. La licence MIT est posée dès le départ, mais la publication en open source pour la communauté Rust et Dioxus est prévue seulement à la v1.0.

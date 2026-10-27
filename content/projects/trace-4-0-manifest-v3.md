@@ -18,8 +18,6 @@ tags: [javascript, chrome-extension, manifest-v3, service-worker, chrome-storage
 skills: ["4.0.1/FR-08", "4.0.1/FR-15"]
 ---
 
-# Trace 4.0, migration Manifest V3
-
 Trace 4.0 est l'extension Chrome officielle de l'UHA 4.0 qui mesure le temps d'activité réelle des étudiants connectés sur les ressources de formation. Elle reposait sur Manifest V2, le format que Chrome a fini par désactiver. Début 2026, de ma propre initiative et en dehors de tout cadre noté, j'ai migré seul l'extension vers Manifest V3, livrée en une itération (v1.2.0) avec un changelog qui documente chaque fichier modifié.
 
 ## Le problème

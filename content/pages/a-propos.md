@@ -6,8 +6,6 @@ date: 2026-10-26
 seo_description: "Électricien puis automaticien pendant quinze ans, aujourd'hui développeur full-stack en Licence Informatique à l'UHA, en recherche d'alternance."
 ---
 
-# À propos
-
 Je m'appelle Morgan Voltz. Avant d'écrire la moindre ligne de code pour de bon, j'ai passé une quinzaine d'années sur le terrain, et c'est ce détour qui façonne la manière dont je travaille aujourd'hui.
 
 ## Un parcours qui ne commence pas par l'informatique

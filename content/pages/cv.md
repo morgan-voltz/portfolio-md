@@ -6,8 +6,6 @@ date: 2026-10-26
 seo_description: "Morgan Voltz est développeur full-stack en Licence Informatique UHA 4.0 et fondateur de Kovelt : formation, expérience, compétences et projets."
 ---
 
-# CV
-
 Je m'appelle Morgan Voltz. Développeur full-stack, je termine ma Licence Informatique à l'Université de Haute-Alsace (parcours UHA 4.0) et je dirige en parallèle Kovelt, l'entreprise que j'ai fondée. Je recherche une alternance — un contrat de professionnalisation à 60 ou 80 % — pour la dernière année de Licence et pour le Master qui suivra. Cette page résume mon parcours ; chaque projet cité renvoie vers sa fiche complète du portfolio.
 
 ## Formation
