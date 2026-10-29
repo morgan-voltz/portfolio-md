@@ -4,7 +4,7 @@
 **Rôle** : document d'entrée dans l'architecture, porte d'accès aux documents détaillés
 **Lectorat** : contributeur, recruteur, étudiant, Morgan lui-même à froid
 **Temps de lecture** : environ quinze minutes
-**Dernière mise à jour** : 26 octobre 2026 (noms réels des types et taxonomies en phase 1)
+**Dernière mise à jour** : 29 octobre 2026 (phase 5 terminée : endpoints REST publics en lecture)
 
 ---
 
@@ -184,7 +184,7 @@ Le projet est découpé en douze phases indépendantes, conçues pour être atta
 
 **Phase 4** : éditeur Markdown dans l'admin WordPress. Morgan peut écrire en Markdown directement depuis l'admin et voir le rendu immédiatement. *(Terminée : côté serveur le 26 octobre 2026, métabox Markdown sur l'écran d'édition classique des articles et projets et page de collage sous le menu Portfolio ; éditeur CodeMirror 6 et prévisualisation rendue par le serveur le 27 octobre 2026, ADR-016.)*
 
-**Phase 5** : endpoint REST de lecture. L'API custom `/wp-json/portfolio/v1/*` expose articles et projets au format JSON.
+**Phase 5** : endpoint REST de lecture. L'API custom `/wp-json/portfolio/v1/*` expose articles et projets au format JSON. *(Terminée le 29 octobre 2026 : `GET /articles`, `/projects`, `/pages`, leurs `/{slug}` et `/sitemap`, Markdown source inclus, ADR-018.)*
 
 **Phase 6** : API C# ASP.NET Core. Un service .NET consomme le WordPress, met en cache, expose une API publique.
 

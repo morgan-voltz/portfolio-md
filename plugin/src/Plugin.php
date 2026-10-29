@@ -10,6 +10,7 @@ use Voltz\PortfolioMd\Admin\EditorMetaBox;
 use Voltz\PortfolioMd\Admin\ImportPage;
 use Voltz\PortfolioMd\Cli\ImportCommand;
 use Voltz\PortfolioMd\Cli\SkillsCommand;
+use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Meta\CommonMetaRegistrar;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
 use Voltz\PortfolioMd\Meta\ProjectMetaRegistrar;
@@ -19,13 +20,17 @@ use Voltz\PortfolioMd\Parsing\GutenbergTransformer;
 use Voltz\PortfolioMd\Parsing\MarkdownParser;
 use Voltz\PortfolioMd\Parsing\SkillsGridLoader;
 use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
+use Voltz\PortfolioMd\Rest\Controller\CollectionController;
 use Voltz\PortfolioMd\Rest\Controller\PreviewController;
+use Voltz\PortfolioMd\Rest\Controller\SitemapController;
+use Voltz\PortfolioMd\Rest\DocumentPresenter;
 use Voltz\PortfolioMd\Rest\RouteRegistrar;
 use Voltz\PortfolioMd\Service\ConflictResolver;
 use Voltz\PortfolioMd\Service\ContentImportService;
 use Voltz\PortfolioMd\Service\PreviewService;
 use Voltz\PortfolioMd\Service\SkillTermSynchronizer;
 use Voltz\PortfolioMd\Service\SystemClock;
+use Voltz\PortfolioMd\Storage\WordPressContentCatalog;
 use Voltz\PortfolioMd\Storage\WordPressContentRepository;
 use Voltz\PortfolioMd\Storage\WordPressSkillTermGateway;
 use Voltz\PortfolioMd\Taxonomies\TaxonomyRegistrar;
@@ -137,13 +142,24 @@ final class Plugin
 
     /**
      * Action `rest_api_init`: the routes of 01-plugin-php.md §7 under
-     * `portfolio/v1`. One so far, the preview of the admin editor, which
-     * renders a document with the same parser and renderer as the import.
+     * `portfolio/v1`. The preview of the admin editor, which renders a
+     * document with the same parser and renderer as the import; then the
+     * public read side, one collection per kind of document and the
+     * sitemap, all served by the catalog (Service) over WP_Query (Storage).
      */
     public function registerRoutes(): void
     {
         $preview = new PreviewService(new FrontmatterParser(), $this->renderer(), new WordPressSkillTermGateway());
-        (new RouteRegistrar(new PreviewController($preview)))->register();
+        $catalog = new WordPressContentCatalog();
+        $presenter = new DocumentPresenter();
+
+        (new RouteRegistrar(
+            new PreviewController($preview),
+            new CollectionController(ContentType::Article, $catalog, $presenter),
+            new CollectionController(ContentType::Project, $catalog, $presenter),
+            new CollectionController(ContentType::Page, $catalog, $presenter),
+            new SitemapController($catalog, $presenter),
+        ))->register();
     }
 
     /**

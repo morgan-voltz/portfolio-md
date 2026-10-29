@@ -5,7 +5,7 @@
 **Prérequis** : avoir lu [`00-overview.md`](00-overview.md)
 **Lectorat** : contributeur .NET, Morgan en phase d'implémentation, relecteur technique
 **Temps de lecture** : environ vingt-cinq minutes
-**Dernière mise à jour** : 22 avril 2026
+**Dernière mise à jour** : 29 octobre 2026 (contrat réel des routes du plugin, phase 5 ; version d'origine du 22 avril 2026)
 
 ---
 
@@ -205,7 +205,7 @@ Pour un portfolio avec quelques dizaines d'articles et un trafic modeste, ces li
 
 Un cache qui ne s'invalide jamais sert du contenu périmé. La stratégie classique est de mettre un TTL court et d'accepter que chaque entrée soit recalculée périodiquement. Cette approche fonctionne mais elle est brutale : un article qui n'a pas changé depuis des mois est quand même reconstruit toutes les quelques minutes.
 
-Une stratégie plus fine exploite l'endpoint `/wp-json/portfolio/v1/sitemap` du plugin WordPress, qui retourne la liste de tous les slugs avec leurs timestamps de dernière modification. Un service de fond dans l'API appelle ce sitemap toutes les trente secondes (ou à l'intervalle qu'on choisira) et compare les timestamps avec ceux des entrées en cache. Les entrées dont le timestamp WordPress a avancé sont invalidées. Les autres restent en cache plus longtemps.
+Une stratégie plus fine exploite l'endpoint `/wp-json/portfolio/v1/sitemap` du plugin WordPress, qui retourne, sans pagination, une liste par collection des documents publiés avec l'instant de leur dernière modification : `{ "articles": [{ "slug", "updated" }], "projects": [...], "pages": [...] }`, `updated` étant la modification du post en ISO 8601 UTC (`2026-10-27T12:28:27Z`), et la clé d'un document le couple collection + slug (`01-plugin-php.md` §7.1). Un service de fond dans l'API appelle ce sitemap toutes les trente secondes (ou à l'intervalle qu'on choisira) et compare les instants avec ceux des entrées en cache. Les entrées dont l'instant WordPress a avancé sont invalidées. Les autres restent en cache plus longtemps.
 
 Cette approche a un coût de requête faible (une seule requête au sitemap périodiquement, indépendamment du nombre d'articles) et un bénéfice important : le cache reste efficace, mais la fraîcheur des données est garantie à la granularité du polling. Pour un portfolio où le contenu est mis à jour manuellement, trente secondes de latence est invisible pour l'utilisateur.
 
@@ -231,17 +231,17 @@ Si un jour on veut offrir un format de sortie alternatif (par exemple retourner 
 
 L'API expose plusieurs endpoints sous le préfixe `/api/`. Leur forme mime celle de l'API WordPress sous-jacente mais peut s'en écarter quand c'est utile pour le front.
 
-`GET /api/articles` retourne la liste paginée des articles avec filtres optionnels par tag, catégorie, ou recherche textuelle via query params. La pagination utilise les paramètres `page` et `per_page` standards.
+`GET /api/articles` retourne la liste paginée des articles avec un filtre optionnel par tag (le plugin l'offre tel quel, `?tag=<slug>` ; il n'y a pas de catégorie dans ce projet, ADR-015). Une recherche textuelle, si elle vient, sera calculée côté API : le plugin n'en expose pas. La pagination utilise les paramètres `page` et `per_page`, ceux du plugin (10 par défaut, 100 au plus par page, totaux dans les en-têtes `X-WP-Total` et `X-WP-TotalPages`, pages voisines dans `Link`).
 
 `GET /api/articles/{slug}` retourne un article complet avec HTML rendu. Un query param optionnel `?format=markdown` permet de demander le Markdown source plutôt que le HTML — utile pour un éventuel outil qui voudrait retraiter le contenu.
 
-`GET /api/projects` et `GET /api/projects/{slug}` font la même chose pour les projets.
+`GET /api/projects` et `GET /api/projects/{slug}` font la même chose pour les projets ; le plugin offre en plus les filtres `?status=<slug>` et `?skill=<slug>`. Les pages À propos et CV sont disponibles côté plugin aussi (`/pages`, `/pages/{slug}`) ; leur exposition par l'API (`GET /api/pages/{slug}`) sera décidée en phase 6, avec le front qui en aura besoin.
 
 `GET /api/tags` retourne la liste de tous les tags avec leur compte d'articles associés — pratique pour alimenter un menu de filtrage côté front.
 
 `GET /api/stack` retourne la liste des technologies utilisées sur des projets, avec leur compte — équivalent pour les projets.
 
-`GET /api/skills` retourne la liste des compétences académiques rattachées à des projets, avec leur compte et leur intitulé complet. Cet endpoint alimente une éventuelle page « Compétences » sur le front React qui affiche, pour chaque compétence du référentiel UHA 4.0, la liste des projets qui la démontrent — une vue inverse précieuse pour un recruteur qui voudrait évaluer un domaine particulier de compétences. Une requête complémentaire `GET /api/projects?skill=<slug>` permet de filtrer les projets par compétence démontrée.
+`GET /api/skills` retourne la liste des compétences académiques rattachées à des projets, avec leur compte et leur intitulé complet. Cet endpoint alimente une éventuelle page « Compétences » sur le front React qui affiche, pour chaque compétence du référentiel UHA 4.0, la liste des projets qui la démontrent — une vue inverse précieuse pour un recruteur qui voudrait évaluer un domaine particulier de compétences. Une requête complémentaire `GET /api/projects?skill=<slug>` permet de filtrer les projets par compétence démontrée ; le plugin offre déjà ce filtre sous le même nom. Les trois agrégats (`/api/tags`, `/api/stack`, `/api/skills`) n'ont en revanche pas de source côté plugin (`01-plugin-php.md` §7.1, ADR-018) : l'API les calculera à partir des listes complètes (quelques dizaines de documents, une page de cent suffit), ou le plugin gagnera un endpoint si le besoin se confirme — à trancher en phase 6.
 
 Les DTOs `ProjectDto` exposés par ces endpoints portent deux champs spécifiques liés à la contrainte académique : `skills` (liste d'objets avec `slug`, `code` et `label`) et `isFilRouge` (booléen qui distingue le projet fil rouge 4.0.2 pour permettre au front d'appliquer un affichage éditorial distinctif).
 

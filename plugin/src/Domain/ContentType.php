@@ -11,7 +11,8 @@ namespace Voltz\PortfolioMd\Domain;
  * the native WordPress page (About, CV, Contact). Each kind has a folder in
  * the content repository (content/README.md) and a place in the site's
  * URL tree (04-structure-wordpress.md §2), which is how a link from one
- * document to another is rewritten into a link of the site. Pure domain code.
+ * document to another is rewritten into a link of the site, and a collection
+ * in the plugin's REST API (01-plugin-php.md §7). Pure domain code.
  */
 enum ContentType: string
 {
@@ -39,6 +40,21 @@ enum ContentType: string
         }
 
         return null;
+    }
+
+    /**
+     * The collection of this kind in the plugin's REST API (01-plugin-php.md
+     * §7): /articles, /projects, /pages under the namespace. English, like
+     * the folders of the content repository, where the site's URL tree is
+     * French.
+     */
+    public function collection(): string
+    {
+        return match ($this) {
+            self::Article => 'articles',
+            self::Project => 'projects',
+            self::Page => 'pages',
+        };
     }
 
     /** The first segment of the site's URLs for this kind; empty for pages, which sit at the root. */

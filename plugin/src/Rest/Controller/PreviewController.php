@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Voltz\PortfolioMd\Rest\Controller;
 
+use Voltz\PortfolioMd\Rest\RestController;
 use Voltz\PortfolioMd\Service\PreviewService;
 use Voltz\PortfolioMd\Storage\HtmlSanitizer;
 use WP_REST_Request;
@@ -33,7 +34,7 @@ use WP_REST_Server;
  * authentication requires the REST nonce, which `wp-api-fetch` adds and
  * renews for the editor.
  */
-final class PreviewController
+final class PreviewController implements RestController
 {
     public const ROUTE = '/preview';
     public const CAPABILITY = 'edit_posts';

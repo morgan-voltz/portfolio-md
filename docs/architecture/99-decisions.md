@@ -4,7 +4,7 @@
 **Rôle** : trace des décisions structurantes, avec leur contexte et leur justification
 **Format** : inspiré d'ADR (Architecture Decision Records) de Michael Nygard
 **Lectorat** : contributeur, Morgan lui-même à froid, recruteur attentif
-**Dernière mise à jour** : 26 octobre 2026
+**Dernière mise à jour** : 29 octobre 2026
 
 ---
 
@@ -531,6 +531,34 @@ Les pages entrent dans le pipeline, dans le type natif `page` : les cinq champs 
 ### Conséquences
 
 Les deux pages s'importent, se relisent et se modifient comme les fiches, avec la même règle de conflit. Le type natif `page` porte désormais six champs du plugin ; une page documentée ne redevient pas une page ordinaire sans supprimer ces champs (à outiller si le besoin apparaît). `ContentRenderer::VERSION` passe à 1.1.0 : au prochain import, toutes les fiches sont re-rendues, sans changement visible hors la page CV, dont les liens vers les fiches fonctionnent. Les bases d'URL sont une donnée du domaine que le registrar des types et le réécriveur de liens partagent : les changer se fait à un seul endroit.
+
+---
+
+## ADR-018 — Endpoints REST publics en lecture : le catalogue des documents publiés
+
+**Date** : 2026-10-29
+**Statut** : Accepté
+
+### Contexte
+
+La phase 5 de la feuille de route promettait cinq routes publiques (`01-plugin-php.md` §7) mais laissait ouverts le nom des paramètres, les statuts servis, la forme du `status` d'un projet et celle du sitemap, le sort des pages (entrées dans le pipeline par ADR-017, après la rédaction du §7) et celui d'un post publié sans document. Le document de l'API C# supposait déjà `page` et `per_page` et un sitemap interrogé toutes les trente secondes. Le dépôt de l'import (`Service\ContentRepository`) cherche un post sous un slug quel que soit son statut, corbeille comprise, pour appliquer la règle de conflit d'ADR-005 : réutilisé tel quel, il aurait servi des brouillons à un visiteur anonyme. Morgan a tranché les quatre points ouverts le 29 octobre 2026.
+
+### Décision
+
+La lecture publique a son propre port, `Service\ContentCatalog` (`list()`, `find()`, `sitemap()`), son propre objet, `PublishedDocument`, et son propre adaptateur, `Storage\WordPressContentCatalog`, sur `WP_Query`, qui ne lit que les posts publiés, sans mot de passe, qui portent un document (`_portfolio_md_hash` non vide). Sept routes sous `portfolio/v1` : `/articles`, `/projects` et `/pages` (les pages documentées seulement : le front React aura besoin d'À propos et du CV, et le Markdown reste la source), chacune avec sa route `/{slug}`, et `/sitemap` ; un seul `Rest\Controller\CollectionController` instancié par collection. La pagination suit la convention de l'API native, que la passerelle C# connaît : le corps est la liste nue, `page` et `per_page` (10 par défaut, 100 au plus), les totaux dans `X-WP-Total` et `X-WP-TotalPages`, les voisines dans `Link`, une page au-delà de la dernière en 400 comme les collections natives, un slug sans document publié en 404 `portfolio_not_found`. Les champs sont ceux du §7.3 plus `link` (le permalien) ; un optionnel vide vaut `null` ; `status` est un objet `{slug, label}` comme `tags` et `skills` ; `date` et `updated` viennent de `post_date_gmt` et `post_modified_gmt`, en ISO 8601 UTC. Les filtres sont des slugs de termes : `tag` (articles, projets), `status` et `skill` (projets ; le slug d'un référentiel sélectionne ses compétences). Le sitemap est groupé par collection, `{articles, projects, pages}`, chaque entrée `{slug, updated}`, les trois clés toujours présentes. Explicitement reportés : `ETag`, `Last-Modified` et `304`, la limitation de débit côté plugin, les agrégats par tag ou par compétence ; l'API REST native reste ouverte telle quelle.
+
+### Alternatives considérées
+
+- **Étendre `ContentRepository` d'une méthode de liste** : un port de moins, mais un port formé par la règle de conflit (hash, provenance, corbeille) qui aurait porté aussi la pagination et les filtres d'un lecteur, et une doublure de test grossie d'autant.
+- **Une enveloppe JSON `{items, total, total_pages}`** : une désérialisation un peu plus directe en C#, mais hors convention WordPress, et le §7.1 écrivait déjà que le corps est la liste.
+- **Un sitemap plat `[{type, slug, updated}]`** : une seule boucle côté consommateur, mais une clé composite à gérer, alors qu'un slug n'est unique que dans sa collection.
+- **Servir un post sans document avec `markdown: null`** : une requête plus simple, mais une API de Markdown qui servirait des posts sans Markdown ; par construction (`Admin\EditScreen` renvoie en brouillon un post qui n'a jamais tenu de document), un article ou un projet publié porte toujours un document, et l'exclusion est la règle honnête.
+- **Les pages hors périmètre, à la lettre du §7** : le front aurait dû lire leur HTML par `wp/v2/pages`, contre ADR-001.
+- **Des contrôleurs héritant de `WP_REST_Controller`** : un schéma auto-décrit, mais une classe de base lourde et un écart de style avec `PreviewController` ; `_fields` fonctionne de toute façon, le serveur l'applique à toute route.
+
+### Conséquences
+
+La passerelle C# a un contrat stable et nommé ; `02-api-csharp.md` est corrigé (le filtre « catégorie » avait disparu avec ADR-015, les paramètres sont ceux du plugin, les agrégats n'ont pas de source côté plugin). Une seconde classe de lecture parle à WordPress ; comme les deux autres, elle est couverte par un test de fumée (`rest-smoke.php`), pas par la suite unitaire, qui couvre les contrôleurs et le présentateur avec un catalogue en mémoire. Le Markdown source est public, frontmatter compris : c'est le contenu de la page publique, et l'objet même de l'API. L'heure d'une `date` est minuit, heure du site, converti en UTC, et non un instant de publication : le frontmatter ne porte qu'un jour. Deux surfaces publiques coexistent, celle du plugin (Markdown) et la native (HTML) ; les restreindre serait une décision à part. Restent à faire, quand le besoin apparaîtra : les en-têtes de cache conditionnel, une limitation de débit, puis `/sync` (phase 9).
 
 ---
 

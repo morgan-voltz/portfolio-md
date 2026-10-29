@@ -10,8 +10,11 @@ namespace Voltz\PortfolioMd\Domain;
  */
 final class Patterns
 {
+    /** The body of a WordPress-safe slug: lowercase letters, digits, single hyphens. For route regexes. */
+    public const SLUG_BODY = '[a-z0-9]+(?:-[a-z0-9]+)*';
+
     /** WordPress-safe slug: lowercase letters, digits, single hyphens. */
-    public const SLUG = '/^[a-z0-9]+(?:-[a-z0-9]+)*$/';
+    public const SLUG = '/^' . self::SLUG_BODY . '$/';
 
     /** WordPress truncates a term slug beyond this length (varchar(200)), silently. */
     public const SLUG_MAX_LENGTH = 200;

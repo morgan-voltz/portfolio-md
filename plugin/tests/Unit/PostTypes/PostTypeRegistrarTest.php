@@ -7,6 +7,7 @@ namespace Voltz\PortfolioMd\Tests\Unit\PostTypes;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
 use Voltz\PortfolioMd\Tests\Support\WordPressSpy;
 
@@ -17,6 +18,19 @@ final class PostTypeRegistrarTest extends TestCase
     {
         WordPressSpy::reset();
         (new PostTypeRegistrar())->register();
+    }
+
+    #[Test]
+    public function maps_each_kind_of_document_to_its_post_type_and_back(): void
+    {
+        self::assertSame('article', PostTypeRegistrar::postTypeOf(ContentType::Article));
+        self::assertSame('project', PostTypeRegistrar::postTypeOf(ContentType::Project));
+        self::assertSame('page', PostTypeRegistrar::postTypeOf(ContentType::Page));
+
+        self::assertSame(ContentType::Project, PostTypeRegistrar::contentTypeOf('project'));
+        self::assertSame(ContentType::Page, PostTypeRegistrar::contentTypeOf('page'));
+        self::assertNull(PostTypeRegistrar::contentTypeOf('post'));
+        self::assertNull(PostTypeRegistrar::contentTypeOf('attachment'));
     }
 
     #[Test]

@@ -18,7 +18,9 @@ The two admin doors are in (26 October 2026, server side): `Admin\EditorMetaBox`
 
 Static pages (`type: page`, 27 October 2026) take the same path into the native page type: no term, the SEO description and the internal metas only; a page that holds a document is edited through the Markdown box, a page made by hand keeps the block editor (ADR-017). Links between documents (`../projects/<slug>.md`) are rewritten into links of the site at render time (`Parsing\RelativeLinks`, render version 1.1.0).
 
-What is **not yet** implemented: image import into the media library, the Git webhook, and the public REST endpoints. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
+The public read API is in (29 October 2026, ADR-018): `GET /wp-json/portfolio/v1/{articles,projects,pages}`, their `/{slug}` routes and `/sitemap` serve the published documents, Markdown source included, see "REST API" below.
+
+What is **not yet** implemented: image import into the media library and the Git webhook (`POST /sync`). See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
 
 ## Local setup
 
@@ -129,6 +131,35 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/preview-smoke.php --user=<your admin login>
 ```
 
+## REST API
+
+Since 29 October 2026 the plugin serves its published documents over a public, read-only JSON API under `/wp-json/portfolio/v1/` (ADR-018; the contract is in [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) §7). No authentication: the routes only serve what the site shows to anyone, that is published posts without password that hold a Markdown document. Drafts, scheduled, private, protected and trashed posts, and posts made by hand without document, are neither listed nor served (404).
+
+| Route | What it answers |
+|---|---|
+| `GET /articles`, `GET /projects`, `GET /pages` | one page of the collection, newest first, as a bare JSON array; totals in the `X-WP-Total` and `X-WP-TotalPages` headers, neighbouring pages in `Link` |
+| `GET /articles/{slug}`, `GET /projects/{slug}`, `GET /pages/{slug}` | one document, 404 `portfolio_not_found` otherwise |
+| `GET /sitemap` | every published document by collection, `{articles: [{slug, updated}], projects: [...], pages: [...]}`, for cache invalidation |
+
+Parameters of the lists: `page` (from 1) and `per_page` (10 by default, 100 at most); `tag=<slug>` on articles and projects; `status=<slug>` (`en-cours`, `stable`, `archive`, `prototype`) and `skill=<slug>` (a competency term; the slug of a referential selects all its competencies) on projects. The REST server validates them against the declared schema (400 `rest_invalid_param`); a page beyond the last of a non-empty collection answers 400 `rest_post_invalid_page_number` like the native collections (an empty collection answers `[]` whatever the page); the native `_fields` parameter works (`?_fields=slug,title`).
+
+A document carries the keys of its frontmatter in `snake_case`, in a fixed order, the Markdown source last (frontmatter included; the Gutenberg HTML is never returned): `id`, `type`, `slug`, `title`, `link` (permalink), `date` and `updated` (ISO 8601 UTC, `2026-10-25T23:00:00Z`), then for articles and projects `tags` (`[{slug, name}]`), `subtitle`, `seo_description`, `reading_time`, `featured`, then for projects `status` (`{slug, label}`), `skills` (`[{slug, code, label}]`), `is_fil_rouge`, `role`, `period_start`, `period_end`, `repo_url`, `demo_url`, `client`, and `markdown`. An empty optional text and a zero reading time are `null`.
+
+```bash
+curl -s 'http://localhost:8000/wp-json/portfolio/v1/projects?per_page=2&status=en-cours' -D -
+curl -s 'http://localhost:8000/wp-json/portfolio/v1/projects/momocad?_fields=title,skills'
+curl -s 'http://localhost:8000/wp-json/portfolio/v1/sitemap'
+```
+
+The read side is `Service\ContentCatalog` (port) + `Storage\WordPressContentCatalog` (WP_Query, published documents only, term and meta caches primed per page) + `Rest\DocumentPresenter` (pure shaping) + `Rest\Controller\CollectionController` (one instance per collection) and `SitemapController`. It is distinct from the import's `ContentRepository`, which looks posts up whatever their status to apply the conflict rule and must never serve a public route.
+
+The routes have their smoke test, which calls them through the REST server as an anonymous visitor over documents it imports and deletes (a published article, project and page, a draft, a protected article, two hand-made posts); it needs the skills grid synchronized:
+
+```bash
+podman-compose --profile tools run --rm wpcli wp eval-file \
+  wp-content/plugins/portfolio-md/tests/Integration/wp-cli/rest-smoke.php --user=<your admin login>
+```
+
 ## Tests
 
 Three complementary suites.
@@ -158,7 +189,7 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   --user=<your admin login>
 ```
 
-`--user` is required for the capability checks. The other smoke scripts (`skills`, `import`, `admin`, `preview`) are listed in their sections above. The official `wp-phpunit` framework will come if the smoke scripts stop being enough.
+`--user` is required for the capability checks. The other smoke scripts (`skills`, `import`, `admin`, `preview`, `rest`) are listed in their sections above. The official `wp-phpunit` framework will come if the smoke scripts stop being enough.
 
 ## Quick debug references
 
@@ -209,6 +240,9 @@ The most frequent issues you'll hit while developing locally are documented in [
 - Images referenced by a relative path are broken in the preview → expected until the media import exists; the site shows the same thing
 - The Tab key stays in the editor → it indents; press Escape, then Tab, to move the focus out
 - The bundle weighs about 560 KB → CodeMirror and its Markdown, YAML and HTML grammars; it is served once and cached. Splitting it into ES modules loaded on demand is the lever if it ever matters
+- `GET /wp-json/portfolio/v1/projects/MomoCad` answers 400 `rest_invalid_param` → by design: the REST server matches routes case-insensitively, so the capitals reach the `slug` parameter, whose schema wants a lowercase slug
+- A published project is missing from `GET /projects` → it holds no document (made by hand, `_portfolio_md_hash` empty) or has a password; the API serves documents only. `GET /articles` is an empty list with `X-WP-Total: 0` as long as no article exists
+- `GET /projects?skill=<code>` answers 400 → the filter takes the term slug, not the code (`4.0.2/E07` is not a slug); read the slug in the `skills` of a project
 
 ## Architecture
 
