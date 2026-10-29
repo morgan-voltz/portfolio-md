@@ -504,6 +504,22 @@ if (!function_exists('wp_update_post')) {
     }
 }
 
+if (!function_exists('update_option')) {
+    function update_option(string $option, mixed $value, mixed $autoload = null): bool
+    {
+        WordPressSpy::$options[$option] = $value;
+
+        return true;
+    }
+}
+
+if (!function_exists('get_option')) {
+    function get_option(string $option, mixed $default_value = false): mixed
+    {
+        return WordPressSpy::$options[$option] ?? $default_value;
+    }
+}
+
 if (!function_exists('set_transient')) {
     function set_transient(string $transient, mixed $value, int $expiration = 0): bool
     {
@@ -730,6 +746,18 @@ if (!function_exists('wp_kses')) {
         WordPressSpy::$ksesCalls[] = ['content' => $content, 'allowed' => is_array($allowed_html) ? $allowed_html : []];
 
         return $content;
+    }
+}
+
+if (!function_exists('rest_sanitize_boolean')) {
+    /** Mirrors core: the strings "false" and "0" are false, anything else follows PHP's cast. */
+    function rest_sanitize_boolean(mixed $value): bool
+    {
+        if (is_string($value) && in_array(strtolower($value), ['false', '0'], true)) {
+            return false;
+        }
+
+        return (bool) $value;
     }
 }
 

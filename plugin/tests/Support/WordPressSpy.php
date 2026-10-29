@@ -82,6 +82,9 @@ final class WordPressSpy
     /** @var array<string, mixed> transient name => value */
     public static array $transients = [];
 
+    /** @var array<string, mixed> option name => value */
+    public static array $options = [];
+
     /** @var list<array<string, mixed>> arrays handed to wp_update_post() */
     public static array $updatedPosts = [];
 
@@ -143,6 +146,7 @@ final class WordPressSpy
         self::$verifiedNonces = [];
         self::$nonceFields = [];
         self::$transients = [];
+        self::$options = [];
         self::$updatedPosts = [];
         self::$currentUserId = 1;
         self::$menuPages = [];

@@ -29,6 +29,14 @@ final class ImportException extends RuntimeException
         );
     }
 
+    public static function typeMismatch(ContentType $type, ContentType $expected): self
+    {
+        return new self(
+            "The document is of type \"{$type->value}\" but its file is in the \"{$expected->folder()}/\" folder, which holds documents of type \"{$expected->value}\" (content/README.md):"
+            . ' move the file to the folder of its kind, or fix its "type" line.',
+        );
+    }
+
     public static function inTrash(ContentType $type, string $slug, int $postId): self
     {
         return new self(

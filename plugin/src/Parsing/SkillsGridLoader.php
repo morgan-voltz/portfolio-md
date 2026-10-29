@@ -33,8 +33,23 @@ final class SkillsGridLoader
             throw InvalidSkillsGridException::because("file \"{$path}\" is not readable");
         }
 
+        $yaml = file_get_contents($path);
+        if ($yaml === false) {
+            throw InvalidSkillsGridException::because("file \"{$path}\" is not readable");
+        }
+
+        return $this->fromYaml($yaml);
+    }
+
+    /**
+     * The text of a skills.yaml, wherever it comes from (a file, a push).
+     *
+     * @throws InvalidSkillsGridException
+     */
+    public function fromYaml(string $yaml): SkillsGrid
+    {
         try {
-            $data = Yaml::parseFile($path);
+            $data = Yaml::parse($yaml);
         } catch (ParseException $exception) {
             throw InvalidSkillsGridException::because('invalid YAML (' . $exception->getMessage() . ')');
         }

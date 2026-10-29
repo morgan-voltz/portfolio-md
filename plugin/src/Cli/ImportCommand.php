@@ -6,6 +6,7 @@ namespace Voltz\PortfolioMd\Cli;
 
 use RuntimeException;
 use Voltz\PortfolioMd\Domain\ContentSource;
+use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
 use Voltz\PortfolioMd\Service\ContentImportService;
 use Voltz\PortfolioMd\Service\ImportException;
@@ -36,8 +37,10 @@ final class ImportCommand
      * the last import is left alone. Content last written from the admin or
      * a paste is not overwritten by a Git import unless --force is given
      * (ADR-005). A file must be named after its slug (<slug>.md), so that a
-     * sheet copied from another one never overwrites its model; a slug whose
-     * post is in the trash is refused until the post is restored or deleted.
+     * sheet copied from another one never overwrites its model, and a file
+     * that sits in one of the three document folders must be of that kind; a
+     * slug whose post is in the trash is refused until the post is restored
+     * or deleted.
      * Documents are processed one by one: a failure is reported and the
      * others go on; the command exits with an error at the end if anything
      * failed or conflicted.
@@ -110,7 +113,7 @@ final class ImportCommand
             }
 
             try {
-                $result = $this->service->import($markdown, $options, basename($file, '.md'));
+                $result = $this->service->import($markdown, $options, basename($file, '.md'), null, self::kindOfFolder($file));
             } catch (MalformedDocumentException | InvalidFrontmatterException | ImportException | RuntimeException $exception) {
                 $counts['failed']++;
                 WP_CLI::warning("{$prefix}FAILED     {$file}: " . $exception->getMessage());
@@ -163,6 +166,19 @@ final class ImportCommand
         }
 
         return $files;
+    }
+
+    /**
+     * The folder of the file says its kind when it is one of the three
+     * (projects, pages, articles). The path is resolved first: a bare file
+     * name typed from inside its folder has no folder of its own, and must
+     * be judged like the same file given with its path.
+     */
+    private static function kindOfFolder(string $file): ?ContentType
+    {
+        $resolved = realpath($file);
+
+        return ContentType::fromFolder(basename(dirname($resolved === false ? $file : $resolved)));
     }
 
     private static function describe(ImportResult $result): string
