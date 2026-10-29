@@ -2,7 +2,7 @@
 
 One Markdown source, two distinct portfolios. This project publishes a single body of content through two independent web interfaces: a standard WordPress site (for SEO and academic requirements) and a modern technical portfolio built on a C# API and a React frontend.
 
-> **Status**: implementation in progress. The WordPress plugin registers its content model (custom post types, taxonomies, post metas); the Markdown pipeline is next. See the [roadmap](docs/architecture/00-overview.md#7-feuille-de-route) for the detailed plan.
+> **Status**: implementation in progress. The WordPress plugin is complete on the WordPress side of the roadmap (phases 1 to 5): content model, Markdown pipeline and WP-CLI import, admin editor with a server-rendered preview, native pages, and a public read-only JSON API (`/wp-json/portfolio/v1/{articles,projects,pages,sitemap}`). Next: the Git webhook, the image import, then the C# API. See the [roadmap](docs/architecture/00-overview.md#7-feuille-de-route) for the detailed plan.
 
 ## Why
 
@@ -16,7 +16,7 @@ The repository is a monorepo organized around three applicative components and a
 
 The **pivot format** is GitHub Flavored Markdown with YAML frontmatter. It is the canonical source of truth, guaranteeing that content can leave WordPress at any time without conversion, and that any GFM-compatible renderer can consume it.
 
-The **WordPress plugin** (`plugin/`) accepts Markdown input, stores both the raw Markdown and a derived Gutenberg HTML representation, and exposes a custom REST API. Written in PHP 8.2+ with PSR-4 autoloading via Composer, and organized in layers inspired by Clean Architecture.
+The **WordPress plugin** (`plugin/`) accepts Markdown input, stores both the raw Markdown and a derived Gutenberg HTML representation, and exposes a custom read-only REST API that serves the published documents, Markdown source included (`/wp-json/portfolio/v1/`). Written in PHP 8.2+ with PSR-4 autoloading via Composer, and organized in layers inspired by Clean Architecture.
 
 The **C# API** (`api/`) acts as a gateway between WordPress and the React frontend. Built on .NET 10 with ASP.NET Core Minimal APIs, it is structured in three projects following the Clean Architecture pattern: `Portfolio.Application` (pure business logic), `Portfolio.Infrastructure` (concrete implementations), and `Portfolio.Api` (HTTP surface). The structure is deliberately prepared for future reuse by additional frontends (desktop, mobile, CLI) without duplicating business logic.
 
