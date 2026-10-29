@@ -31,7 +31,7 @@ Deux bind mounts importants :
 | `./wordpress_data:/var/www/html:z` | Tout le WordPress (core + wp-content). Permet d'inspecter et modifier les fichiers depuis l'hôte. |
 | `./plugin:/var/www/html/wp-content/plugins/portfolio-md:z` | Le plugin du projet, monté directement à son emplacement final dans WordPress. Toute modification dans `./plugin` est immédiatement visible côté serveur, sans rebuild ni copie. |
 
-Les variables d'environnement (`WORDPRESS_DB_HOST`, `WORDPRESS_DB_USER`, etc.) sont injectées par WordPress dans le `wp-config.php` au premier démarrage, en remplaçant les placeholders de l'image officielle.
+Les variables d'environnement (`WORDPRESS_DB_HOST`, `WORDPRESS_DB_USER`, etc.) sont injectées par WordPress dans le `wp-config.php` au premier démarrage, en remplaçant les placeholders de l'image officielle. Une variable fait exception : `WORDPRESS_CONFIG_EXTRA` contient du code PHP que le `wp-config.php` généré **évalue à chaque requête** (`eval(getenv_docker('WORDPRESS_CONFIG_EXTRA'))`), ce qui permet d'ajouter des constantes sans toucher au fichier, qui appartient à l'utilisateur du conteneur. Le projet y déclare `WP_ENVIRONMENT_TYPE` à `local` : c'est ce que ce poste est, et WordPress n'accepte les mots de passe d'application sans HTTPS que dans cet environnement, ce dont la porte Git du plugin (`POST /wp-json/portfolio/v1/sync`) a besoin pour être testée en local. Le service `wpcli` porte la même variable, puisqu'il relit le même `wp-config.php`. Après un changement de cette variable, `podman-compose up -d` recrée le conteneur.
 
 ### 1.3. Le service `wpcli`
 

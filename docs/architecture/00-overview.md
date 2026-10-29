@@ -4,7 +4,7 @@
 **Rôle** : document d'entrée dans l'architecture, porte d'accès aux documents détaillés
 **Lectorat** : contributeur, recruteur, étudiant, Morgan lui-même à froid
 **Temps de lecture** : environ quinze minutes
-**Dernière mise à jour** : 29 octobre 2026 (phase 5 terminée : endpoints REST publics en lecture)
+**Dernière mise à jour** : 29 octobre 2026 (phases 5 et 9 terminées : endpoints REST publics en lecture, webhook Git)
 
 ---
 
@@ -192,7 +192,7 @@ Le projet est découpé en douze phases indépendantes, conçues pour être atta
 
 **Phase 8** : enrichissements à la demande. Mermaid et KaTeX fonctionnent avec lazy loading, côté WordPress comme côté React.
 
-**Phase 9** : webhook Git. Un push sur le repo d'articles déclenche une synchronisation automatique dans WordPress.
+**Phase 9** : webhook Git. Un push sur le repo d'articles déclenche une synchronisation automatique dans WordPress. *(Terminée le 29 octobre 2026 : `POST /sync` authentifié par mot de passe d'application, workflow GitHub Actions `sync-content.yml`, ADR-019 ; actif dès que le site sera en ligne et les trois secrets posés.)*
 
 **Phase 10** : thème WordPress sobre et SEO. Child theme configuré, Yoast SEO opérationnel, le site WordPress est prêt pour la soutenance académique.
 
