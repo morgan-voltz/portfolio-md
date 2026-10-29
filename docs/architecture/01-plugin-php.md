@@ -5,7 +5,7 @@
 **Prérequis** : avoir lu [`00-overview.md`](00-overview.md)
 **Lectorat** : contributeur PHP, Morgan en phase d'implémentation, relecteur technique
 **Temps de lecture** : environ trente minutes
-**Dernière mise à jour** : 26 octobre 2026 (pipeline Markdown → Gutenberg et import WP-CLI implémentés ; restauration et mise en cohérence avec le code le même jour ; version d'origine du 22 avril 2026)
+**Dernière mise à jour** : 29 octobre 2026 (endpoints REST publics en lecture, phase 5, ADR-018 ; pipeline et import WP-CLI le 26 octobre, restauration et mise en cohérence avec le code le même jour ; version d'origine du 22 avril 2026)
 
 ---
 
@@ -15,7 +15,7 @@ Ce document détaille l'architecture interne du plugin `portfolio-md`. Il couvre
 
 Il ne répète pas le contexte général du projet, déjà posé dans l'overview. Il ne contient pas non plus d'implémentation complète prête à copier — les exemples de code sont des signatures, des squelettes ou des fragments illustratifs destinés à clarifier l'architecture, pas à être collés tels quels.
 
-> **Note de restauration (26 octobre 2026).** Ce document avait été supprimé du dépôt par erreur le 27 avril 2026 (commit `484aebc`), alors qu'une vingtaine de liens continuaient de pointer vers lui. Il a été restauré depuis l'historique git et mis en cohérence avec le code réel : namespace `Voltz\PortfolioMd`, post types `article` et `project`, taxonomies `tech_tag`, `project_status` et `skill`, champs personnalisés tels qu'implémentés. Pour le **modèle de contenu** (types, taxonomies, champs et leurs règles de sanitization), [`04-structure-wordpress.md`](04-structure-wordpress.md) est la référence ; ce document s'y réfère plutôt que de dupliquer ses tableaux. Les parties non encore implémentées (pipeline, portes d'entrée, API REST) décrivent toujours la cible et sont marquées ⏳ dans l'arborescence ci-dessous.
+> **Note de restauration (26 octobre 2026).** Ce document avait été supprimé du dépôt par erreur le 27 avril 2026 (commit `484aebc`), alors qu'une vingtaine de liens continuaient de pointer vers lui. Il a été restauré depuis l'historique git et mis en cohérence avec le code réel : namespace `Voltz\PortfolioMd`, post types `article` et `project`, taxonomies `tech_tag`, `project_status` et `skill`, champs personnalisés tels qu'implémentés. Pour le **modèle de contenu** (types, taxonomies, champs et leurs règles de sanitization), [`04-structure-wordpress.md`](04-structure-wordpress.md) est la référence ; ce document s'y réfère plutôt que de dupliquer ses tableaux. Les parties non encore implémentées (webhook Git, import des images) décrivent toujours la cible et sont marquées ⏳ dans l'arborescence ci-dessous.
 
 ---
 
@@ -52,7 +52,7 @@ portfolio-md/
 │   ├── Domain/                        # Objets métier purs, zéro WordPress
 │   │   ├── ContentSource.php          # Enum : Admin, Git, Paste                         ✅
 │   │   ├── Frontmatter.php            # Métadonnées typées et validées du YAML           ✅
-│   │   ├── ContentType.php            # Enum : Article, Project, Page ; dossier et base d'URL ✅
+│   │   ├── ContentType.php            # Enum : Article, Project, Page ; dossier, base d'URL, collection REST ✅
 │   │   ├── ProjectStatus.php          # Enum des statuts de projet (= taxonomie)         ✅
 │   │   ├── Skill.php, Referential.php, SkillsGrid.php   # Grille de compétences (ADR-014)  ✅
 │   │   └── Patterns.php               # Formes partagées : slug, codes de compétence       ✅
@@ -83,7 +83,8 @@ portfolio-md/
 │   ├── Storage/                       # Adaptateurs vers les tables WordPress
 │   │   ├── HtmlSanitizer.php              # Passage kses du HTML stocké, partagé avec l'aperçu ✅
 │   │   ├── WordPressSkillTermGateway.php  # Termes de la taxonomie skill (port de Service) ✅
-│   │   └── WordPressContentRepository.php # Posts, termes et metas des articles et projets ✅
+│   │   ├── WordPressContentRepository.php # Écriture des posts, termes et metas (port ContentRepository) ✅
+│   │   └── WordPressContentCatalog.php    # Lecture des documents publiés sur WP_Query (port ContentCatalog) ✅
 │   │
 │   ├── Admin/                         # Interface d'administration WordPress
 │   │   ├── EditScreen.php             # Écran d'édition classique épuré (article, project, page documentée) ✅
@@ -95,12 +96,14 @@ portfolio-md/
 │   │   └── ImportFeedback.php         # Résultat ou échec d'import → notice d'admin (pur) ✅
 │   │
 │   ├── Rest/                          # API REST exposée (namespace portfolio/v1)
-│   │   ├── RouteRegistrar.php         # Enregistre toutes les routes sur rest_api_init     ✅
+│   │   ├── RouteRegistrar.php         # Enregistre tous les contrôleurs sur rest_api_init  ✅
+│   │   ├── RestController.php         # Interface : un groupe de routes du namespace       ✅
+│   │   ├── DocumentPresenter.php      # PublishedDocument → JSON de §7.3, pur              ✅
 │   │   ├── TokenAuthentication.php    # Vérification bearer token pour /sync             ⏳
 │   │   └── Controller/
 │   │       ├── PreviewController.php  # POST /preview : rendu d'un document pour l'éditeur ✅
-│   │       ├── ArticleController.php                                                    ⏳
-│   │       ├── ProjectController.php                                                    ⏳
+│   │       ├── CollectionController.php # GET /articles, /projects, /pages et /{slug} : un par collection ✅
+│   │       ├── SitemapController.php  # GET /sitemap : slugs et dates de modification       ✅
 │   │       └── SyncController.php                                                       ⏳
 │   │
 │   ├── Service/                       # Cas d'usage applicatifs
@@ -111,6 +114,8 @@ portfolio-md/
 │   │   ├── ContentRepository.php, ContentRecord.php, StoredContent.php   # Port du dépôt  ✅
 │   │   ├── ImportOptions.php, ImportOutcome.php, ImportResult.php, ImportException.php   ✅
 │   │   ├── PreviewService.php, PreviewResult.php  # Rendu d'un document sans écrire (aperçu) ✅
+│   │   ├── ContentCatalog.php, CatalogQuery.php, CatalogPage.php   # Port de lecture (§7.1)  ✅
+│   │   ├── PublishedDocument.php, DocumentTag.php, DocumentSkill.php, SitemapEntry.php    ✅
 │   │   ├── Clock.php, SystemClock.php # L'heure de synchro, remplaçable dans les tests    ✅
 │   │   └── MediaImportService.php     # Gère l'import des images                         ⏳
 │   │
@@ -133,17 +138,18 @@ portfolio-md/
     │   ├── Domain/, Meta/, PostTypes/, Taxonomies/
     │   ├── Parsing/, Service/ (pipeline et synchronisation des compétences)              ✅
     │   ├── Admin/ (écran, métabox, assets, page de collage ; WordPress doublé par les stubs) ✅
-    │   └── Rest/ (route d'aperçu et registrar ; requêtes et réponses REST doublées)       ✅
+    │   └── Rest/ (aperçu, collections, sitemap, présentateur, registrar ; REST doublé)      ✅
     └── Integration/
         └── wp-cli/                    # Tests de fumée joués via `wp eval-file` :
             ├── meta-smoke.php         #   modèle de contenu (metas, capacités, REST)       ✅
             ├── skills-smoke.php       #   synchronisation des compétences, passerelle WP  ✅
             ├── import-smoke.php       #   import complet : posts, termes, metas, conflits ✅
             ├── admin-smoke.php        #   métabox, écran épuré et page de collage         ✅
-            └── preview-smoke.php      #   route d'aperçu via le serveur REST, assets     ✅
+            ├── preview-smoke.php      #   route d'aperçu via le serveur REST, assets     ✅
+            └── rest-smoke.php         #   routes publiques : listes, filtres, en-têtes, refus ✅
 ```
 
-Quatre écarts volontaires par rapport au plan d'origine. Le fichier `Storage/MetaKeys.php` prévu pour centraliser les clés meta n'existe pas : chaque clé est une **constante publique du registrar** qui l'enregistre (`CommonMetaRegistrar::FEATURED`, `InternalMetaRegistrar::MD_SOURCE`, …), ce qui empêche la clé et son enregistrement de dériver l'un de l'autre. Les classes `ProjectPostType` / `TechStackTaxonomy` ont été remplacées par deux registrars (`PostTypeRegistrar`, `TaxonomyRegistrar`) qui portent chacun tous les types ou toutes les taxonomies : moins de fichiers, même responsabilité par fichier. Enfin, les deux repositories prévus (`ArticleRepository`, `ProjectRepository`) et les value objects `Article` / `Project` n'existent pas : un seul `Storage\WordPressContentRepository` écrit les trois types (`article`, `project` et, depuis ADR-017, le type natif `page`), parce que leurs différences tiennent en trois lignes (statut, compétences, metas projet), et le pipeline transporte un `Frontmatter` typé plus un corps, ce qui rendait les deux objets redondants. Et `Admin/` compte quatre fichiers de plus que prévu : `EditScreen` porte tout ce qui épure l'écran d'édition (Gutenberg coupé, contrôles natifs retirés), pour que `EditorMetaBox` ne fasse que montrer et enregistrer le document ; `EditorAssets` charge le script de l'éditeur et sa configuration ; `SubmittedMarkdown` et `ImportFeedback` sont les deux morceaux purs de l'admin, testés sans WordPress. Côté navigateur, le `js/admin-editor.js` unique prévu est devenu un paquet npm (`assets/src`, construit par esbuild en `assets/dist`, non versionné) : CodeMirror 6 est une famille de modules ES à assembler, pas un script à déposer.
+Six écarts volontaires par rapport au plan d'origine. Le fichier `Storage/MetaKeys.php` prévu pour centraliser les clés meta n'existe pas : chaque clé est une **constante publique du registrar** qui l'enregistre (`CommonMetaRegistrar::FEATURED`, `InternalMetaRegistrar::MD_SOURCE`, …), ce qui empêche la clé et son enregistrement de dériver l'un de l'autre. Les classes `ProjectPostType` / `TechStackTaxonomy` ont été remplacées par deux registrars (`PostTypeRegistrar`, `TaxonomyRegistrar`) qui portent chacun tous les types ou toutes les taxonomies : moins de fichiers, même responsabilité par fichier. Enfin, les deux repositories prévus (`ArticleRepository`, `ProjectRepository`) et les value objects `Article` / `Project` n'existent pas : un seul `Storage\WordPressContentRepository` écrit les trois types (`article`, `project` et, depuis ADR-017, le type natif `page`), parce que leurs différences tiennent en trois lignes (statut, compétences, metas projet), et le pipeline transporte un `Frontmatter` typé plus un corps, ce qui rendait les deux objets redondants. Et `Admin/` compte quatre fichiers de plus que prévu : `EditScreen` porte tout ce qui épure l'écran d'édition (Gutenberg coupé, contrôles natifs retirés), pour que `EditorMetaBox` ne fasse que montrer et enregistrer le document ; `EditorAssets` charge le script de l'éditeur et sa configuration ; `SubmittedMarkdown` et `ImportFeedback` sont les deux morceaux purs de l'admin, testés sans WordPress. Côté navigateur, le `js/admin-editor.js` unique prévu est devenu un paquet npm (`assets/src`, construit par esbuild en `assets/dist`, non versionné) : CodeMirror 6 est une famille de modules ES à assembler, pas un script à déposer. Les `ArticleController` et `ProjectController` prévus sont un seul `CollectionController`, instancié trois fois (articles, projets, pages) : les trois collections ne diffèrent que par leurs filtres ; et la lecture publique a reçu son propre port, `Service\ContentCatalog`, avec son propre objet, `PublishedDocument`, plutôt que d'étendre le port de l'import, dont la forme (hash, provenance, corbeille) sert la règle de conflit et non un lecteur (ADR-018).
 
 Le mapping vers la Clean Architecture se lit comme suit. Les dossiers `Domain/` et `Service/` forment le cœur métier — ils sont l'équivalent PHP de ce que serait `Portfolio.Application` en C#. Les dossiers `Parsing/`, `Storage/`, `PostTypes/`, `Taxonomies/`, `Meta/`, `Admin/`, `Rest/` sont les adaptateurs, équivalent de `Portfolio.Infrastructure` et `Portfolio.Api` combinés. La frontière entre cœur et adaptateurs n'est pas matérialisée par des projets séparés comme en .NET (PHP ne fonctionne pas ainsi) mais par une discipline de namespaces et de dépendances.
 
@@ -253,7 +259,7 @@ Une liste que l'éditeur ne saurait pas représenter tombe entière dans `wp:htm
 
 ### 4.4. Phase quatre : distribution des métadonnées vers WordPress
 
-La quatrième phase prend le `Frontmatter` parsé à la phase un et distribue ses champs vers les bons endroits de WordPress. Cette logique vit dans `Storage\WordPressContentRepository`, derrière le port `Service\ContentRepository` (deux méthodes : `findBySlug()` et `save()`), qui encapsule les appels à `wp_insert_post()`, `wp_update_post()`, `wp_set_object_terms()` et `Meta\MetaWriter::update()`.
+La quatrième phase prend le `Frontmatter` parsé à la phase un et distribue ses champs vers les bons endroits de WordPress. Cette logique vit dans `Storage\WordPressContentRepository`, derrière le port `Service\ContentRepository` (trois méthodes : `findBySlug()`, `findById()` et `save()`), qui encapsule les appels à `wp_insert_post()`, `wp_update_post()`, `wp_set_object_terms()` et `Meta\MetaWriter::update()`.
 
 Le principe de distribution a été posé dans l'overview : chaque fois qu'il existe un champ natif WordPress qui correspond à un concept du frontmatter, on l'utilise plutôt que d'inventer un champ meta. Cela garantit la compatibilité avec l'écosystème WordPress (plugins, thèmes, outils de migration). Le tableau complet du mapping, aligné sur les champs effectivement enregistrés (`04-structure-wordpress.md` §4 et §5) :
 
@@ -382,25 +388,48 @@ La classe `Cli\ImportCommand` enregistre `wp portfolio import <chemin>... [--sou
 
 ## 7. L'API REST exposée
 
-Le plugin expose plusieurs endpoints sous le namespace `/wp-json/portfolio/v1/`, enregistrés par la classe `Rest\RouteRegistrar` au moment du hook `rest_api_init` (depuis `Plugin::registerRoutes()`, qui ne construit les contrôleurs qu'à ce moment). Une première route existe depuis le 27 octobre 2026, `POST /preview` (§7.4) ; les endpoints publics restent à construire ⏳. À noter que l'API REST **native** de WordPress expose déjà, dès aujourd'hui, les deux post types (`/wp-json/wp/v2/article`, `/wp-json/wp/v2/project`), leurs taxonomies et leurs metas publiques : c'est ce que vérifie le test de fumée `meta-smoke.php`, et ce sur quoi un consommateur peut s'appuyer en attendant les endpoints du plugin. Gutenberg lui-même est coupé pour ces deux types depuis le 26 octobre 2026 (`Admin\EditScreen`, §6.1) : l'exposition REST ne lui sert plus, elle reste utile par elle-même.
+Le plugin expose plusieurs endpoints sous le namespace `/wp-json/portfolio/v1/`, enregistrés par la classe `Rest\RouteRegistrar` au moment du hook `rest_api_init` (depuis `Plugin::registerRoutes()`, qui ne construit les contrôleurs qu'à ce moment). Les routes publiques en lecture existent depuis le 29 octobre 2026 (§7.1, ADR-018) et la route d'aperçu de l'éditeur depuis le 27 octobre (`POST /preview`, §7.4) ; seul `/sync` (§7.2) reste à construire ⏳. À noter que l'API REST **native** de WordPress expose aussi les deux post types (`/wp-json/wp/v2/article`, `/wp-json/wp/v2/project`), leurs taxonomies, leurs metas publiques et les pages : c'est ce que vérifie le test de fumée `meta-smoke.php`. Cette seconde surface, en HTML, reste ouverte telle quelle ; Gutenberg lui-même est coupé pour les deux types depuis le 26 octobre 2026 (`Admin\EditScreen`, §6.1) : l'exposition REST native ne lui sert plus, elle reste utile par elle-même.
 
 ### 7.1. Endpoints publics en lecture
 
-Les endpoints publics ne requièrent pas d'authentification. Cette décision simplifie la consommation par l'API C# et reste sans risque parce que le contenu est, par nature, destiné à être lu.
+Les endpoints publics ne requièrent pas d'authentification. Cette décision simplifie la consommation par l'API C# et reste sans risque parce que le contenu est, par nature, destiné à être lu : ces routes ne servent que ce que le site montre à n'importe qui.
 
-`GET /articles` retourne la liste paginée des articles, avec filtres optionnels par tag via query params. Chaque article du tableau est une représentation complète (Markdown source inclus).
+Trois collections, `/articles`, `/projects` et `/pages` (les pages documentées d'ADR-017, À propos et CV ; la page Contact, faite à la main, n'y est pas), chacune avec deux routes.
 
-`GET /articles/{slug}` retourne un article spécifique identifié par son slug, 404 si absent.
+`GET /articles` retourne une page de la liste des articles publiés, du plus récent au plus ancien (à date égale, le post le plus récent d'abord, pour que deux pages ne se recouvrent jamais). Le corps est la liste nue ; chaque élément est la représentation complète de §7.3, Markdown source inclus. La pagination suit la convention de l'API native : `page` (à partir de 1) et `per_page` (10 par défaut, 100 au plus), le total et le nombre de pages dans les en-têtes `X-WP-Total` et `X-WP-TotalPages`, les pages voisines dans un en-tête `Link` (`rel="prev"`, `rel="next"`, avec la taille et les filtres de la requête). Une page au-delà de la dernière d'une collection non vide répond 400 (`rest_post_invalid_page_number`, comme les collections natives) ; une collection vide, ou vidée par un filtre, répond une liste vide, total 0, quelle que soit la page demandée. Le filtre `tag=<slug>` ne garde que les documents qui portent ce tag technique ; un slug qui ne correspond à aucun terme donne une liste vide, pas une erreur.
 
-`GET /projects` et `GET /projects/{slug}` font la même chose pour les projets, avec en plus les champs de projet (`status`, `skills`, `is_fil_rouge`, période, liens).
+`GET /articles/{slug}` retourne l'article publié qui porte ce slug, 404 (`portfolio_not_found`) sinon : un brouillon, un post programmé, privé ou protégé par mot de passe, un post à la corbeille ou un post sans document répondent 404 comme un slug inconnu. Le serveur REST apparie les routes sans distinguer la casse ; un slug écrit avec des majuscules atteint donc le paramètre, dont le schéma le refuse en 400.
 
-`GET /sitemap` retourne une liste complète (non paginée) des slugs d'articles et de projets avec leurs timestamps de modification. Cet endpoint est destiné aux consommateurs qui implémentent une invalidation de cache intelligente — l'API C# appelle `/sitemap` périodiquement pour détecter quels articles ont changé et n'invalider que ceux-là dans son cache local.
+`GET /projects` et `GET /projects/{slug}` font la même chose pour les projets, avec en plus les champs de projet (§7.3) et deux filtres : `status=<slug>` (l'un des quatre statuts de la liste fermée, 400 sinon) et `skill=<slug>` (le slug d'un terme de compétence ; la taxonomie étant hiérarchique, le slug d'un référentiel sélectionne les projets de toutes ses compétences).
+
+`GET /pages` et `GET /pages/{slug}` servent les pages documentées, avec les seuls champs qu'une page porte (§7.3) et la pagination, sans filtre.
+
+`GET /sitemap` retourne, sans pagination, une liste par collection des documents publiés avec l'instant de leur dernière modification :
+
+```json
+{
+  "articles": [],
+  "projects": [
+    { "slug": "momocad", "updated": "2026-10-27T12:28:27Z" }
+  ],
+  "pages": [
+    { "slug": "a-propos", "updated": "2026-10-27T12:07:00Z" },
+    { "slug": "cv", "updated": "2026-10-27T13:13:00Z" }
+  ]
+}
+```
+
+Les trois clés sont toujours présentes. Un slug n'est unique que dans sa collection (un article et un projet peuvent porter le même) : la clé d'un document est le couple collection + slug. Cet endpoint est destiné aux consommateurs qui implémentent une invalidation de cache intelligente — l'API C# l'appelle périodiquement pour détecter quels documents ont changé et n'invalider que ceux-là dans son cache local (`02-api-csharp.md` §5.2).
+
+Tous les paramètres sont déclarés avec leur schéma au serveur REST, qui les valide avant d'appeler le plugin (`rest_invalid_param`, 400) ; le paramètre natif `_fields` (`?_fields=slug,title`) s'applique à ces routes comme à toutes. Ce que le plugin ne fait pas, à dessein et pour l'instant (ADR-018) : pas d'`ETag` ni de réponse `304`, pas de limitation de débit, pas d'agrégats (compte de documents par tag ou par compétence).
+
+**Tel qu'implémenté (29 octobre 2026).** Les routes sont servies par `Rest\Controller\CollectionController`, instancié une fois par collection (le même code, des filtres différents), et `Rest\Controller\SitemapController` ; tous deux implémentent `Rest\RestController`, que `RouteRegistrar` enregistre en série, l'aperçu compris. Derrière, le port `Service\ContentCatalog` (trois méthodes : `list()`, `find()`, `sitemap()`) et ses objets (`CatalogQuery`, `CatalogPage`, `PublishedDocument`, `SitemapEntry`) disent ce qu'un lecteur demande et reçoit ; `Storage\WordPressContentCatalog` l'implémente sur `WP_Query` avec trois garde-fous (`post_status` à `publish`, `has_password` à faux, meta `_portfolio_md_hash` non vide) et un soin : une page de posts est une requête qui amorce les caches des termes et des metas de ses posts, les codes de leurs compétences se lisent en une requête de plus, et tout le reste se lit dans ces caches. Ce port est distinct de `ContentRepository`, celui de l'import, qui cherche un post sous un slug quel que soit son statut, corbeille comprise, pour appliquer la règle de conflit : il ne doit jamais servir une route publique. `Rest\DocumentPresenter`, pur et testé clé par clé, produit les tableaux de §7.3.
 
 ### 7.2. Endpoint `/sync` en écriture
 
 `POST /sync` est documenté en section 6.2.
 
-### 7.3. Forme de la réponse pour un article
+### 7.3. Forme de la réponse pour un document
 
 La réponse d'un appel `GET /articles/{slug}` ressemble à :
 
@@ -410,7 +439,8 @@ La réponse d'un appel `GET /articles/{slug}` ressemble à :
   "type": "article",
   "slug": "rust-ownership-intuition",
   "title": "Pourquoi Rust a changé ma façon de penser la mémoire",
-  "date": "2026-04-22T10:30:00Z",
+  "link": "https://example.org/articles/rust-ownership-intuition/",
+  "date": "2026-04-21T22:00:00Z",
   "updated": "2026-04-22T10:30:00Z",
   "tags": [
     { "slug": "rust", "name": "Rust" },
@@ -420,11 +450,13 @@ La réponse d'un appel `GET /articles/{slug}` ressemble à :
   "seo_description": "Une intuition visuelle du borrow checker.",
   "reading_time": 8,
   "featured": false,
-  "markdown": "---\ntitle: ...\n---\n\n# Le vrai problème..."
+  "markdown": "---\ntitle: ...\n---\n\nLe vrai problème..."
 }
 ```
 
-Pour un projet, la réponse porte en plus `status`, `skills` (liste d'objets `{ slug, code, label }`, le code venant du term meta), `is_fil_rouge`, `role`, `period_start`, `period_end`, `repo_url`, `demo_url` et `client`.
+Les clés sont celles du frontmatter, en `snake_case`, dans cet ordre, le Markdown en dernier ; `type` dit la collection et `link` est le permalien de la page WordPress, la cible canonique pour le SEO, vers laquelle un front peut renvoyer. Les instants sont en ISO 8601, en UTC, avec un `Z` : `date` est la date de publication telle que l'import l'a écrite, le jour calendaire du frontmatter à minuit dans le fuseau du site (ici le 22 avril 2026 à Paris, heure d'été), `updated` la dernière modification du post par WordPress, par quelque porte qu'elle soit venue. Un texte optionnel vide et un temps de lecture nul valent `null`, jamais `""` ni `0` : le consommateur ne teste qu'une chose.
+
+Pour un projet, la réponse porte en plus, entre `featured` et `markdown` : `status` (`{ "slug": "en-cours", "label": "En cours" }`, lu dans la taxonomie `project_status`, la source de vérité, la meta n'étant que son miroir), `skills` (liste d'objets `{ slug, code, label }`, le code venant du term meta, dans l'ordre naturel des codes), `is_fil_rouge`, `role`, `period_start` et `period_end` (jours `AAAA-MM-JJ`, ou `null`), `repo_url`, `demo_url` et `client`. Pour une page, elle ne porte que `id`, `type`, `slug`, `title`, `link`, `date`, `updated`, `seo_description` et `markdown` : les tags, le sous-titre, le temps de lecture et la mise en avant ne sont pas enregistrés sur les pages (`04-structure-wordpress.md` §5.1).
 
 Point important : le HTML Gutenberg n'est **pas** retourné par cet endpoint. Les consommateurs externes reçoivent le Markdown brut (frontmatter inclus) et font leur propre rendu selon leurs conventions. Cette décision garantit que le format canonique traverse tout le système sans transformation intermédiaire, et que l'API C# peut appliquer ses propres règles (ancres automatiques sur les titres, enrichissements, etc.).
 
@@ -507,15 +539,17 @@ Les capabilities WordPress sont respectées partout. La métabox n'enregistre qu
 
 La route d'aperçu de l'éditeur (`POST /portfolio/v1/preview`, section 6.1) demande `edit_posts` et le nonce REST que `wp-api-fetch` porte ; elle n'écrit rien et ne renvoie que le rendu de ce que l'appelant vient d'envoyer, après le même passage kses que le stockage. Elle ne passe pas par la chaîne `the_content` du site : la relecture du lot a montré que `do_shortcode` et les gestionnaires oEmbed de WordPress exécuteraient les codes courts et iraient chercher une URL tapée dans le document (requête HTTP sortante du serveur, et entrée de cache écrite en base), à la portée de tout contributeur ; l'aperçu rend les blocs et la typographie, rien d'autre. Le navigateur l'affiche dans un cadre `sandbox` sans script : un document qui contiendrait de quoi s'exécuter ne s'exécute ni sur le site (kses) ni dans l'admin (le cadre), et ses liens s'ouvrent sans `opener` ni referrer. La taille du document est bornée par le schéma de la route.
 
+Les routes publiques en lecture (§7.1) sont ouvertes sans authentification, par conception : elles ne révèlent rien que le site ne montre déjà à un visiteur anonyme. Le catalogue qui les sert (`Storage\WordPressContentCatalog`) ne lit que les posts publiés sans mot de passe qui portent un document, et n'expose aucune meta interne : le Markdown source, oui — c'est l'objet même de l'API, et son contenu est celui de la page publique —, mais ni le hash, ni la provenance, ni la version de rendu. Les paramètres passent par le schéma des routes avant d'atteindre le plugin, et une page est plafonnée à cent documents ; le sitemap n'est pas paginé, ce qui est sans conséquence pour quelques dizaines de documents et serait à revoir au-delà de quelques milliers. Deux choses ne sont pas faites, et consignées comme telles (ADR-018) : aucune limitation de débit côté plugin (celle de l'API C# ne protège que sa propre surface, les routes du plugin restent joignables directement) et aucun en-tête de cache conditionnel. L'API REST native (`/wp-json/wp/v2/…`) reste une seconde surface publique, en HTML, que ce lot ne change pas.
+
 ---
 
 ## 12. Tests
 
 La stratégie de tests exploite la séparation claire entre code métier et code couplé à WordPress.
 
-Les **tests unitaires** (`tests/Unit/`) tournent sans WordPress et en quelques dizaines de millisecondes. Les registrars appellent pourtant des fonctions WordPress (`register_post_meta`, `sanitize_text_field`, …) : `tests/bootstrap.php` charge des doublures (`tests/Support/wp-stubs.php`) qui enregistrent les appels dans `WordPressSpy` ou imitent le comportement de WordPress d'assez près pour les cas testés. La suite vérifie que chaque meta est enregistrée sur les bons post types avec le bon type, la bonne visibilité REST et les bons callbacks, et que chaque sanitizer accepte et rejette exactement ce qu'il doit. `Domain/`, `Parsing/` et `Service/` y sont testés sans aucune doublure WordPress, puisqu'ils ne la connaissent pas : le parseur Markdown et le transformateur Gutenberg sur des fragments dont la sortie attendue est celle de l'éditeur, octet pour octet ; le service d'import avec un dépôt et une taxonomie en mémoire (`tests/Support/`) et une horloge figée ; la table de décision d'ADR-005 ligne par ligne ; et les quatorze fiches et deux pages de `content/`, rendues intégralement pour vérifier qu'aucune ne retombe sur le bloc HTML brut. `Admin/` y est testé avec des doublures plus larges (hooks, nonces, capacités, transients, échappement) et le vrai service d'import derrière : ce que chaque classe accroche, ce qu'elle affiche, ce qu'elle enregistre et ce qu'elle refuse de toucher. `Rest/` et le service d'aperçu de même : la route (enregistrement, permission, réponse, passage kses puis `the_content` doublés) avec le vrai service derrière. Le côté navigateur a sa suite dans `assets/tests` (`npm test`, soit `node --test`) : la boucle d'aperçu et le document du cadre sont purs ; le montage sur le textarea est joué dans jsdom avec un éditeur et des requêtes factices (CodeMirror lui-même n'est pas testé).
+Les **tests unitaires** (`tests/Unit/`) tournent sans WordPress et en quelques dizaines de millisecondes. Les registrars appellent pourtant des fonctions WordPress (`register_post_meta`, `sanitize_text_field`, …) : `tests/bootstrap.php` charge des doublures (`tests/Support/wp-stubs.php`) qui enregistrent les appels dans `WordPressSpy` ou imitent le comportement de WordPress d'assez près pour les cas testés. La suite vérifie que chaque meta est enregistrée sur les bons post types avec le bon type, la bonne visibilité REST et les bons callbacks, et que chaque sanitizer accepte et rejette exactement ce qu'il doit. `Domain/`, `Parsing/` et `Service/` y sont testés sans aucune doublure WordPress, puisqu'ils ne la connaissent pas : le parseur Markdown et le transformateur Gutenberg sur des fragments dont la sortie attendue est celle de l'éditeur, octet pour octet ; le service d'import avec un dépôt et une taxonomie en mémoire (`tests/Support/`) et une horloge figée ; la table de décision d'ADR-005 ligne par ligne ; et les quatorze fiches et deux pages de `content/`, rendues intégralement pour vérifier qu'aucune ne retombe sur le bloc HTML brut. `Admin/` y est testé avec des doublures plus larges (hooks, nonces, capacités, transients, échappement) et le vrai service d'import derrière : ce que chaque classe accroche, ce qu'elle affiche, ce qu'elle enregistre et ce qu'elle refuse de toucher. `Rest/` et le service d'aperçu de même : la route (enregistrement, permission, réponse, passage kses puis `the_content` doublés) avec le vrai service derrière ; les routes publiques avec un catalogue en mémoire derrière (`tests/Support/InMemoryContentCatalog`) : enregistrement et schémas des paramètres de chaque collection, pagination et en-têtes, filtres transmis et appliqués, refus en 400 et 404, et le présentateur clé par clé, dans l'ordre du contrat (§7.3). Le côté navigateur a sa suite dans `assets/tests` (`npm test`, soit `node --test`) : la boucle d'aperçu et le document du cadre sont purs ; le montage sur le textarea est joué dans jsdom avec un éditeur et des requêtes factices (CodeMirror lui-même n'est pas testé).
 
-Les **tests d'intégration** avec un vrai WordPress passent aujourd'hui par cinq scripts WP-CLI joués avec `wp eval-file` dans le conteneur `wpcli` : `tests/Integration/wp-cli/meta-smoke.php` (enregistrements effectifs, sanitization à travers `update_post_meta()`, règles de capabilities, représentation REST typée), `skills-smoke.php` (passerelle de termes de la taxonomie `skill`) et `import-smoke.php` (import complet d'un article et d'un projet synthétiques : post, dates, termes, metas, idempotence, règle de conflit, import d'une page dans le type natif, sans terme, remise à la racine si un parent lui a été donné ; refus d'un code inconnu, d'un slug différent du nom de fichier, d'une date future, d'un slug squatté par un `auto-draft` et d'un post à la corbeille ; tout ce qui est créé est supprimé à la fin) et `admin-smoke.php` (les deux portes de l'admin à travers les vrais hooks : Gutenberg coupé, boîtes retirées, une page documentée et une page faite à la main traitées chacune comme il faut, un post créé puis rempli par la métabox avec un texte en CRLF, l'import Git du même texte inchangé puis en conflit, les refus de slug, de type et de document cassé, le retour en brouillon, la page de collage en vérification puis en import ; tout est nettoyé) et `preview-smoke.php` (la route d'aperçu à travers le serveur REST : enregistrement, rendu front, passage kses, refus d'un anonyme en 401 et d'un abonné en 403, document manquant ou trop long en 400 ; et ce que `Admin\EditorAssets` charge sur chaque écran, bundle construit requis). Le framework officiel `wp-phpunit` viendra si les scripts de fumée ne suffisent plus ; la première route REST s'en est passée.
+Les **tests d'intégration** avec un vrai WordPress passent aujourd'hui par six scripts WP-CLI joués avec `wp eval-file` dans le conteneur `wpcli` : `tests/Integration/wp-cli/meta-smoke.php` (enregistrements effectifs, sanitization à travers `update_post_meta()`, règles de capabilities, représentation REST typée), `skills-smoke.php` (passerelle de termes de la taxonomie `skill`) et `import-smoke.php` (import complet d'un article et d'un projet synthétiques : post, dates, termes, metas, idempotence, règle de conflit, import d'une page dans le type natif, sans terme, remise à la racine si un parent lui a été donné ; refus d'un code inconnu, d'un slug différent du nom de fichier, d'une date future, d'un slug squatté par un `auto-draft` et d'un post à la corbeille ; tout ce qui est créé est supprimé à la fin) et `admin-smoke.php` (les deux portes de l'admin à travers les vrais hooks : Gutenberg coupé, boîtes retirées, une page documentée et une page faite à la main traitées chacune comme il faut, un post créé puis rempli par la métabox avec un texte en CRLF, l'import Git du même texte inchangé puis en conflit, les refus de slug, de type et de document cassé, le retour en brouillon, la page de collage en vérification puis en import ; tout est nettoyé) et `preview-smoke.php` (la route d'aperçu à travers le serveur REST : enregistrement, rendu front, passage kses, refus d'un anonyme en 401 et d'un abonné en 403, document manquant ou trop long en 400 ; et ce que `Admin\EditorAssets` charge sur chaque écran, bundle construit requis) et `rest-smoke.php` (les sept routes publiques à travers le serveur REST, en visiteur anonyme, sur des documents importés puis supprimés : listes, totaux et `Link`, paramètres refusés par le schéma, filtres, forme exacte des trois représentations clé par clé, brouillon, post protégé et posts sans document absents des listes comme des routes de détail, sitemap, `_fields`). Le framework officiel `wp-phpunit` viendra si les scripts de fumée ne suffisent plus ; les routes REST s'en sont passées.
 
 La commande `composer test` lance la suite unitaire (`composer test:unit` idem). Sans PHP sur la machine hôte, les deux suites tournent dans des conteneurs ; les commandes exactes sont dans `plugin/plugin-README.md`.
 
