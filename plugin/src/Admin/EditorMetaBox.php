@@ -163,11 +163,7 @@ final class EditorMetaBox
 
     private static function template(WP_Post $post): string
     {
-        $type = match ($post->post_type) {
-            PostTypeRegistrar::PROJECT => ContentType::Project,
-            PostTypeRegistrar::PAGE => ContentType::Page,
-            default => ContentType::Article,
-        };
+        $type = PostTypeRegistrar::contentTypeOf($post->post_type) ?? ContentType::Article;
 
         return self::templateFor($type, (string) wp_date('Y-m-d'));
     }

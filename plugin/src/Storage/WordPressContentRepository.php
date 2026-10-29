@@ -347,10 +347,6 @@ final class WordPressContentRepository implements ContentRepository
 
     private static function postType(ContentType $type): string
     {
-        return match ($type) {
-            ContentType::Article => PostTypeRegistrar::ARTICLE,
-            ContentType::Project => PostTypeRegistrar::PROJECT,
-            ContentType::Page => PostTypeRegistrar::PAGE,
-        };
+        return PostTypeRegistrar::postTypeOf($type);
     }
 }

@@ -53,6 +53,35 @@ final class PostTypeRegistrar
     }
 
     /**
+     * The post type that stores the documents of this kind. The two stores
+     * (the import's repository and the public catalog) share this mapping so
+     * that they can never disagree on where a kind lives.
+     */
+    public static function postTypeOf(ContentType $type): string
+    {
+        return match ($type) {
+            ContentType::Article => self::ARTICLE,
+            ContentType::Project => self::PROJECT,
+            ContentType::Page => self::PAGE,
+        };
+    }
+
+    /**
+     * The kind of document a post of this type holds, or null for a post
+     * type the plugin never writes (native posts, attachments…).
+     */
+    public static function contentTypeOf(string $postType): ?ContentType
+    {
+        foreach (ContentType::cases() as $type) {
+            if (self::postTypeOf($type) === $postType) {
+                return $type;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Enregistre le post type "article".
      *
      * Choix : on n'utilise PAS le post type natif 'post' de WordPress.
