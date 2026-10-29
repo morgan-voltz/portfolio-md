@@ -108,6 +108,34 @@ if (!class_exists('WP_REST_Response')) {
     }
 }
 
+if (!class_exists('WP_Error')) {
+    /**
+     * What a route callback hands back to refuse: the server turns it into
+     * the error body `{code, message, data}` and the status in `data`.
+     */
+    class WP_Error
+    {
+        public function __construct(public string|int $code = '', public string $message = '', public mixed $data = '')
+        {
+        }
+
+        public function get_error_code(): string|int
+        {
+            return $this->code;
+        }
+
+        public function get_error_message(): string
+        {
+            return $this->message;
+        }
+
+        public function get_error_data(): mixed
+        {
+            return $this->data;
+        }
+    }
+}
+
 // --- Registration ----------------------------------------------------------
 
 if (!function_exists('register_rest_route')) {
@@ -324,12 +352,34 @@ if (!function_exists('includes_url')) {
 }
 
 if (!function_exists('add_query_arg')) {
-    /** Only the (key, value, url) form used by the plugin. */
+    /**
+     * The two forms the plugin uses: (key, value, url) and (array of key =>
+     * value, url). Like WordPress, the values added are not URL-encoded
+     * (build_query() leaves new values as given); the plugin only passes
+     * digits and slugs.
+     */
     function add_query_arg(mixed ...$args): string
     {
-        [$key, $value, $url] = $args;
+        if (is_array($args[0])) {
+            [$params, $url] = $args;
+        } else {
+            [$key, $value, $url] = $args;
+            $params = [$key => $value];
+        }
 
-        return $url . (str_contains($url, '?') ? '&' : '?') . $key . '=' . rawurlencode((string) $value);
+        $pairs = [];
+        foreach ($params as $key => $value) {
+            $pairs[] = $key . '=' . $value;
+        }
+
+        return $url . (str_contains($url, '?') ? '&' : '?') . implode('&', $pairs);
+    }
+}
+
+if (!function_exists('rest_url')) {
+    function rest_url(string $path = '', string $scheme = 'rest'): string
+    {
+        return 'http://example.test/wp-json/' . ltrim($path, '/');
     }
 }
 

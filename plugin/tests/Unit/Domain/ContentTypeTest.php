@@ -25,6 +25,14 @@ final class ContentTypeTest extends TestCase
     }
 
     #[Test]
+    public function each_kind_is_a_collection_of_the_rest_api(): void
+    {
+        self::assertSame('articles', ContentType::Article->collection());
+        self::assertSame('projects', ContentType::Project->collection());
+        self::assertSame('pages', ContentType::Page->collection());
+    }
+
+    #[Test]
     public function each_kind_has_a_place_in_the_url_tree_of_the_site(): void
     {
         self::assertSame('/articles/rust/', ContentType::Article->path('rust'));
