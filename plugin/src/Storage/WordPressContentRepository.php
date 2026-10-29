@@ -184,6 +184,18 @@ final class WordPressContentRepository implements ContentRepository
         return $postId;
     }
 
+    public function trash(int $postId): void
+    {
+        $result = wp_trash_post($postId);
+        if (!$result instanceof WP_Post) {
+            throw new RuntimeException(
+                $result === null
+                    ? "Cannot move post {$postId} to the trash: there is no such post."
+                    : "Cannot move post {$postId} to the trash: WordPress refused (already there?).",
+            );
+        }
+    }
+
     /**
      * @param array<string, mixed> $query
      */

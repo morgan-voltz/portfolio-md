@@ -1,0 +1,89 @@
+# Brings the content of this repository into the WordPress site after each push
+# to main that touches content/ (01-plugin-php.md §6.2, ADR-019): the changed
+# files are posted to the plugin's Git door, POST /wp-json/portfolio/v1/sync,
+# which imports them with the same service as the admin and WP-CLI doors.
+#
+# The job needs three repository secrets and does nothing until they exist:
+#   PORTFOLIO_SYNC_URL       base URL of the site, e.g. https://example.org
+#   PORTFOLIO_SYNC_USER      login of the WordPress user the password belongs to
+#   PORTFOLIO_SYNC_PASSWORD  an application password of that user (profile → Application Passwords)
+#
+# The job turns red when a document waits for a decision in the admin (409) or
+# could not be processed (422): a conflict is never swallowed (ADR-005).
+name: Sync content to WordPress
+
+on:
+  push:
+    branches: [main]
+    paths: ['content/**']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Decide for every document without writing anything'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Pushes close together run one after the other, never cancelling each other:
+# each run carries the delta of its own push, which no later run would replay.
+concurrency:
+  group: portfolio-sync-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      SYNC_URL: ${{ secrets.PORTFOLIO_SYNC_URL }}
+      SYNC_USER: ${{ secrets.PORTFOLIO_SYNC_USER }}
+      SYNC_PASSWORD: ${{ secrets.PORTFOLIO_SYNC_PASSWORD }}
+    steps:
+      - name: Explain why nothing happens
+        if: env.SYNC_URL == '' || env.SYNC_USER == '' || env.SYNC_PASSWORD == ''
+        run: echo "::notice::The PORTFOLIO_SYNC_URL, PORTFOLIO_SYNC_USER and PORTFOLIO_SYNC_PASSWORD secrets are not all set; nothing is synchronized."
+
+      - name: Check out the repository with its history
+        if: env.SYNC_URL != '' && env.SYNC_USER != '' && env.SYNC_PASSWORD != ''
+        # Pinned to a commit, not a moving tag: this job holds a credential.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The diff needs the commit before the push, which a shallow clone does not hold.
+          fetch-depth: 0
+
+      - name: List the changed documents
+        if: env.SYNC_URL != '' && env.SYNC_USER != '' && env.SYNC_PASSWORD != ''
+        id: changes
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=all" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # A new branch or an unreachable "before" (force push): everything counts as added.
+          EMPTY_TREE=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            BEFORE="$EMPTY_TREE"
+          fi
+          # No rename detection: a renamed document is a deletion plus a creation, which the plugin handles as such.
+          # -z: NUL-separated, paths left as they are (the line form quotes and escapes an accented name).
+          git diff --no-renames --name-status -z "$BEFORE" "$AFTER" -- content/ > changes.nul
+          echo "mode=diff" >> "$GITHUB_OUTPUT"
+          echo "Changed files under content/:"; git diff --no-renames --name-status "$BEFORE" "$AFTER" -- content/
+
+      - name: Synchronize
+        if: env.SYNC_URL != '' && env.SYNC_USER != '' && env.SYNC_PASSWORD != ''
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.changes.outputs.mode }}" = "all" ]; then
+            SOURCE="--all"
+          else
+            SOURCE="--name-status changes.nul"
+          fi
+          python3 .github/scripts/sync-content.py \
+            --url "$SYNC_URL" --user "$SYNC_USER" --password-env SYNC_PASSWORD \
+            --commit "${{ github.sha }}" ${{ inputs.dry_run == true && '--dry-run' || '' }} $SOURCE

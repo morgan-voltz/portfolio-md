@@ -23,10 +23,12 @@ use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
 use Voltz\PortfolioMd\Rest\Controller\CollectionController;
 use Voltz\PortfolioMd\Rest\Controller\PreviewController;
 use Voltz\PortfolioMd\Rest\Controller\SitemapController;
+use Voltz\PortfolioMd\Rest\Controller\SyncController;
 use Voltz\PortfolioMd\Rest\DocumentPresenter;
 use Voltz\PortfolioMd\Rest\RouteRegistrar;
 use Voltz\PortfolioMd\Service\ConflictResolver;
 use Voltz\PortfolioMd\Service\ContentImportService;
+use Voltz\PortfolioMd\Service\ContentSyncService;
 use Voltz\PortfolioMd\Service\PreviewService;
 use Voltz\PortfolioMd\Service\SkillTermSynchronizer;
 use Voltz\PortfolioMd\Service\SystemClock;
@@ -91,6 +93,9 @@ final class Plugin
     /** The Markdown → Gutenberg renderer, shared by the import and the preview. */
     private ?ContentRenderer $renderer = null;
 
+    /** The post store of the import, shared with the Git synchronization, which retires posts through it. */
+    private ?WordPressContentRepository $repository = null;
+
     public function __construct(string $pluginFile)
     {
         $this->pluginFile = $pluginFile;
@@ -143,15 +148,23 @@ final class Plugin
     /**
      * Action `rest_api_init`: the routes of 01-plugin-php.md §7 under
      * `portfolio/v1`. The preview of the admin editor, which renders a
-     * document with the same parser and renderer as the import; then the
+     * document with the same parser and renderer as the import; the
      * public read side, one collection per kind of document and the
-     * sitemap, all served by the catalog (Service) over WP_Query (Storage).
+     * sitemap, all served by the catalog (Service) over WP_Query (Storage);
+     * and the Git door, which brings the files of a push through the same
+     * import service as the other doors.
      */
     public function registerRoutes(): void
     {
         $preview = new PreviewService(new FrontmatterParser(), $this->renderer(), new WordPressSkillTermGateway());
         $catalog = new WordPressContentCatalog();
         $presenter = new DocumentPresenter();
+        $sync = new ContentSyncService(
+            $this->importService(),
+            $this->repository(),
+            new SkillTermSynchronizer(new WordPressSkillTermGateway()),
+            new SkillsGridLoader(),
+        );
 
         (new RouteRegistrar(
             new PreviewController($preview),
@@ -159,6 +172,7 @@ final class Plugin
             new CollectionController(ContentType::Project, $catalog, $presenter),
             new CollectionController(ContentType::Page, $catalog, $presenter),
             new SitemapController($catalog, $presenter),
+            new SyncController($sync, new SystemClock()),
         ))->register();
     }
 
@@ -188,11 +202,16 @@ final class Plugin
         return $this->importService ??= new ContentImportService(
             new FrontmatterParser(),
             $this->renderer(),
-            new WordPressContentRepository(),
+            $this->repository(),
             new WordPressSkillTermGateway(),
             new ConflictResolver(),
             new SystemClock(),
         );
+    }
+
+    private function repository(): WordPressContentRepository
+    {
+        return $this->repository ??= new WordPressContentRepository();
     }
 
     private function renderer(): ContentRenderer

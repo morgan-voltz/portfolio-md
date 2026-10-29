@@ -562,6 +562,33 @@ La passerelle C# a un contrat stable et nommé ; `02-api-csharp.md` est corrigé
 
 ---
 
+## ADR-019 — La porte Git s'authentifie comme un utilisateur et ne force rien
+
+**Date** : 2026-10-29
+**Statut** : Accepté
+
+### Contexte
+
+Le plan d'avril (`01-plugin-php.md` §6.2 et §11) authentifiait le webhook Git par un jeton Bearer dans une constante de `wp-config.php`, comparé par `hash_equals()`, la route opérant alors « en super-admin ». Trois critiques indépendantes de la conception ont montré ce que ce choix entraînait : il faut inventer un auteur pour les posts créés (une seconde constante), et si cet auteur n'a pas `unfiltered_html`, WordPress rebranche un passage kses plus strict que celui du dépôt et les cases à cocher des listes de tâches disparaissent ; il faut imposer la longueur du jeton et HTTPS dans le code, lire l'en-tête `Authorization` de façon défensive selon le serveur, et le jeton partagé devient le premier chemin HTTP capable de supprimer du contenu. Le payload laissait aussi ouverts le sort d'un fichier supprimé, le `force` (ADR-005 en fait un acte humain) et la correspondance entre le dossier d'un fichier et le type de son frontmatter. Morgan a tranché le 29 octobre 2026.
+
+### Décision
+
+La porte Git s'authentifie par un **mot de passe d'application WordPress** en Basic auth : le cœur vérifie le secret et ouvre la requête au nom de l'utilisateur, qui devient l'auteur des posts créés ; la route demande à cet utilisateur `edit_others_posts`, `edit_others_pages`, `manage_categories` (la grille écrit les termes de la taxonomie) et `unfiltered_html`. Il n'y a ni constante ni classe de vérification de jeton dans le plugin ; la stack locale déclare `WP_ENVIRONMENT_TYPE=local` (via `WORDPRESS_CONFIG_EXTRA`) pour que WordPress accepte ces mots de passe sans HTTPS. **Il n'y a pas de `force` sur la route** : un conflit répond 409, fait échouer le job de CI, et se résout à la main (admin, page de collage, `wp portfolio import --force`). **Git reprend ce que Git a écrit** : un document supprimé met son post à la corbeille seulement si la dernière écriture venait de Git ; un post écrit depuis l'admin ou un collage, ou fait à la main, répond `conflict` ; déjà à la corbeille, `unchanged` ; sans post, `skipped`. Le dossier d'un fichier doit être celui de son type (`ContentImportService::import()` reçoit le type attendu, la commande WP-CLI aussi). La grille `skills.yaml` est synchronisée en premier dans un lot. Les chemins sont relatifs à `content/`, les lots bornés à cent fichiers, les codes HTTP 200/409/422 disent s'il faut regarder, la dernière synchronisation est consignée dans l'option `portfolio_md_last_sync`. Le côté Git est un workflow GitHub Actions (`sync-content.yml`) et un script Python partagé avec l'usage local (`.github/scripts/sync-content.py`), inertes tant que les trois secrets du dépôt n'existent pas.
+
+### Alternatives considérées
+
+- **Le jeton Bearer dans une constante, comme prévu** : indépendant des utilisateurs, mais une seconde constante pour l'auteur, des contrôles de longueur et de HTTPS à écrire, une lecture défensive de l'en-tête, et un auteur qui doit avoir `unfiltered_html` ; plus de code et de configuration pour un résultat équivalent.
+- **Un `force` global dans la requête, « à la main par curl seulement »** : repose sur la discipline de toute édition future du workflow ; ADR-005 réserve le forçage à un humain qui regarde.
+- **Supprimer sans condition** : simple, mais la porte que la règle de conflit avait oubliée : un fichier supprimé aurait mis à la corbeille un post édité dans l'admin.
+- **Ignorer les suppressions en v1** : plus prudent, mais un fichier renommé laisse l'ancien post publié jusqu'à une intervention manuelle, pour un gain de sûreté que la règle « Git reprend ce que Git a écrit » apporte déjà.
+- **Détecter les renommages** (`R` dans le diff) : exigerait une opération de renommage que le dépôt n'a pas et que le service d'import refuse (un document garde le slug écrit en lui) ; `--no-renames` donne une suppression plus une création, que le plugin traite déjà.
+
+### Conséquences
+
+Trois des quatre points de la conception d'avril changent (`01-plugin-php.md` §6.2 et §11 réécrits, `04-structure-wordpress.md` §6) ; le payload perd `source` et gagne `dry_run`. La sécurité repose sur un mécanisme du cœur, révocable depuis le profil, et sur des capacités WordPress ordinaires : un mot de passe d'application qui fuit permet d'écrire et de retirer ce que Git a écrit, pas d'écraser ce qu'un humain a écrit. Le dépôt gagne une méthode `trash()` sur son port, la seule qui retire un post, et jamais pour de bon. Le workflow restera inerte jusqu'au déploiement (phase 11) : le chemin complet a été joué en local, avec un mot de passe d'application créé puis supprimé par WP-CLI. La résolution d'un conflit est documentée mais pas outillée : si elle devient fréquente, un bouton « reprendre la version Git » dans la boîte de l'admin serait le prochain pas. Reste l'import des images (§8), seule partie du plan de départ encore à construire côté plugin.
+
+---
+
 ## Modèle pour nouvelles entrées
 
 Quand une décision architecturale nouvelle est prise, elle est ajoutée ici en suivant ce modèle.

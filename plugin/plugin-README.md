@@ -18,9 +18,9 @@ The two admin doors are in (26 October 2026, server side): `Admin\EditorMetaBox`
 
 Static pages (`type: page`, 27 October 2026) take the same path into the native page type: no term, the SEO description and the internal metas only; a page that holds a document is edited through the Markdown box, a page made by hand keeps the block editor (ADR-017). Links between documents (`../projects/<slug>.md`) are rewritten into links of the site at render time (`Parsing\RelativeLinks`, render version 1.1.0).
 
-The public read API is in (29 October 2026, ADR-018): `GET /wp-json/portfolio/v1/{articles,projects,pages}`, their `/{slug}` routes and `/sitemap` serve the published documents, Markdown source included, see "REST API" below.
+The public read API is in (29 October 2026, ADR-018): `GET /wp-json/portfolio/v1/{articles,projects,pages}`, their `/{slug}` routes and `/sitemap` serve the published documents, Markdown source included, see "REST API" below. So is the Git door (29 October 2026, ADR-019): `POST /wp-json/portfolio/v1/sync` takes the files a push changed, authenticated with a WordPress application password, and a GitHub Actions workflow feeds it, see "Git door" below.
 
-What is **not yet** implemented: image import into the media library and the Git webhook (`POST /sync`). See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
+What is **not yet** implemented: image import into the media library. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
 
 ## Local setup
 
@@ -160,9 +160,38 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/rest-smoke.php --user=<your admin login>
 ```
 
+## Git door
+
+Since 29 October 2026 a push to the content repository can be brought into WordPress through `POST /wp-json/portfolio/v1/sync` (ADR-019; the contract is in [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) §6.2). The body carries the files the push changed, with their path relative to `content/` (`projects/<slug>.md`, `pages/<slug>.md`, `articles/<slug>.md`, `skills.yaml`), their text or a `deleted` flag, an optional `dry_run` and an optional `commit_sha` for the logs; one to a hundred files per request.
+
+**Authentication.** The caller is a WordPress user with an **application password** (your profile → *Application Passwords* → add one), sent over Basic auth; WordPress checks it before the route runs, and the request then acts as that user, who authors the posts the push creates. The route requires `edit_others_posts`, `edit_others_pages`, `manage_categories` (the grid writes taxonomy terms) and `unfiltered_html` (an administrator has them). WordPress only accepts application passwords over HTTPS or in a `local` environment: `docker-compose.yml` declares `WP_ENVIRONMENT_TYPE=local` for the dev stack.
+
+**What it does.** Every file is handled on its own: `skills.yaml` first (so a sheet may cite a code the same push introduces), then each Markdown document through the same import service as the WP-CLI command, as a Git write and never forced (ADR-005). The folder must match the document's type. A deleted document moves its post to the trash **only when Git wrote it last**; a post edited in the admin, pasted, or made by hand answers `conflict` and stays. Anything that is not a document (the README, images) is `skipped`. The answer has one line per file (`created`, `updated`, `unchanged`, `conflict`, `failed`, `deleted`, `skipped`, with type, slug, post id and message) and a summary; the HTTP status is **200** when everything went through, **409** when a file waits for a decision in the admin, **422** when a file could not be processed. There is no `force` on this route: resolve a conflict in the admin, with « Portfolio → Importer » (a paste always wins) or with `wp portfolio import --force`. Every synchronization that is not a dry run is recorded in the option `portfolio_md_last_sync`, a replay that changed nothing included: `wp option get portfolio_md_last_sync` says when the site last heard from the repository, not whether that call wrote.
+
+**From GitHub.** `.github/workflows/sync-content.yml` runs on every push to `main` touching `content/`, lists the changed documents (`git diff --no-renames --name-status -z`: NUL-separated, so an accented file name arrives as it is; full history fetched, empty-tree fallback for a first push) and hands them to `.github/scripts/sync-content.py`, which posts them in batches of at most fifty files and four megabytes (`--batch-size`, `--batch-bytes`; PHP's default `post_max_size` is 8M), the skills grid in the first one, and fails the job on anything but 200, with a table in the job summary. `actions/checkout` is pinned to a commit, since the job holds a credential. It needs three repository secrets and does nothing until they exist: `PORTFOLIO_SYNC_URL` (the site), `PORTFOLIO_SYNC_USER` (the login) and `PORTFOLIO_SYNC_PASSWORD` (an application password of that user). *Run workflow* by hand sends every document, optionally as a dry run.
+
+**From this machine.** The same script talks to the local stack; create an application password (profile, or WP-CLI below), export it, and run it from the repository root:
+
+```bash
+podman-compose --profile tools run --rm wpcli wp user application-password create <login> local-sync --porcelain
+export PORTFOLIO_SYNC_PASSWORD='<the password printed above>'
+python3 .github/scripts/sync-content.py --url http://localhost:8000 --user <login> \
+  --password-env PORTFOLIO_SYNC_PASSWORD --all --dry-run
+# the files a diff changed, as the workflow does:
+git diff --no-renames --name-status -z HEAD~1 HEAD -- content/ | python3 .github/scripts/sync-content.py \
+  --url http://localhost:8000 --user <login> --password-env PORTFOLIO_SYNC_PASSWORD --name-status -
+```
+
+The route has its smoke test, which plays batches through the REST server as the admin (creation, replay, update, the real grid, conflicts, refusals, dry run, deletions, rights) and cleans up after itself, the last-sync option included:
+
+```bash
+podman-compose --profile tools run --rm wpcli wp eval-file \
+  wp-content/plugins/portfolio-md/tests/Integration/wp-cli/sync-smoke.php --user=<your admin login>
+```
+
 ## Tests
 
-Three complementary suites.
+Three complementary suites for the plugin, plus the tests of the CI script.
 
 **Unit suite (PHPUnit 11, no WordPress).** The registrars call WordPress functions, so `tests/bootstrap.php` loads small stand-ins (`tests/Support/wp-stubs.php`) that record registrations in `WordPressSpy` or mimic WordPress closely enough for the covered cases. The suite checks that every meta is registered with the right type, REST visibility and callbacks, and that every sanitizer accepts and rejects what it should. The Markdown pipeline (parser, Gutenberg transformer, import service, conflict rule) is covered there too without any stub, including a full render of every sheet in `content/`.
 
@@ -189,7 +218,13 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   --user=<your admin login>
 ```
 
-`--user` is required for the capability checks. The other smoke scripts (`skills`, `import`, `admin`, `preview`, `rest`) are listed in their sections above. The official `wp-phpunit` framework will come if the smoke scripts stop being enough.
+`--user` is required for the capability checks. The other smoke scripts (`skills`, `import`, `admin`, `preview`, `rest`, `sync`) are listed in their sections above. The official `wp-phpunit` framework will come if the smoke scripts stop being enough.
+
+**CI script (Python, no network).** `.github/scripts/test_sync_content.py` covers the pure parts of `sync-content.py`: reading the `-z` diff, which paths are documents, the grid first, batches by count and bytes, the summaries. From the repository root:
+
+```bash
+python3 -I .github/scripts/test_sync_content.py
+```
 
 ## Quick debug references
 
@@ -243,6 +278,12 @@ The most frequent issues you'll hit while developing locally are documented in [
 - `GET /wp-json/portfolio/v1/projects/MomoCad` answers 400 `rest_invalid_param` → by design: the REST server matches routes case-insensitively, so the capitals reach the `slug` parameter, whose schema wants a lowercase slug
 - A published project is missing from `GET /projects` → it holds no document (made by hand, `_portfolio_md_hash` empty) or has a password; the API serves documents only. `GET /articles` is an empty list with `X-WP-Total: 0` as long as no article exists
 - `GET /projects?skill=<code>` answers 400 → the filter takes the term slug, not the code (`4.0.2/E07` is not a slug); read the slug in the `skills` of a project
+- `POST /sync` answers 401 with a valid application password → WordPress accepts application passwords over HTTPS or in a `local` environment only; the compose file declares `WP_ENVIRONMENT_TYPE=local`, recreate the container (`podman-compose up -d`) if it was started before that line existed. Check with `wp eval 'var_dump(wp_is_application_passwords_available());'`
+- `POST /sync` answers 409 → a document was edited in the admin (or pasted) since Git wrote it: the line names the post; resolve it in the admin, paste the Git version, or run `wp portfolio import --force`; the route itself never forces
+- A document deleted from the repository is still published after the push → its post was not Git's to retire (the line says `conflict` and who wrote last): trash it by hand
+- `wp portfolio import` or `/sync` reports `… is in the "pages/" folder, which holds documents of type "page"` → the file sits in the folder of another kind: move it, or fix its `type` line
+- `sync-content.py` warns `the diff is not NUL-separated` → it was given the line form of `git diff --name-status`, which quotes and escapes an accented path (`"content/projects/fiche accentu\303\251e.md"`); produce the diff with `-z`
+- `sync-content.py` reports `HTTP 413` or a `400 rest_invalid_json` for a big batch → the body exceeded PHP's `post_max_size` (8M by default): lower `--batch-bytes`, or raise the limit on the host
 
 ## Architecture
 

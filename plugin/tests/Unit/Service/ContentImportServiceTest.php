@@ -232,6 +232,23 @@ final class ContentImportServiceTest extends TestCase
     }
 
     #[Test]
+    public function a_document_whose_type_differs_from_the_folder_of_its_file_is_refused(): void
+    {
+        $this->expectException(ImportException::class);
+        $this->expectExceptionMessage('its file is in the "pages/" folder, which holds documents of type "page"');
+
+        $this->service->import(self::project(), new ImportOptions(), 'projet', null, ContentType::Page);
+    }
+
+    #[Test]
+    public function a_file_in_the_folder_of_its_kind_is_accepted(): void
+    {
+        $result = $this->service->import(self::project(), new ImportOptions(), 'projet', null, ContentType::Project);
+
+        self::assertSame(ImportOutcome::Created, $result->outcome);
+    }
+
+    #[Test]
     public function a_file_named_after_its_slug_is_accepted(): void
     {
         $result = $this->service->import(self::project(), new ImportOptions(), 'projet');

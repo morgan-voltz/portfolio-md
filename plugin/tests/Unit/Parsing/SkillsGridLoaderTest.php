@@ -77,6 +77,32 @@ final class SkillsGridLoaderTest extends TestCase
     }
 
     #[Test]
+    public function builds_the_grid_from_yaml_text_as_a_push_hands_it(): void
+    {
+        $grid = $this->loader->fromYaml((string) file_get_contents(self::GRID_FILE));
+
+        self::assertSame(['4-0-1', '4-0-2'], array_map(static fn (Referential $r): string => $r->slug, $grid->referentials));
+    }
+
+    #[Test]
+    public function refuses_yaml_text_that_does_not_parse(): void
+    {
+        $this->expectException(InvalidSkillsGridException::class);
+        $this->expectExceptionMessage('invalid YAML');
+
+        $this->loader->fromYaml("- not: [a mapping\n");
+    }
+
+    #[Test]
+    public function refuses_yaml_text_that_is_not_a_mapping(): void
+    {
+        $this->expectException(InvalidSkillsGridException::class);
+        $this->expectExceptionMessage('must be a YAML mapping');
+
+        $this->loader->fromYaml("just a string\n");
+    }
+
+    #[Test]
     public function builds_typed_objects_from_an_array(): void
     {
         $grid = $this->loader->fromArray(self::grid());

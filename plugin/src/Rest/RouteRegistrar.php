@@ -10,8 +10,8 @@ namespace Voltz\PortfolioMd\Rest;
  * and builds it only then: most requests never reach the API.
  *
  * The controllers are given in the order their routes should be registered:
- * the preview of the admin editor, the three public collections and the
- * sitemap today; the Git webhook will join them here.
+ * the preview of the admin editor, the three public collections, the
+ * sitemap and the Git door.
  */
 final class RouteRegistrar
 {

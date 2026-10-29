@@ -5,7 +5,7 @@
 **Lectorat** : Morgan à froid, contributeurs futurs, et toute personne qui veut comprendre comment WordPress est organisé pour ce projet.
 **Articulation** : ce document complète `01-plugin-php.md` (qui détaille le plugin de conversion Markdown ↔ WordPress) en se concentrant sur la modélisation côté CMS.
 **Temps de lecture** : environ 12 minutes
-**Dernière mise à jour** : 29 octobre 2026 (routes REST publiques en lecture ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
+**Dernière mise à jour** : 29 octobre 2026 (porte Git et routes REST publiques en lecture ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
 
 ---
 
@@ -322,7 +322,7 @@ Deux écrans du plugin ont leur propre exigence : la métabox « Document Markdo
 
 Les deux post types sont déclarés avec `capability_type => 'post'` : ils réutilisent les capacités natives des articles WordPress. À garder en tête le jour où un rôle natif (`author`, `editor`, `contributor`) serait attribué à quelqu'un : cette personne obtiendrait automatiquement les mêmes droits sur `article` et `project` que sur les posts natifs. Il faudra alors soit l'accepter explicitement ici, soit donner aux deux types leurs propres capacités.
 
-Le seul cas particulier sera l'**endpoint de synchronisation Git** (`/sync` dans le plugin). Il ne dépendra pas du système de rôles WordPress mais d'un bearer token configuré hors du repo Git. Voir `01-plugin-php.md` section 11.
+L'**endpoint de synchronisation Git** (`/sync` dans le plugin) s'inscrit dans ce système : la CI s'authentifie avec un **mot de passe d'application** de l'utilisateur (créé et révoqué dans son profil, Basic auth), et la route demande à cet utilisateur `edit_others_posts`, `edit_others_pages`, `manage_categories` et `unfiltered_html`. Les posts créés par un push ont cet utilisateur pour auteur. Voir `01-plugin-php.md` sections 6.2 et 11 (ADR-019).
 
 Les **routes publiques en lecture** du plugin (`/wp-json/portfolio/v1/articles`, `/projects`, `/pages` et `/sitemap`) sont ouvertes au visiteur anonyme par conception : elles ne servent que les posts publiés, sans mot de passe, qui portent un document, et rien d'interne (`01-plugin-php.md` §7.1 et §11, ADR-018).
 

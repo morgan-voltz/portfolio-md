@@ -32,7 +32,9 @@ use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
  *   - a document whose slug differs from the name of its file is refused
  *     when the caller knows that name: a sheet copied from another one
  *     keeps the slug of its model and would overwrite it (content/README.md
- *     names every file after its slug);
+ *     names every file after its slug); a document whose type differs from
+ *     the folder of its file is refused the same way, when the caller
+ *     knows that folder: each kind has its folder;
  *   - a slug whose post sits in the trash is refused: the post was retired
  *     by hand, and WordPress would let a second one be created next to it;
  *   - with a target post, the post must exist with the document's type and
@@ -70,19 +72,24 @@ final class ContentImportService
      *                                  extension, when there is one: the slug has to match it
      * @param int|null    $targetPostId the post the document is written into, when the caller
      *                                  edits one; the post is found by slug otherwise
+     * @param ?ContentType $expectedType the kind the folder of the file holds, when the caller
+     *                                  knows that folder: the type has to match it
      *
      * @throws MalformedDocumentException  when the document has no usable frontmatter or is not UTF-8
      * @throws InvalidFrontmatterException when the metadata break the contract
      * @throws ImportException             when the document cannot be imported as it stands
      * @throws \RuntimeException           when the store refuses the write
      */
-    public function import(string $markdown, ImportOptions $options, ?string $expectedSlug = null, ?int $targetPostId = null): ImportResult
+    public function import(string $markdown, ImportOptions $options, ?string $expectedSlug = null, ?int $targetPostId = null, ?ContentType $expectedType = null): ImportResult
     {
         $document = $this->frontmatterParser->parse($markdown);
         $frontmatter = $document->frontmatter;
 
         if ($expectedSlug !== null && $frontmatter->slug !== $expectedSlug) {
             throw ImportException::slugMismatch($frontmatter->slug, $expectedSlug);
+        }
+        if ($expectedType !== null && $frontmatter->type !== $expectedType) {
+            throw ImportException::typeMismatch($frontmatter->type, $expectedType);
         }
 
         $hash = hash('sha256', $markdown);

@@ -28,6 +28,9 @@ final class InMemoryContentRepository implements ContentRepository
     /** @var list<ContentRecord> */
     public array $saved = [];
 
+    /** @var list<int> ids handed to trash(), in order */
+    public array $trashed = [];
+
     private int $nextId = 100;
 
     /**
@@ -67,6 +70,14 @@ final class InMemoryContentRepository implements ContentRepository
         ));
 
         return $id;
+    }
+
+    public function trash(int $postId): void
+    {
+        $key = $this->keysById[$postId] ?? throw new \RuntimeException("Cannot move post {$postId} to the trash: there is no such post.");
+        $content = $this->bySlug[$key];
+        $this->bySlug[$key] = new StoredContent($content->id, $content->hash, $content->source, $content->renderVersion, true, $content->documentSlug);
+        $this->trashed[] = $postId;
     }
 
     public function lastSaved(): ContentRecord

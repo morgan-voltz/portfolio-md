@@ -2,7 +2,7 @@
 
 One Markdown source, two distinct portfolios. This project publishes a single body of content through two independent web interfaces: a standard WordPress site (for SEO and academic requirements) and a modern technical portfolio built on a C# API and a React frontend.
 
-> **Status**: implementation in progress. The WordPress plugin is complete on the WordPress side of the roadmap (phases 1 to 5): content model, Markdown pipeline and WP-CLI import, admin editor with a server-rendered preview, native pages, and a public read-only JSON API (`/wp-json/portfolio/v1/{articles,projects,pages,sitemap}`). Next: the Git webhook, the image import, then the C# API. See the [roadmap](docs/architecture/00-overview.md#7-feuille-de-route) for the detailed plan.
+> **Status**: implementation in progress. The WordPress plugin is complete on the WordPress side of the roadmap (phases 1 to 5): content model, Markdown pipeline and WP-CLI import, admin editor with a server-rendered preview, native pages, a public read-only JSON API (`/wp-json/portfolio/v1/{articles,projects,pages,sitemap}`), and a Git door (`POST /wp-json/portfolio/v1/sync`) that a GitHub Actions workflow will feed once the site is online. Next: the image import, then the C# API. See the [roadmap](docs/architecture/00-overview.md#7-feuille-de-route) for the detailed plan.
 
 ## Why
 
@@ -96,6 +96,10 @@ Both Docker Compose v2 and recent `podman-compose` enforce the profile gate: wit
 The container runs as UID 33 (`www-data`), matching the WordPress file ownership. If you hit permission errors on `./wordpress_data` from your host user, that is the reason — fix ownership rather than chmod-ing world-writable.
 
 For pitfalls and troubleshooting (`exec` vs `run --rm`, `podman compose` vs `podman-compose`, MariaDB lock conflicts, profile gating), see [`docs/pedagogie/containers-et-wp-cli.md`](docs/pedagogie/containers-et-wp-cli.md).
+
+### Git synchronization
+
+Once the WordPress site is online, every push to `main` that touches `content/` is brought into it by the workflow `.github/workflows/sync-content.yml`: the changed documents are posted to the plugin's Git door, `POST /wp-json/portfolio/v1/sync`, authenticated with a WordPress application password. The workflow needs three repository secrets (`PORTFOLIO_SYNC_URL`, `PORTFOLIO_SYNC_USER`, `PORTFOLIO_SYNC_PASSWORD`) and does nothing until they exist. The same script runs against the local stack, for instance `python3 .github/scripts/sync-content.py --url http://localhost:8000 --user <login> --password-env PORTFOLIO_SYNC_PASSWORD --all --dry-run`, and its pure parts have unit tests (`python3 -I .github/scripts/test_sync_content.py`); see [`plugin/plugin-README.md`](plugin/plugin-README.md) ("Git door") for the application password and the rules (a conflict with an admin edit fails the job on purpose).
 
 ### WordPress plugin (PHP)
 

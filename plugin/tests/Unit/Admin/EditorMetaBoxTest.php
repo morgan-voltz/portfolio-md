@@ -355,6 +355,10 @@ final class EditorMetaBoxTest extends TestCase
 
                 return (int) $record->id;
             }
+
+            public function trash(int $postId): void
+            {
+            }
         };
         $box = new EditorMetaBox(self::service($repository));
         $repository->box = $box;

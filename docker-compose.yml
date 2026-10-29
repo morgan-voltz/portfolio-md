@@ -58,6 +58,11 @@ services:
       # WP_DEBUG en dev local : utile pour voir les erreurs PHP plutôt qu'une
       # page blanche. À désactiver en production.
       WORDPRESS_DEBUG: 1
+      # Code PHP ajouté au wp-config.php généré par l'image (évalué à chaque requête).
+      # Environnement « local » : c'est ce que ce poste est, et WordPress n'autorise
+      # les mots de passe d'application sans HTTPS que dans cet environnement ; le
+      # webhook Git (POST /wp-json/portfolio/v1/sync) s'authentifie avec l'un d'eux.
+      WORDPRESS_CONFIG_EXTRA: "define('WP_ENVIRONMENT_TYPE', 'local');"
     volumes:
       # Volume principal : l'ensemble du WordPress (core + wp-content).
       # En production réelle, on ne monterait que wp-content pour préserver
@@ -94,6 +99,9 @@ services:
       WORDPRESS_DB_USER: ${DB_USER}
       WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
       WORDPRESS_DB_NAME: ${DB_NAME}
+      # Le même environnement que le service wordpress : wp-config.php est partagé et
+      # relit cette variable à chaque exécution (wp eval, tests de fumée).
+      WORDPRESS_CONFIG_EXTRA: "define('WP_ENVIRONMENT_TYPE', 'local');"
     volumes:
       - ./wordpress_data:/var/www/html:z
       # On monte aussi le plugin pour que WP-CLI puisse l'activer/désactiver,
