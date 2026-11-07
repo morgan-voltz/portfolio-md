@@ -20,6 +20,7 @@ use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
 use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
 use Voltz\PortfolioMd\Service\ContentRecord;
 use Voltz\PortfolioMd\Service\ContentRepository;
+use Voltz\PortfolioMd\Service\DocumentLister;
 use Voltz\PortfolioMd\Service\StoredContent;
 use Voltz\PortfolioMd\Taxonomies\TaxonomyRegistrar;
 use WP_Error;
@@ -51,7 +52,7 @@ use WP_Term;
  * a failure in the second step removes a post that was just created, and
  * names the half-updated post otherwise.
  */
-final class WordPressContentRepository implements ContentRepository
+final class WordPressContentRepository implements ContentRepository, DocumentLister
 {
     private const LAST_SYNC_FORMAT = 'Y-m-d\TH:i:s\Z';
 
@@ -95,6 +96,29 @@ final class WordPressContentRepository implements ContentRepository
         }
 
         return self::stored($post, $post->post_status === 'trash', $this->documentSlug((int) $post->ID));
+    }
+
+    public function listDocuments(ContentType $type): array
+    {
+        // Every status but auto-draft, the trash included: the reconciliation tells the trash apart itself.
+        $posts = get_posts([
+            'post_type' => self::postType($type),
+            'post_status' => array_values(array_diff(array_keys(get_post_stati()), ['auto-draft'])),
+            'meta_query' => [['key' => InternalMetaRegistrar::MD_HASH, 'value' => '', 'compare' => '!=']],
+            'numberposts' => -1,
+            'orderby' => 'ID',
+            'order' => 'ASC',
+            'lang' => '', // every language (see firstPost())
+        ]);
+
+        $found = [];
+        foreach ($posts as $post) {
+            if ($post instanceof WP_Post) {
+                $found[] = self::stored($post, $post->post_status === 'trash', $this->documentSlug((int) $post->ID));
+            }
+        }
+
+        return $found;
     }
 
     public function findByKey(ContentType $type, string $translationKey): array

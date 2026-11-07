@@ -7,6 +7,7 @@ namespace Voltz\PortfolioMd\Tests\Support;
 use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Service\ContentRecord;
 use Voltz\PortfolioMd\Service\ContentRepository;
+use Voltz\PortfolioMd\Service\DocumentLister;
 use Voltz\PortfolioMd\Service\StoredContent;
 
 /**
@@ -17,7 +18,7 @@ use Voltz\PortfolioMd\Service\StoredContent;
  * Mimics the one WordPress rule the service relies on: a post has one slug,
  * so writing it under a new slug frees the old one.
  */
-final class InMemoryContentRepository implements ContentRepository
+final class InMemoryContentRepository implements ContentRepository, DocumentLister
 {
     /** @var array<string, StoredContent> "type/slug" => content */
     private array $bySlug = [];
@@ -87,6 +88,19 @@ final class InMemoryContentRepository implements ContentRepository
         $found = [];
         foreach ($this->bySlug as $key => $content) {
             if (str_starts_with($key, $type->value . '/') && !$content->inTrash && $content->translationKey === $translationKey) {
+                $found[] = $content;
+            }
+        }
+        usort($found, static fn (StoredContent $a, StoredContent $b): int => $a->id <=> $b->id);
+
+        return $found;
+    }
+
+    public function listDocuments(ContentType $type): array
+    {
+        $found = [];
+        foreach ($this->bySlug as $key => $content) {
+            if (str_starts_with($key, $type->value . '/') && $content->holdsDocument()) {
                 $found[] = $content;
             }
         }
