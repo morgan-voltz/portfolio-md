@@ -2,6 +2,7 @@
 title: "carbon-fr"
 slug: "carbon-fr"
 type: "project"
+lang: "fr"
 date: 2026-10-26
 subtitle: "Une API qui mesure l'intensité carbone de l'électricité française sans jamais trancher les débats qu'elle informe"
 seo_description: "carbon-fr est une API open source en Rust qui mesure l'intensité carbone de l'électricité française, référencée comme réutilisation sur data.gouv.fr."

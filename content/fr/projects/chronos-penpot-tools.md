@@ -2,6 +2,7 @@
 title: "chronos-penpot-tools"
 slug: "chronos-penpot-tools"
 type: "project"
+lang: "fr"
 date: 2026-10-26
 subtitle: "Un plugin Penpot qui transforme une maquette en composant Dioxus (Rust), via un cœur de conversion compilé en WebAssembly"
 seo_description: "chronos-penpot-tools, plugin Penpot qui génère des composants Dioxus (Rust) depuis une maquette, via un cœur de conversion compilé en WebAssembly."

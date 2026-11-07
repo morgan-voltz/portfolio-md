@@ -7,7 +7,9 @@ namespace Voltz\PortfolioMd\Tests\Unit\Parsing;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Voltz\PortfolioMd\Domain\ContentPath;
 use Voltz\PortfolioMd\Domain\ContentType;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
 use Voltz\PortfolioMd\Parsing\FrontmatterParser;
 use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
@@ -40,7 +42,7 @@ final class FrontmatterParserTest extends TestCase
     #[Test]
     public function parses_the_real_momocad_sheet(): void
     {
-        $document = $this->parser->parse((string) file_get_contents(self::CONTENT_DIR . '/projects/momocad.md'));
+        $document = $this->parser->parse((string) file_get_contents(self::CONTENT_DIR . '/fr/projects/momocad.md'));
 
         self::assertSame('momocad', $document->frontmatter->slug);
         self::assertSame(ContentType::Project, $document->frontmatter->type);
@@ -54,14 +56,19 @@ final class FrontmatterParserTest extends TestCase
     public function parses_every_sheet_of_the_content_folder(): void
     {
         $files = array_merge(
-            glob(self::CONTENT_DIR . '/projects/*.md') ?: [],
-            glob(self::CONTENT_DIR . '/pages/*.md') ?: [],
+            glob(self::CONTENT_DIR . '/fr/projects/*.md') ?: [],
+            glob(self::CONTENT_DIR . '/fr/pages/*.md') ?: [],
         );
-        self::assertNotEmpty($files, 'content folder not found next to the plugin');
+        self::assertCount(16, $files, 'the fourteen sheets and the two pages of content/fr/ (ADR-020)');
 
         foreach ($files as $file) {
             $document = $this->parser->parse((string) file_get_contents($file));
+            $path = ContentPath::fromRelative(substr($file, strlen(self::CONTENT_DIR) + 1));
+
             self::assertSame(basename($file, '.md'), $document->frontmatter->slug, $file);
+            self::assertSame(Language::Fr, $document->frontmatter->lang, $file);
+            self::assertSame($path->lang, $document->frontmatter->lang, $file . ' says a language that is not the one of its folder');
+            self::assertSame($path->type, $document->frontmatter->type, $file . ' says a type that is not the one of its folder');
         }
     }
 

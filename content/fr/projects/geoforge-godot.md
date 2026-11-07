@@ -2,6 +2,7 @@
 title: "GeoForge, l'addon Godot"
 slug: "geoforge-godot"
 type: "project"
+lang: "fr"
 date: 2026-10-26
 subtitle: "Un addon Godot qui calcule le relief, les rivières et les routes à partir de lois physiques réelles, ajustables point par point"
 seo_description: "GeoForge, addon open source pour Godot 4 (C#/.NET), calcule relief, rivières et routes à partir de lois physiques et de normes d'ingénierie réelles."

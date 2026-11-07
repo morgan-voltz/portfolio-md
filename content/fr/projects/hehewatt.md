@@ -2,6 +2,7 @@
 title: "HEHEWATT"
 slug: "hehewatt"
 type: "project"
+lang: "fr"
 date: 2026-10-26
 subtitle: "Une application de covoiturage scolaire reprise et prolongée par plusieurs promotions d'étudiants"
 seo_description: "HEHEWATT, projet E-mersion UHA 4.0 pour le lycée Henner d'Altkirch : covoiturage scolaire en PHP/MySQL, géolocalisation OpenStreetMap, équipe inter-promotions."

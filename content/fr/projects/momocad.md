@@ -2,6 +2,7 @@
 title: "MomoCad"
 slug: "momocad"
 type: "project"
+lang: "fr"
 date: 2026-10-26
 subtitle: "Un logiciel de dessin 2D façon CAO dont l'état n'est qu'un journal d'événements rejoué"
 seo_description: "MomoCad, projet fil rouge UHA 4.0.2 : dessin 2D en C#/.NET 10, architecture hexagonale, event sourcing, 275 tests à 100 % de couverture."

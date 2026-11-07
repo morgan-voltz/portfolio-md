@@ -2,6 +2,7 @@
 title: "Trace 4.0, migration Manifest V3"
 slug: "trace-4-0-manifest-v3"
 type: "project"
+lang: "fr"
 date: 2026-10-26
 subtitle: "L'extension de suivi de l'école cassée par la fin de Manifest V2, remise en marche de ma propre initiative"
 seo_description: "Migration solo, en janvier 2026, de l'extension Chrome de suivi pédagogique de l'UHA 4.0 vers Manifest V3, après que Chrome a désactivé Manifest V2."

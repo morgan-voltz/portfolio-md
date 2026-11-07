@@ -2,6 +2,7 @@
 title: "CV"
 slug: "cv"
 type: "page"
+lang: "fr"
 date: 2026-10-26
 seo_description: "Morgan Voltz est développeur full-stack en Licence Informatique UHA 4.0 et fondateur de Kovelt : formation, expérience, compétences et projets."
 ---

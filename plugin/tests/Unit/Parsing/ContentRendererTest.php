@@ -31,7 +31,7 @@ final class ContentRendererTest extends TestCase
     #[Test]
     public function renders_the_momocad_sheet_as_semantic_blocks(): void
     {
-        $document = $this->frontmatter->parse((string) file_get_contents(self::CONTENT_DIR . '/projects/momocad.md'));
+        $document = $this->frontmatter->parse((string) file_get_contents(self::CONTENT_DIR . '/fr/projects/momocad.md'));
 
         $html = $this->renderer->render($document->body, Language::Fr);
 
@@ -47,7 +47,7 @@ final class ContentRendererTest extends TestCase
     #[Test]
     public function every_content_sheet_maps_to_known_blocks(): void
     {
-        $files = glob(self::CONTENT_DIR . '/{projects,pages}/*.md', GLOB_BRACE);
+        $files = glob(self::CONTENT_DIR . '/fr/{projects,pages}/*.md', GLOB_BRACE);
         self::assertNotEmpty($files);
 
         foreach ($files as $file) {
@@ -63,7 +63,7 @@ final class ContentRendererTest extends TestCase
     #[Test]
     public function the_cv_page_links_to_the_project_sheets_of_the_site(): void
     {
-        $html = $this->renderer->render($this->frontmatter->parse((string) file_get_contents(self::CONTENT_DIR . '/pages/cv.md'))->body, Language::Fr);
+        $html = $this->renderer->render($this->frontmatter->parse((string) file_get_contents(self::CONTENT_DIR . '/fr/pages/cv.md'))->body, Language::Fr);
 
         self::assertStringContainsString('href="/fr/projets/vefta/"', $html);
         self::assertStringContainsString('href="/fr/projets/momocad/"', $html);
