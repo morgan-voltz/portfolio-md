@@ -7,6 +7,7 @@ namespace Voltz\PortfolioMd\Tests\Unit\Parsing;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Parsing\ContentRenderer;
 use Voltz\PortfolioMd\Parsing\FrontmatterParser;
 use Voltz\PortfolioMd\Parsing\GutenbergTransformer;
@@ -32,7 +33,7 @@ final class ContentRendererTest extends TestCase
     {
         $document = $this->frontmatter->parse((string) file_get_contents(self::CONTENT_DIR . '/projects/momocad.md'));
 
-        $html = $this->renderer->render($document->body);
+        $html = $this->renderer->render($document->body, Language::Fr);
 
         self::assertStringStartsWith("<!-- wp:paragraph -->\n<p>MomoCad est mon projet fil rouge", $html);
         self::assertStringNotContainsString('<h1 ', $html, 'the title comes from the frontmatter, the body must not repeat it');
@@ -50,7 +51,7 @@ final class ContentRendererTest extends TestCase
         self::assertNotEmpty($files);
 
         foreach ($files as $file) {
-            $html = $this->renderer->render($this->frontmatter->parse((string) file_get_contents($file))->body);
+            $html = $this->renderer->render($this->frontmatter->parse((string) file_get_contents($file))->body, Language::Fr);
 
             self::assertStringNotContainsString('<!-- wp:html -->', $html, basename($file) . ' needs the raw HTML fallback');
             self::assertGreaterThan(5, substr_count($html, '<!-- /wp:'), basename($file) . ' renders too few blocks');
@@ -62,10 +63,10 @@ final class ContentRendererTest extends TestCase
     #[Test]
     public function the_cv_page_links_to_the_project_sheets_of_the_site(): void
     {
-        $html = $this->renderer->render($this->frontmatter->parse((string) file_get_contents(self::CONTENT_DIR . '/pages/cv.md'))->body);
+        $html = $this->renderer->render($this->frontmatter->parse((string) file_get_contents(self::CONTENT_DIR . '/pages/cv.md'))->body, Language::Fr);
 
-        self::assertStringContainsString('href="/projets/vefta/"', $html);
-        self::assertStringContainsString('href="/projets/momocad/"', $html);
+        self::assertStringContainsString('href="/fr/projets/vefta/"', $html);
+        self::assertStringContainsString('href="/fr/projets/momocad/"', $html);
         self::assertStringNotContainsString('.md"', $html);
     }
 
@@ -73,5 +74,15 @@ final class ContentRendererTest extends TestCase
     public function the_render_version_is_semver(): void
     {
         self::assertMatchesRegularExpression('/^\d+\.\d+\.\d+$/', ContentRenderer::VERSION);
+    }
+
+    #[Test]
+    public function render_uses_the_language_of_the_document_for_its_links(): void
+    {
+        $body = "Voir [Vefta](../projects/vefta.md) et [le CV anglais](../../en/pages/resume.md).\n";
+
+        self::assertStringContainsString('href="/fr/projets/vefta/"', $this->renderer->render($body, Language::Fr));
+        self::assertStringContainsString('href="/de/projets/vefta/"', $this->renderer->render($body, Language::De));
+        self::assertStringContainsString('href="/en/resume/"', $this->renderer->render($body, Language::De));
     }
 }
