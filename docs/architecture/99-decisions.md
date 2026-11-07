@@ -4,7 +4,7 @@
 **Rôle** : trace des décisions structurantes, avec leur contexte et leur justification
 **Format** : inspiré d'ADR (Architecture Decision Records) de Michael Nygard
 **Lectorat** : contributeur, Morgan lui-même à froid, recruteur attentif
-**Dernière mise à jour** : 29 octobre 2026
+**Dernière mise à jour** : 7 novembre 2026
 
 ---
 
@@ -49,6 +49,9 @@ Les entrées ne sont jamais supprimées. Si une décision est révisée, on ajou
 | ADR-015 | Contenu versionné dans le monorepo, grille de compétences et périmètre des fiches | 2026-10-26 | Accepté |
 | ADR-016 | Éditeur CodeMirror 6 avec prévisualisation rendue par le serveur | 2026-10-27 | Accepté |
 | ADR-017 | Les pages natives dans le pipeline, éditées comme leur document quand elles en portent un | 2026-10-27 | Accepté |
+| ADR-018 | Endpoints REST publics en lecture : le catalogue des documents publiés | 2026-10-29 | Accepté |
+| ADR-019 | La porte Git s'authentifie comme un utilisateur et ne force rien | 2026-10-29 | Accepté |
+| ADR-020 | Site trilingue : Polylang gratuit, un document par langue, préfixe d'URL dès le premier déploiement | 2026-11-07 | Proposé |
 
 ---
 
@@ -245,6 +248,8 @@ La séparation est **fonction de la surface de visibilité**. En anglais : tout 
 
 Le contexte linguistique bascule entre code et documentation, ce qui demande une légère gymnastique mentale mais reste naturel en pratique. Le projet apparaît professionnel pour un visiteur anonyme (README et historique en anglais) tout en restant agréable à maintenir pour Morgan (docs internes en français). Les étudiants juniors francophones visés par la doc pédagogique y accèdent sans barrière linguistique.
 
+
+Cette décision règle la langue du code et des documents, pas celle du site publié, qui relève d'ADR-020.
 ---
 
 ## ADR-008 — Monorepo contenant plugin, API, et front
@@ -560,6 +565,8 @@ La lecture publique a son propre port, `Service\ContentCatalog` (`list()`, `find
 
 La passerelle C# a un contrat stable et nommé ; `02-api-csharp.md` est corrigé (le filtre « catégorie » avait disparu avec ADR-015, les paramètres sont ceux du plugin, les agrégats n'ont pas de source côté plugin). Une seconde classe de lecture parle à WordPress ; comme les deux autres, elle est couverte par un test de fumée (`rest-smoke.php`), pas par la suite unitaire, qui couvre les contrôleurs et le présentateur avec un catalogue en mémoire. Le Markdown source est public, frontmatter compris : c'est le contenu de la page publique, et l'objet même de l'API. L'heure d'une `date` est minuit, heure du site, converti en UTC, et non un instant de publication : le frontmatter ne porte qu'un jour. Deux surfaces publiques coexistent, celle du plugin (Markdown) et la native (HTML) ; les restreindre serait une décision à part. Restent à faire, quand le besoin apparaîtra : les en-têtes de cache conditionnel, une limitation de débit, puis `/sync` (phase 9).
 
+
+ADR-020 ajoute à ce contrat un paramètre de langue explicite, `language`, et un repli par langue ; les routes et les champs décrits ici restent valables tels quels quand le paramètre est absent.
 ---
 
 ## ADR-019 — La porte Git s'authentifie comme un utilisateur et ne force rien
@@ -586,6 +593,33 @@ La porte Git s'authentifie par un **mot de passe d'application WordPress** en Ba
 ### Conséquences
 
 Trois des quatre points de la conception d'avril changent (`01-plugin-php.md` §6.2 et §11 réécrits, `04-structure-wordpress.md` §6) ; le payload perd `source` et gagne `dry_run`. La sécurité repose sur un mécanisme du cœur, révocable depuis le profil, et sur des capacités WordPress ordinaires : un mot de passe d'application qui fuit permet d'écrire et de retirer ce que Git a écrit, pas d'écraser ce qu'un humain a écrit. Le dépôt gagne une méthode `trash()` sur son port, la seule qui retire un post, et jamais pour de bon. Le workflow restera inerte jusqu'au déploiement (phase 11) : le chemin complet a été joué en local, avec un mot de passe d'application créé puis supprimé par WP-CLI. La résolution d'un conflit est documentée mais pas outillée : si elle devient fréquente, un bouton « reprendre la version Git » dans la boîte de l'admin serait le prochain pas. Reste l'import des images (§8), seule partie du plan de départ encore à construire côté plugin.
+
+---
+
+## ADR-020 — Site trilingue : Polylang gratuit, un document par langue, préfixe d'URL dès le premier déploiement
+
+**Date** : 2026-11-07
+**Statut** : Proposé (à confirmer ou amender à la sortie du lot 0, le spike Polylang)
+
+### Contexte
+
+Le 7 novembre 2026, Morgan a posé que le site doit servir le français, l'allemand et l'anglais « au besoin de la personne qui le consulte », et ce pour tout le contenu : jury francophone, recruteurs suisses et allemands, recruteurs internationaux, avec un CV PDF par langue produit hors dépôt. Le dépôt est monolingue de bout en bout : la liste fermée des clés de `Parsing\Frontmatter` refuse toute clé `lang`, l'identité d'un document est le couple (type, slug) et WordPress impose un slug unique par type de post, `ContentType::path()` ne connaît aucun préfixe de langue, la profondeur « dossier/fichier » du contenu est imposée par `Service\ContentSyncService` et par `.github/scripts/sync-content.py`, et le sitemap d'ADR-018 comme les caches prévus de l'API C# et du front raisonnent sur le slug seul. ADR-007 règle la langue du code et des documents, pas celle du site. Aucune URL publique n'existe avant la phase 11 : c'est le moment le moins coûteux pour fixer le schéma d'URL, alors qu'un préfixe ajouté après indexation imposerait des redirections partout. Le contenu pèse environ 21 000 mots par langue cible. Trois conceptions indépendantes (WordPress natif d'abord, langue comme axe du modèle de contenu, échéance d'abord) ont été jugées sous trois lentilles puis réfutées point par point ; le brief complet est conservé hors dépôt.
+
+### Décision
+
+Polylang gratuit, version épinglée, en mode répertoire avec le préfixe français visible : `/fr/`, `/de/`, `/en/`. Le contenu passe en `content/<lang>/<dossier>/<slug>.md` ; chaque document porte `lang` (obligatoire, égal au dossier) et `translation_key` (obligatoire pour `de` et `en`, optionnelle pour `fr` où elle vaut le slug), et reste autosuffisant : un fichier traduit contient tout son frontmatter, rien n'est copié depuis l'original à l'import. Slugs : uniques par type ; fiches et articles non français suffixés `-de` ou `-en`, et un slug français ne finit jamais par ces suffixes ; pages à slugs naturels distincts par langue (`cv`, `lebenslauf`, `resume` ; `a-propos`, `ueber-mich`, `about`), jamais identiques entre langues. Le plugin reste maître de la langue : il la stocke dans ses propres meta (`_portfolio_lang`, `_portfolio_translation_key`) et la pousse chez Polylang à chaque écriture à travers une interface `LanguageGateway` (adaptateurs Polylang, nul et en mémoire) ; il ne lit jamais la langue chez Polylang. Les trois langues existent dès le départ ; une langue est ouverte au public par l'option `portfolio_md_published_languages` quand l'accueil, À propos, CV, Contact et le fil rouge sont traduits. Tout le contenu est destiné à exister dans les trois langues ; en attendant, un document manquant est servi en repli, de vers en puis fr, signalé comme tel. REST et API C# : un paramètre de langue explicite nommé `language` (Polylang intercepte `lang` sur toute route REST), jamais `Accept-Language`, la langue dans toutes les clés de cache, la détection du navigateur limitée à l'accueil. Les bases d'URL `projets` et `articles` restent françaises sous `/de/` et `/en/`. Les intitulés officiels des compétences 4.0.1 et 4.0.2 sont traduits et marqués non officiels tant que l'UHA n'en fournit pas de version. Git est seul écrivain des traductions. Les PDF du CV sont déposés dans la médiathèque WordPress sous un nom fixe par langue.
+
+### Alternatives considérées
+
+- **Polylang gratuit avec un fichier de traduction réduit aux champs traduisibles** : surface minimale, mais un fichier refusé par le parseur (`status` obligatoire pour un projet) et une propagation des champs à maintenir à chaque import.
+- **Un module de langue maison** : même slug dans les trois langues, mais un moteur multilingue à maintenir seul, bâti sur un filtre de slug non vérifié, et plus rien de « WordPress standard » à montrer au jury.
+- **Polylang Pro** : slugs partagés et bases d'URL traduites, mais payant ; reste l'échappatoire si les bases françaises sous `/de/` et `/en/` gênent.
+- **WPML, TranslatePress, multisite, qTranslate-XT** : coût, table de liaison propriétaire, traduction du HTML rendu inadaptée à une source Markdown, ou multiplication des bases de données.
+- **Le français seul d'abord, sans préfixe** : plus rapide, mais ajouter `/fr/` après indexation impose des redirections partout.
+
+### Conséquences
+
+Seize fichiers sont déplacés vers `content/fr/` et reçoivent `lang: fr` ; leurs hash changent et les seize posts passent en `updated`. Un chemin de profondeur 2 est désormais refusé en `skipped`. Le déplacement arrive dans la porte Git comme seize suppressions plus seize créations (`git diff --no-renames`) : sur l'ancien plugin, les seize posts partiraient à la corbeille et chaque slug serait ensuite bloqué par `ImportException::inTrash`. D'où l'ordre impératif : le plugin à profondeur 3 est déployé et testé avant que la migration n'atteigne `main`, avec un `sync --dry-run` entre les deux. `ContentRenderer::VERSION` monte et `render` reçoit la langue du document. La langue est stockée deux fois, chez nous et chez Polylang, et Polylang peut la modifier par sa boîte, sa colonne, sa modification rapide ou en masse : `wp portfolio translations reconcile` est la garantie, pas le masquage de l'interface ; la boîte Markdown de l'admin devient lecture seule pour les traductions. Les slugs suffixés sont durables. Les archives de taxonomie sous une langue secondaire ne sont pas traduites : `noindex` à trancher. Le minimum WordPress du plugin monte à la version exigée par Polylang (6.8 pour Polylang 3.9) et l'image Docker est épinglée. Le volume de traduction dépasse ce que le repli masque : l'ouverture d'une langue est conditionnée à sa relecture par Morgan. Les comportements de Polylang sur lesquels cette décision s'appuie (langue attribuée aux types de contenu custom par `pll_set_post_language`, interception du paramètre `lang` en REST, hreflang sans doublon avec Yoast, suffixe `-2` du noyau sur un slug dupliqué, sélecteur et détection du navigateur) sont à confirmer par le lot 0 avant tout autre lot ; si l'import ne peut pas piloter Polylang de façon fiable, on revient devant Morgan avec le repli « français seul sous `/fr/` » et un chiffrage de Polylang Pro ou d'un module maison. Les documents 00, 01, 02, 03, 04 et `content/README.md` sont mis à jour lot par lot, au fil de l'implémentation.
 
 ---
 
