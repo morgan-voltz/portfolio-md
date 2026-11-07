@@ -191,7 +191,18 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
 
 ## Tests
 
-Three complementary suites for the plugin, plus the tests of the CI script.
+Three complementary suites for the plugin, plus the tests of the CI script, and two exploratory scripts.
+
+**Polylang spike (lot 0 of ADR-020).** `tests/Integration/wp-cli/polylang-spike.php` checks, through WP-CLI, the Polylang behaviours the trilingual design relies on (language creation by code, options, custom post type support, language assignment and linking, `WP_Query` and the `lang` query var, the slug a second language gets) and `tools/polylang-http-spike.sh` checks what a visitor and the API consumers see (home redirection, prefixes, hreflang, REST parameters, archives, Yoast sitemap). The findings are recorded in [`../docs/architecture/spikes/2026-11-07-polylang.md`](../docs/architecture/spikes/2026-11-07-polylang.md). The PHP script keeps three side effects on purpose, the languages fr/de/en, the Polylang options and `fr` on every existing post, and deletes its own posts when run with `cleanup`:
+
+```bash
+podman-compose --profile tools run --rm wpcli wp eval-file \
+  wp-content/plugins/portfolio-md/tests/Integration/wp-cli/polylang-spike.php --user=<your admin login>
+podman-compose --profile tools run --rm wpcli wp rewrite flush --hard
+plugin/tools/polylang-http-spike.sh http://localhost:8000
+podman-compose --profile tools run --rm wpcli wp eval-file \
+  wp-content/plugins/portfolio-md/tests/Integration/wp-cli/polylang-spike.php cleanup --user=<your admin login>
+```
 
 **Unit suite (PHPUnit 11, no WordPress).** The registrars call WordPress functions, so `tests/bootstrap.php` loads small stand-ins (`tests/Support/wp-stubs.php`) that record registrations in `WordPressSpy` or mimic WordPress closely enough for the covered cases. The suite checks that every meta is registered with the right type, REST visibility and callbacks, and that every sanitizer accepts and rejects what it should. The Markdown pipeline (parser, Gutenberg transformer, import service, conflict rule) is covered there too without any stub, including a full render of every sheet in `content/`.
 
