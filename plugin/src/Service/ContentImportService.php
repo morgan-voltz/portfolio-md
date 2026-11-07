@@ -180,13 +180,7 @@ final class ContentImportService
     {
         $this->languages->setLanguage($postId, $frontmatter->lang);
 
-        $byLanguage = [];
-        foreach ($this->repository->findByKey($frontmatter->type, $frontmatter->translationKey) as $sibling) {
-            if ($sibling->lang === null) {
-                continue;
-            }
-            $byLanguage[$sibling->lang->value] ??= $sibling->id;
-        }
+        $byLanguage = TranslationGroup::fromStored($this->repository->findByKey($frontmatter->type, $frontmatter->translationKey));
         if (count($byLanguage) > 1) {
             $this->languages->linkTranslations($byLanguage);
         }
