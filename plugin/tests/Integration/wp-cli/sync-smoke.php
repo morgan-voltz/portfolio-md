@@ -191,7 +191,7 @@ try {
     $check('a path of the former layout is skipped with the move to make', $response->get_status() === 200 && $statuses($response) === ['skipped'] && str_contains((string) $line($response, 0)['message'], 'layout before the language folders'), json_encode($line($response, 0)));
     $check('and the post was not touched', str_contains((string) get_post($projectPost->ID)->post_content, 'Un autre corps.'));
 
-    $german = static fn (string $body = 'Deutsche Fassung.'): string => str_replace(['slug: "zz-smoke-sync-project"', 'type: "project"', 'title: "Projet de fumée (sync)"'], ['slug: "zz-smoke-sync-project-de"', "type: \"project\"\nlang: \"de\"\ntranslation_key: \"zz-smoke-sync-project\"", 'title: "Rauchprojekt (sync)"'], $project($body));
+    $german = static fn (string $body = 'Deutsche Fassung, siehe [das Projekt](../projects/zz-smoke-sync-project-de.md).'): string => str_replace(['slug: "zz-smoke-sync-project"', 'type: "project"', 'title: "Projet de fumée (sync)"'], ['slug: "zz-smoke-sync-project-de"', "type: \"project\"\nlang: \"de\"\ntranslation_key: \"zz-smoke-sync-project\"", 'title: "Rauchprojekt (sync)"'], $project($body));
     $response = $sync(['files' => [['path' => 'fr/projects/zz-smoke-sync-project-de.md', 'content' => $german()]]]);
     $check('a German document in the French folder fails', $response->get_status() === 422 && $statuses($response) === ['failed'] && str_contains((string) $line($response, 0)['message'], 'language folder'), json_encode($line($response, 0)));
 
@@ -199,14 +199,15 @@ try {
     $germanPost = $postBySlug(PostTypeRegistrar::PROJECT, 'zz-smoke-sync-project-de');
     $check('a German document in its folder is created', $response->get_status() === 200 && $statuses($response) === ['created'] && $germanPost instanceof WP_Post, json_encode($line($response, 0)));
     $check('with its language and the key of its French original', $germanPost instanceof WP_Post && get_post_meta($germanPost->ID, InternalMetaRegistrar::LANG, true) === 'de' && get_post_meta($germanPost->ID, InternalMetaRegistrar::TRANSLATION_KEY, true) === 'zz-smoke-sync-project');
-    $check('its links are rendered in the German URL tree', $germanPost instanceof WP_Post && !str_contains((string) get_post($germanPost->ID)->post_content, 'href="/fr/'));
+    $germanId = $germanPost instanceof WP_Post ? (int) $germanPost->ID : 0;
+    $check('its links are rendered in the German URL tree and survive kses', str_contains((string) get_post($germanId)?->post_content, 'href="/de/projets/zz-smoke-sync-project-de/"') && !str_contains((string) get_post($germanId)?->post_content, 'href="/fr/'));
     $byKey = (new WordPressContentRepository())->findByKey(ContentType::Project, 'zz-smoke-sync-project');
     $check('the repository finds the two posts of the key, oldest first', count($byKey) === 2 && $byKey[0]->id === $projectPost->ID && $byKey[0]->lang === Language::Fr && $byKey[1]->lang === Language::De, json_encode(array_map(static fn ($c) => [$c->id, $c->lang?->value], $byKey)));
 
     $response = $sync(['files' => [['path' => 'fr/projects/zz-smoke-sync-project-de.md', 'deleted' => true]]]);
-    $check('deleting the translation from the French folder retires nothing', $statuses($response) === ['skipped'] && str_contains((string) $line($response, 0)['message'], 'does not belong to a document in "fr"') && get_post_status($germanPost->ID) === 'publish', json_encode($line($response, 0)));
+    $check('deleting the translation from the French folder retires nothing', $statuses($response) === ['skipped'] && str_contains((string) $line($response, 0)['message'], 'does not belong to a document in "fr"') && get_post_status($germanId) === 'publish', json_encode($line($response, 0)));
     $response = $sync(['files' => [['path' => 'de/projects/zz-smoke-sync-project-de.md', 'deleted' => true]]]);
-    $check('deleting it from its folder retires the German post only', $statuses($response) === ['deleted'] && get_post_status($germanPost->ID) === 'trash' && get_post_status($projectPost->ID) === 'publish');
+    $check('deleting it from its folder retires the German post only', $statuses($response) === ['deleted'] && get_post_status($germanId) === 'trash' && get_post_status($projectPost->ID) === 'publish');
     $check('a retired translation leaves the key', count((new WordPressContentRepository())->findByKey(ContentType::Project, 'zz-smoke-sync-project')) === 1);
 
     // The migration of the content to its language folders, as the Git door will see it: the old path

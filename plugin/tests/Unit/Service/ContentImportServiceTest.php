@@ -618,12 +618,80 @@ final class ContentImportServiceTest extends TestCase
     #[Test]
     public function a_post_keeps_its_language(): void
     {
-        $this->service->import("---\ntitle: \"Lebenslauf\"\nslug: \"cv\"\ntype: \"page\"\nlang: \"de\"\ntranslation_key: \"cv\"\n---\n\nText.\n", new ImportOptions());
+        $german = $this->service->import("---\ntitle: \"Lebenslauf\"\nslug: \"cv\"\ntype: \"page\"\nlang: \"de\"\ntranslation_key: \"cv\"\n---\n\nText.\n", new ImportOptions());
+        $french = "---\ntitle: \"CV\"\nslug: \"cv\"\ntype: \"page\"\n---\n\nTexte.\n";
 
-        $this->expectException(ImportException::class);
-        $this->expectExceptionMessage('a post keeps its language');
+        // By its slug (Git, WP-CLI, paste) and by its post (the admin box): the same refusal.
+        foreach ([null, $german->postId] as $targetPostId) {
+            try {
+                $this->service->import($french, new ImportOptions(), null, $targetPostId);
+                self::fail('a French document must not take over a German post');
+            } catch (ImportException $exception) {
+                self::assertStringContainsString('a post keeps its language', $exception->getMessage());
+            }
+        }
+        self::assertCount(1, $this->repository->saved, 'nothing was written');
+        self::assertCount(1, $this->languages->calls, 'nothing was placed');
+    }
 
-        $this->service->import("---\ntitle: \"CV\"\nslug: \"cv\"\ntype: \"page\"\n---\n\nTexte.\n", new ImportOptions());
+    #[Test]
+    public function a_post_without_stored_language_takes_the_language_of_a_changed_document_too(): void
+    {
+        $this->repository->seed(ContentType::Project, 'projet-de', new StoredContent(42, str_repeat('0', 64), ContentSource::Git, ContentRenderer::VERSION));
+
+        $result = $this->service->import(self::german(), new ImportOptions());
+
+        self::assertSame(ImportOutcome::Updated, $result->outcome);
+        self::assertSame(42, $this->repository->lastSaved()->id);
+        self::assertSame(Language::De, $this->languages->languages[42]);
+    }
+
+    #[Test]
+    public function a_dry_run_on_an_existing_post_places_nothing_either(): void
+    {
+        $this->service->import(self::project(), new ImportOptions());
+        $this->languages->calls = [];
+        $this->languages->links = [];
+
+        $unchanged = $this->service->import(self::project(), new ImportOptions(dryRun: true));
+        $updated = $this->service->import(self::project() . "\nUn paragraphe de plus.\n", new ImportOptions(dryRun: true));
+
+        self::assertSame([ImportOutcome::Unchanged, ImportOutcome::Updated], [$unchanged->outcome, $updated->outcome]);
+        self::assertSame([], $this->languages->calls, 'a dry run on an unchanged or a changed document tells Polylang nothing');
+        self::assertSame([], $this->languages->links);
+    }
+
+    #[Test]
+    public function translations_are_linked_one_post_per_language_the_oldest_first_and_only_across_languages(): void
+    {
+        // Two French posts share the key by mistake (a sheet copied without changing its key): the oldest speaks for
+        // French. A post without stored language, written before languages, is left out of the group.
+        $this->repository->seed(ContentType::Project, 'projet-copie', new StoredContent(43, str_repeat('1', 64), ContentSource::Git, ContentRenderer::VERSION, lang: Language::Fr, translationKey: 'projet'));
+        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(42, hash('sha256', self::project()), ContentSource::Git, ContentRenderer::VERSION, lang: Language::Fr, translationKey: 'projet'));
+        $this->repository->seed(ContentType::Project, 'projet-ancien', new StoredContent(41, str_repeat('2', 64), ContentSource::Git, ContentRenderer::VERSION, translationKey: 'projet'));
+
+        $this->service->import(self::project(), new ImportOptions());
+        self::assertSame([], $this->languages->links, 'one language, however many posts, is nothing to link');
+
+        $german = $this->service->import(self::german(), new ImportOptions());
+
+        self::assertSame([['fr' => 42, 'de' => (int) $german->postId]], $this->languages->links);
+    }
+
+    #[Test]
+    public function a_trashed_translation_leaves_the_group_and_an_unchanged_document_still_reconciles_it(): void
+    {
+        $french = $this->service->import(self::project(), new ImportOptions());
+        $german = $this->service->import(self::german(), new ImportOptions());
+        $english = $this->service->import(str_replace(['slug: "projet-de"', 'lang: "de"'], ['slug: "projet-en"', 'lang: "en"'], self::german()), new ImportOptions());
+        self::assertSame(['fr' => (int) $french->postId, 'de' => (int) $german->postId, 'en' => (int) $english->postId], end($this->languages->links), 'three languages, one group');
+
+        $this->repository->trash((int) $german->postId);
+        $this->languages->links = [];
+        $result = $this->service->import(self::project(), new ImportOptions());
+
+        self::assertSame(ImportOutcome::Unchanged, $result->outcome);
+        self::assertSame([['fr' => (int) $french->postId, 'en' => (int) $english->postId]], $this->languages->links);
     }
 
     #[Test]

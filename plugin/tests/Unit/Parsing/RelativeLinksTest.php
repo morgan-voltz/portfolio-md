@@ -64,4 +64,12 @@ final class RelativeLinksTest extends TestCase
             self::assertSame($html, RelativeLinks::rewrite($html, Language::Fr));
         }
     }
+
+    #[Test]
+    public function a_double_dot_without_language_an_uppercase_language_and_a_third_level_are_left_alone(): void
+    {
+        $html = '<a href="../../projects/x.md">a</a> <a href="../../FR/projects/x.md">b</a> <a href="../../../fr/projects/x.md">c</a>';
+
+        self::assertSame($html, RelativeLinks::rewrite($html, Language::Fr));
+    }
 }

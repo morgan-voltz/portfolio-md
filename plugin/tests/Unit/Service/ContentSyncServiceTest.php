@@ -518,4 +518,78 @@ final class ContentSyncServiceTest extends TestCase
         self::assertStringContainsString('does not belong to a document in "fr"', $report->lines[0]->message);
         self::assertSame([101], $this->repository->trashed);
     }
+
+    #[Test]
+    public function the_migration_of_the_content_updates_the_post_and_never_trashes_it_whatever_the_order(): void
+    {
+        $this->service->synchronize([new SyncFile('fr/projects/projet.md', self::project())]);
+        $post = $this->repository->findBySlug(ContentType::Project, 'projet');
+        self::assertNotNull($post);
+
+        // A `git mv` reaches the door as a deletion of the old path and a creation of the new one, in either
+        // order, on a post rendered by the previous renderer (hence updated, with the same hash).
+        foreach ([['old', 'new'], ['new', 'old']] as $order) {
+            $this->repository->seed(ContentType::Project, 'projet', new StoredContent($post->id, $post->hash, ContentSource::Git, '1.1.0', lang: Language::Fr, translationKey: 'projet'));
+            $files = ['old' => new SyncFile('projects/projet.md', null, deleted: true), 'new' => new SyncFile('fr/projects/projet.md', self::project())];
+
+            $report = $this->service->synchronize([$files[$order[0]], $files[$order[1]]]);
+
+            self::assertSame($order[0] === 'old' ? ['skipped', 'updated'] : ['updated', 'skipped'], self::statuses($report), implode(' then ', $order));
+            self::assertSame([], $this->repository->trashed);
+            self::assertSame(ContentRenderer::VERSION, $this->repository->findBySlug(ContentType::Project, 'projet')?->renderVersion);
+        }
+    }
+
+    #[Test]
+    public function deleting_a_page_from_another_language_folder_retires_nothing(): void
+    {
+        $this->service->synchronize([new SyncFile('fr/pages/cv.md', self::page('cv'))]);
+
+        $report = $this->service->synchronize([new SyncFile('en/pages/cv.md', null, deleted: true)]);
+
+        self::assertSame(['skipped'], self::statuses($report));
+        self::assertStringContainsString('is in "fr", not in "en"', $report->lines[0]->message);
+        self::assertSame([], $this->repository->trashed, 'the French CV stays');
+
+        $report = $this->service->synchronize([new SyncFile('fr/pages/cv.md', null, deleted: true)]);
+        self::assertSame(['deleted'], self::statuses($report));
+    }
+
+    #[Test]
+    public function a_page_slug_that_looks_suffixed_is_retired_from_its_own_folder(): void
+    {
+        $this->service->synchronize([new SyncFile('fr/pages/ressources-de.md', self::page('ressources-de'))]);
+
+        $report = $this->service->synchronize([new SyncFile('fr/pages/ressources-de.md', null, deleted: true)]);
+
+        self::assertSame(['deleted'], self::statuses($report), 'pages carry no suffix: the slug rule does not apply to them');
+    }
+
+    #[Test]
+    public function a_post_without_stored_language_is_retired_on_the_strength_of_the_folder(): void
+    {
+        $this->repository->seed(ContentType::Project, 'ancien', new StoredContent(77, str_repeat('0', 64), ContentSource::Git, '1.1.0'));
+
+        $report = $this->service->synchronize([
+            new SyncFile('fr/projects/projet-en.md', null, deleted: true),
+            new SyncFile('fr/projects/ancien.md', null, deleted: true),
+        ]);
+
+        self::assertSame(['skipped', 'deleted'], self::statuses($report));
+        self::assertStringContainsString('does not belong to a document in "fr"', $report->lines[0]->message);
+        self::assertSame([77], $this->repository->trashed);
+    }
+
+    #[Test]
+    public function a_file_directly_under_a_language_folder_and_a_file_below_a_document_are_skipped_with_the_reason(): void
+    {
+        $report = $this->service->synchronize([
+            new SyncFile('fr/README.md', '# notes'),
+            new SyncFile('fr/projects/projet/capture.png', 'binary'),
+        ]);
+
+        self::assertSame(['skipped', 'skipped'], self::statuses($report));
+        self::assertStringContainsString('directly under the "fr/" language folder', $report->lines[0]->message);
+        self::assertStringContainsString('nested below a document folder', $report->lines[1]->message);
+    }
 }

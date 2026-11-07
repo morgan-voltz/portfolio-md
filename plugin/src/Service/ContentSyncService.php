@@ -117,9 +117,12 @@ final class ContentSyncService
         }
         if ($depth === 2) {
             [$folder] = $segments;
+            if (ContentType::fromFolder($folder) !== null) {
+                return ContentSyncLine::skipped($file->path, "the file sits in the layout before the language folders (ADR-020): it is left alone until it moves to content/<lang>/{$folder}/");
+            }
 
-            return ContentSyncLine::skipped($file->path, ContentType::fromFolder($folder) !== null
-                ? "the file sits in the layout before the language folders (ADR-020): it is left alone until it moves to content/<lang>/{$folder}/"
+            return ContentSyncLine::skipped($file->path, Language::tryFrom($folder) !== null
+                ? "a file directly under the \"{$folder}/\" language folder is not a document: documents live in {$folder}/articles, {$folder}/projects or {$folder}/pages"
                 : "\"{$folder}/\" is not a folder of documents (articles, projects, pages)");
         }
         if ($depth > 3) {
@@ -169,12 +172,15 @@ final class ContentSyncService
      * which the line says. Idempotent: a post already in the trash is
      * unchanged, and a slug without post has nothing to retire.
      *
-     * The language folder of the deleted path must own the slug: deleting
-     * `fr/projects/momocad-de.md` must not retire the German post, so a slug
-     * whose suffix says another language is skipped (the only place where
-     * the import side applies the suffix rule; the validator applies it to
-     * the files). The language the post stores is not compared: a post
-     * written before languages has none. Retiring does not untie the group:
+     * The language folder of the deleted path must own the post, twice over.
+     * A slug whose suffix says another language is skipped before any
+     * lookup: deleting `fr/projects/momocad-de.md` must not retire the
+     * German post (the only place where the import side applies the suffix
+     * rule; the validator applies it to the files). A post that stores
+     * another language is skipped too, which covers the pages, whose slugs
+     * carry no suffix: a stray `en/pages/cv.md` must not retire the French
+     * `cv`. A post written before languages stores none and is retired on
+     * the strength of the folder alone. Retiring does not untie the group:
      * the Polylang bridge of lot 2 reconciles the translations.
      */
     private function retire(string $path, ContentType $type, string $slug, Language $lang, bool $dryRun): ContentSyncLine
@@ -186,6 +192,9 @@ final class ContentSyncService
         $existing = $this->repository->findBySlug($type, $slug);
         if ($existing === null) {
             return ContentSyncLine::skipped($path, 'no post carries this slug: nothing to retire', $type, $slug);
+        }
+        if ($existing->lang !== null && $existing->lang !== $lang) {
+            return ContentSyncLine::skipped($path, "the post carrying this slug is in \"{$existing->lang->value}\", not in \"{$lang->value}\": nothing to retire", $type, $slug);
         }
         if ($existing->inTrash) {
             return new ContentSyncLine($path, ContentSyncStatus::Unchanged, $type, $slug, $existing->id, 'already in the trash');

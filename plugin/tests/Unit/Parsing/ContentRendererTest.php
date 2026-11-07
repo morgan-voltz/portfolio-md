@@ -85,4 +85,12 @@ final class ContentRendererTest extends TestCase
         self::assertStringContainsString('href="/de/projets/vefta/"', $this->renderer->render($body, Language::De));
         self::assertStringContainsString('href="/en/resume/"', $this->renderer->render($body, Language::De));
     }
+
+    #[Test]
+    public function the_render_version_is_pinned_to_what_the_links_look_like(): void
+    {
+        // 1.2.0 since the links carry the language of the document (ADR-020, lot 1b): a post rendered by an
+        // older version is rendered again at its next import. Move this pin on purpose, with the version.
+        self::assertSame('1.2.0', ContentRenderer::VERSION);
+    }
 }

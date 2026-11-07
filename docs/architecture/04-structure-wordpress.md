@@ -112,7 +112,7 @@ Les **projets**, en revanche, n'ont pas d'équivalent natif et nécessitent obli
 
 ### 3.4. Pages standards
 
-Les pages `À propos` et `CV` (`content/<lang>/pages/`) utilisent le type natif `page` de WordPress et passent par le pipeline Markdown comme les articles et les projets (ADR-017, 27 octobre 2026) : `wp portfolio import /srv/portfolio-content/pages`, la page de collage ou la boîte « Document Markdown ». Une page importée porte la description SEO (section 5.1) et les cinq champs internes (section 5.3), aucun terme (les taxonomies du plugin ne sont pas rattachées au type `page`) et aucun autre champ. Sur le site, elle vit à la racine (`/a-propos/`, `/cv/`), sans parent ni modèle choisis dans l'admin (la boîte d'attributs est retirée de son écran, et le dépôt remet `post_parent` à zéro à chaque écriture), et les liens qu'elle fait vers des fiches (`../projects/<slug>.md`) sont réécrits en liens du site au rendu (`/projets/<slug>/`, `01-plugin-php.md` §4.2).
+Les pages `À propos` et `CV` (`content/<lang>/pages/`) utilisent le type natif `page` de WordPress et passent par le pipeline Markdown comme les articles et les projets (ADR-017, 27 octobre 2026) : `wp portfolio import /srv/portfolio-content/fr/pages`, la page de collage ou la boîte « Document Markdown ». Une page importée porte la description SEO (section 5.1) et les sept champs internes (section 5.3), aucun terme (les taxonomies du plugin ne sont pas rattachées au type `page`) et aucun autre champ. Sur le site, elle vit à la racine (`/a-propos/`, `/cv/`), sans parent ni modèle choisis dans l'admin (la boîte d'attributs est retirée de son écran, et le dépôt remet `post_parent` à zéro à chaque écriture), et les liens qu'elle fait vers des fiches (`../projects/<slug>.md`) sont réécrits en liens du site au rendu (`/fr/projets/<slug>/`, `01-plugin-php.md` §4.2).
 
 La boîte « Document Markdown » et l'écran épuré ne s'appliquent qu'à une page qui porte un document (sa marque : le hash interne écrit par le pipeline). Une page faite à la main dans l'éditeur de blocs, Contact par exemple, reste une page ordinaire, et « Ajouter une page » ouvre toujours l'éditeur de blocs : une page nouvelle en Markdown entre par le collage ou la commande. Dans la liste des pages, les deux sortes cohabitent ; seules les pages documentées perdent Quick Edit, et Bulk Edit reste à toutes. Une page documentée est aussi servie par l'API du plugin (`/wp-json/portfolio/v1/pages/<slug>`, `01-plugin-php.md` §7.1) ; une page faite à la main ne l'est pas, elle n'a pas de Markdown à servir (ADR-018).
 
@@ -354,7 +354,7 @@ WordPress
 ├── Types de contenu
 │   ├── article (custom post type) ......... PostTypeRegistrar::registerArticle
 │   ├── project (custom post type) ......... PostTypeRegistrar::registerProject
-│   └── page (natif : À propos et CV importées de content/pages, Contact à la main)
+│   └── page (natif : À propos et CV importées de content/<lang>/pages, Contact à la main)
 │
 ├── Taxonomies
 │   ├── tech_tag (sur article + project) ... TaxonomyRegistrar::registerTechTag

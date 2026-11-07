@@ -197,7 +197,8 @@ final class ImportCommand
     /**
      * The folder above the document folder says the language (ADR-020):
      * content/<lang>/<folder>/<slug>.md. Null for a file of the former
-     * two-level layout, or outside the content tree.
+     * two-level layout, or outside the content tree. The path is resolved
+     * first, like kindOfFolder(): a symbolic link is judged by its target.
      */
     private static function languageOfFolder(string $file): ?Language
     {
