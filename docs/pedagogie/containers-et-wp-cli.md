@@ -22,7 +22,7 @@ Un *healthcheck* est configuré : `healthcheck.sh --connect --innodb_initialized
 
 ### 1.2. Le service `wordpress`
 
-Image : `docker.io/library/wordpress:7.1.2-php8.3-apache`. C'est le WordPress lui-même : Apache, PHP 8.3, et WordPress core préinstallé. Le port 80 du container est exposé sur le port `${WP_PORT:-8000}` de l'hôte — par défaut 8000.
+Image : `docker.io/library/wordpress:7.1.4-php8.3-apache`. C'est le WordPress lui-même : Apache, PHP 8.3, et WordPress core préinstallé. Le port 80 du container est exposé sur le port `${WP_PORT:-8000}` de l'hôte — par défaut 8000.
 
 Deux bind mounts importants :
 
@@ -33,7 +33,7 @@ Deux bind mounts importants :
 
 Les variables d'environnement (`WORDPRESS_DB_HOST`, `WORDPRESS_DB_USER`, etc.) sont injectées par WordPress dans le `wp-config.php` au premier démarrage, en remplaçant les placeholders de l'image officielle. Une variable fait exception : `WORDPRESS_CONFIG_EXTRA` contient du code PHP que le `wp-config.php` généré **évalue à chaque requête** (`eval(getenv_docker('WORDPRESS_CONFIG_EXTRA'))`), ce qui permet d'ajouter des constantes sans toucher au fichier, qui appartient à l'utilisateur du conteneur. Le projet y déclare `WP_ENVIRONMENT_TYPE` à `local` : c'est ce que ce poste est, et WordPress n'accepte les mots de passe d'application sans HTTPS que dans cet environnement, ce dont la porte Git du plugin (`POST /wp-json/portfolio/v1/sync`) a besoin pour être testée en local. Le service `wpcli` porte la même variable, puisqu'il relit le même `wp-config.php`. Après un changement de cette variable, `podman-compose up -d` recrée le conteneur.
 
-Depuis le 7 novembre 2026, les trois images sont **nommées en entier et épinglées** (`docker.io/library/wordpress:7.1.2-php8.3-apache`, `docker.io/library/mariadb:11.8.9`, `docker.io/library/wordpress:cli-2.12.0-php8.3`). Le nom complet évite le piège du §4.5 ; la version épinglée fait d'une montée de version majeure de WordPress une décision, pas un effet de bord d'un `up -d` : Polylang 3.9 exige WordPress 6.8 et Yoast SEO 28.8 exige 7.0, et le plugin du projet doit être testé avant chaque saut.
+Depuis le 7 novembre 2026, les trois images sont **nommées en entier et épinglées** (`docker.io/library/wordpress:7.1.4-php8.3-apache`, `docker.io/library/mariadb:11.8.9`, `docker.io/library/wordpress:cli-2.12.0-php8.3`). Le nom complet évite le piège du §4.5 ; la version épinglée, alignée sur le WordPress qu'o2switch sert (7.1.4 le 7 novembre 2026), fait d'une montée de version majeure de WordPress une décision, pas un effet de bord d'un `up -d` : Polylang 3.9 exige WordPress 6.8 et Yoast SEO 28.8 exige 7.0, et le plugin du projet doit être testé avant chaque saut.
 
 ### 1.3. Le service `wpcli`
 
@@ -391,7 +391,7 @@ ls -la plugin/portfolio-md.php
 
 **Cause** : un nom d'image court. Sur Fedora, `/etc/containers/registries.conf` déclare `short-name-mode = "enforcing"` et trois registres de recherche (`registry.fedoraproject.org`, `registry.access.redhat.com`, `docker.io`). Pour un nom comme `wordpress:latest`, Podman demande *interactivement* quel registre utiliser. Sans terminal, `podman` échoue (« short-name resolution enforced but cannot prompt without a TTY ») ; avec un pseudo-terminal sans personne derrière, dans un script, une CI ou une session d'agent, la question ne s'affiche nulle part et la commande attend une réponse qui ne viendra jamais (vécu le 7 novembre 2026). Docker n'a pas ce comportement, il sous-entend toujours Docker Hub : c'est une différence de plus entre les deux moteurs.
 
-**Correctif** : nommer les images en entier dans `docker-compose.yml`, `docker.io/library/wordpress:…`, ce qui est fait depuis le 7 novembre 2026. Pour vérifier qu'un nom passe sans question : `podman pull docker.io/library/wordpress:7.1.2-php8.3-apache` doit télécharger sans rien demander. Un processus suspendu se tue avec `kill <pid>`, puis on relance `podman-compose up -d`.
+**Correctif** : nommer les images en entier dans `docker-compose.yml`, `docker.io/library/wordpress:…`, ce qui est fait depuis le 7 novembre 2026. Pour vérifier qu'un nom passe sans question : `podman pull docker.io/library/wordpress:7.1.4-php8.3-apache` doit télécharger sans rien demander. Un processus suspendu se tue avec `kill <pid>`, puis on relance `podman-compose up -d`.
 
 ---
 
