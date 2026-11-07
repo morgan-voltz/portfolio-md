@@ -27,7 +27,9 @@ use Voltz\PortfolioMd\Domain\Language;
  *
  * In a dry run nothing is written and the view of a member whose language
  * drifted may look wrong until the language is fixed: the report of a real
- * run is the one to trust.
+ * run is the one to trust. A LanguageGatewayException thrown mid-run (a
+ * language Polylang did not keep) aborts the run: the fixes already made
+ * stay, and running the command again is safe.
  */
 final class TranslationReconciler
 {
@@ -107,6 +109,9 @@ final class TranslationReconciler
     private function reconcileGroup(ContentType $type, string $key, array $slugs, ReconcileReport $report): void
     {
         $members = $this->repository->findByKey($type, $key);
+        foreach ($members as $member) {
+            $slugs[$member->id] ??= $member->documentSlug ?? '';
+        }
         $seen = [];
         foreach ($members as $member) {
             if ($member->lang === null) {

@@ -138,7 +138,7 @@ final class WordPressContentRepository implements ContentRepository, DocumentLis
         $found = [];
         foreach ($posts as $post) {
             if ($post instanceof WP_Post) {
-                $found[] = self::stored($post, false);
+                $found[] = self::stored($post, false, $this->documentSlug((int) $post->ID));
             }
         }
 

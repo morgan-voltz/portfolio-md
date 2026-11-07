@@ -28,11 +28,12 @@ use Voltz\PortfolioMd\Service\LanguageInspector;
  *   - `pll_set_post_language()` answers false when the language was already
  *     set, which is not an error;
  *   - `pll_save_post_translations()` silently drops a member whose language
- *     is not the key it is given under, needs a language on the first
- *     member, and edits the description of a group of one without updating
- *     the term: every member gets its language first, the French post goes
- *     first, every member's view is read back, and a view of one post is
- *     taken as "no group".
+ *     is not the key it is given under, anchors the group on its first
+ *     member, and for a group of one only takes the absent members out of
+ *     the description (detaching them) without rewriting the term: every
+ *     member gets its language first, the French post goes first so that
+ *     the anchor is deterministic, every member's view is read back, and a
+ *     view of one post is taken as "no group".
  */
 final class PolylangLanguageGateway implements LanguageGateway, LanguageInspector
 {
@@ -86,10 +87,15 @@ final class PolylangLanguageGateway implements LanguageGateway, LanguageInspecto
 
         if (count($postIdsByLanguage) === 1) {
             // A group of one means "dissolve what remains": nothing to do when the post is already alone.
-            if ($this->translationsOf((int) reset($postIdsByLanguage)) === []) {
+            $survivor = (int) reset($postIdsByLanguage);
+            if ($this->translationsOf($survivor) === []) {
                 return;
             }
             pll_save_post_translations($postIdsByLanguage);
+            $view = $this->translationsOf($survivor);
+            if ($view !== []) {
+                throw LanguageGatewayException::groupNotApplied($postIdsByLanguage, $view);
+            }
 
             return;
         }
@@ -180,9 +186,12 @@ final class PolylangLanguageGateway implements LanguageGateway, LanguageInspecto
     }
 
     /**
-     * The French post first: `pll_save_post_translations()` reads the
-     * language of the first member and refuses a group whose first member
-     * has none; French, the language every group has, is the safe choice.
+     * The French post first: `pll_save_post_translations()` anchors on its
+     * first member (the id it hands to `save_translations()`, whose term is
+     * reused), so a fixed order makes the anchor deterministic; it is also
+     * defensive, since that call refuses a group whose first member has no
+     * language, although setLanguage() has already applied and read back
+     * every language by then.
      *
      * @param array<string, int> $group
      *

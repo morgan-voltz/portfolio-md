@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Voltz\PortfolioMd\Cli;
 
 use Voltz\PortfolioMd\Service\LanguageGatewayException;
+use Voltz\PortfolioMd\Service\ReconcileReport;
 use Voltz\PortfolioMd\Service\TranslationReconciler;
 use WP_CLI;
 
@@ -31,6 +32,8 @@ final class TranslationsCommand
      * truth back. A post without stored language (made by hand) is skipped,
      * never adopted from Polylang. Two live posts sharing a key and a
      * language are reported and left alone: give one of them its own key.
+     * A failure of Polylang mid-run stops the command; the fixes already made
+     * stay, and running it again is safe.
      *
      * ## OPTIONS
      *
@@ -79,7 +82,7 @@ final class TranslationsCommand
                     $difference['slug'],
                     $difference['postId'],
                     $difference['detail'],
-                    $difference['fixed'] ? ' [fixed]' : ($dryRun ? ' [would fix]' : ''),
+                    $difference['fixed'] ? ' [fixed]' : ($difference['kind'] === ReconcileReport::DUPLICATE ? ' [needs a manual fix]' : ($dryRun ? ' [would fix]' : '')),
                 ));
             }
         }
