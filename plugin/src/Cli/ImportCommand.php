@@ -41,8 +41,8 @@ final class ImportCommand
      * sheet copied from another one never overwrites its model; a file that
      * sits in one of the three document folders must be of that kind, and
      * the folder above says its language (content/<lang>/<folder>/<slug>.md,
-     * ADR-020): a file still laid out as content/<folder>/<slug>.md is
-     * refused until it moves; a slug whose post is in the trash is refused
+     * ADR-020): a file of a document folder that is not under a language
+     * folder is refused; a slug whose post is in the trash is refused
      * until the post is restored or deleted.
      * Documents are processed one by one: a failure is reported and the
      * others go on; the command exits with an error at the end if anything
@@ -119,7 +119,7 @@ final class ImportCommand
             $lang = self::languageOfFolder($file);
             if ($type !== null && $lang === null) {
                 $counts['failed']++;
-                WP_CLI::warning("{$prefix}FAILED     {$file}: this file is still laid out as content/<folder>/<slug>.md, the layout before the language folders (ADR-020): move it to content/<lang>/<folder>/ before importing it.");
+                WP_CLI::warning("{$prefix}FAILED     {$file}: not a document path: documents live in content/<lang>/<folder>/ (a language folder fr, de or en, then articles, projects or pages).");
                 continue;
             }
 
@@ -196,8 +196,8 @@ final class ImportCommand
 
     /**
      * The folder above the document folder says the language (ADR-020):
-     * content/<lang>/<folder>/<slug>.md. Null for a file of the former
-     * two-level layout, or outside the content tree. The path is resolved
+     * content/<lang>/<folder>/<slug>.md. Null for a file of a document folder
+     * that is not under a language folder, or outside the content tree. The path is resolved
      * first, like kindOfFolder(): a symbolic link is judged by its target.
      */
     private static function languageOfFolder(string $file): ?Language

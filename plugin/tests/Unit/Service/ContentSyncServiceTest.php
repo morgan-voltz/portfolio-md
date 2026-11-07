@@ -469,7 +469,7 @@ final class ContentSyncServiceTest extends TestCase
     // ------------------------------------------------------------ languages (ADR-020, lot 1b)
 
     #[Test]
-    public function a_path_of_the_former_layout_is_skipped_deletion_included(): void
+    public function a_two_level_path_is_skipped_deletion_included(): void
     {
         $this->service->synchronize([new SyncFile('fr/projects/projet.md', self::project())]);
 
@@ -479,7 +479,8 @@ final class ContentSyncServiceTest extends TestCase
         ]);
 
         self::assertSame(['skipped', 'skipped'], self::statuses($report));
-        self::assertStringContainsString('layout before the language folders', $report->lines[0]->message);
+        self::assertStringContainsString('not a document path: documents live in content/<lang>/projects/', $report->lines[0]->message);
+        self::assertStringContainsString('not a document path', $report->lines[1]->message);
         self::assertSame([], $this->repository->trashed, 'the post of the moved document stays');
         self::assertCount(1, $this->repository->saved);
     }

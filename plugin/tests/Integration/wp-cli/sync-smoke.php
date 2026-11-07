@@ -189,7 +189,7 @@ try {
     $check('the French project stores its language and its key', $projectPost instanceof WP_Post && get_post_meta($projectPost->ID, InternalMetaRegistrar::LANG, true) === 'fr' && get_post_meta($projectPost->ID, InternalMetaRegistrar::TRANSLATION_KEY, true) === 'zz-smoke-sync-project');
 
     $response = $sync(['files' => [['path' => 'projects/zz-smoke-sync-project.md', 'content' => $project('Ancienne disposition.')]]]);
-    $check('a path of the former layout is skipped with the move to make', $response->get_status() === 200 && $statuses($response) === ['skipped'] && str_contains((string) $line($response, 0)['message'], 'layout before the language folders'), json_encode($line($response, 0)));
+    $check('a two-level path is skipped as not a document', $response->get_status() === 200 && $statuses($response) === ['skipped'] && str_contains((string) $line($response, 0)['message'], 'not a document path: documents live in content/<lang>/projects/'), json_encode($line($response, 0)));
     $check('and the post was not touched', str_contains((string) get_post($projectPost->ID)->post_content, 'Un autre corps.'));
 
     $german = static fn (string $body = 'Deutsche Fassung, siehe [das Projekt](../projects/zz-smoke-sync-project-de.md).'): string => str_replace(['slug: "zz-smoke-sync-project"', 'lang: "fr"', 'title: "Projet de fumée (sync)"'], ['slug: "zz-smoke-sync-project-de"', "lang: \"de\"\ntranslation_key: \"zz-smoke-sync-project\"", 'title: "Rauchprojekt (sync)"'], $project($body));
@@ -211,15 +211,15 @@ try {
     $check('deleting it from its folder retires the German post only', $statuses($response) === ['deleted'] && get_post_status($germanId) === 'trash' && get_post_status($projectPost->ID) === 'publish');
     $check('a retired translation leaves the key', count((new WordPressContentRepository())->findByKey(ContentType::Project, 'zz-smoke-sync-project')) === 1);
 
-    // The migration of the content to its language folders, as the Git door will see it: the old path
-    // deleted and the new path created in one push, in either order, on a post rendered by the previous
-    // renderer (hence "updated"), never trashed, never doubled; an admin-written post with the same hash too.
+    // A git mv of a document from a two-level path, as the Git door sees it: the old path deleted and the
+    // new path created in one push, in either order, on a post rendered by the previous renderer (hence
+    // "updated"), never trashed, never doubled; an admin-written post with the same hash too.
     foreach ([['old', 'new'], ['new', 'old']] as $order) {
         MetaWriter::update($projectPost->ID, InternalMetaRegistrar::RENDER_VERSION, '1.1.0');
         $files = ['old' => ['path' => 'projects/zz-smoke-sync-project.md', 'deleted' => true], 'new' => ['path' => 'fr/projects/zz-smoke-sync-project.md', 'content' => $project('Un autre corps.')]];
         $response = $sync(['files' => [$files[$order[0]], $files[$order[1]]]]);
         $expected = $order[0] === 'old' ? ['skipped', 'updated'] : ['updated', 'skipped'];
-        $check("the migration push ({$order[0]} then {$order[1]}) skips the old path and updates the post", $response->get_status() === 200 && $statuses($response) === $expected, implode(',', $statuses($response)));
+        $check("a git mv push ({$order[0]} then {$order[1]}) skips the old path and updates the post", $response->get_status() === 200 && $statuses($response) === $expected, implode(',', $statuses($response)));
         $check('without trashing or doubling it', get_post_status($projectPost->ID) === 'publish' && count(get_posts(['post_type' => PostTypeRegistrar::PROJECT, 'name' => 'zz-smoke-sync-project', 'post_status' => 'any', 'numberposts' => -1])) === 1);
     }
     MetaWriter::update($projectPost->ID, InternalMetaRegistrar::RENDER_VERSION, '1.1.0');
