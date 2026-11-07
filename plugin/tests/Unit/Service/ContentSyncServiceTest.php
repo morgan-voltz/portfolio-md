@@ -171,7 +171,7 @@ final class ContentSyncServiceTest extends TestCase
     {
         $report = $this->service->synchronize([
             new SyncFile('README.md', "# Content\n"),
-            new SyncFile('projects/projet/capture.png', 'binary'),
+            new SyncFile('fr/projects/projet/capture.png', 'binary'),
             new SyncFile('images/logo.md', '---'),
             new SyncFile('fr/projects/notes.txt', 'notes'),
             new SyncFile('../wp-config.php', 'x'),
@@ -453,17 +453,17 @@ final class ContentSyncServiceTest extends TestCase
     /**
      * @param list<string> $skills
      */
-    private static function project(string $slug = 'projet', array $skills = ['4.0.2/E00'], string $body = 'Corps du projet.', ?string $lang = null, ?string $key = null): string
+    private static function project(string $slug = 'projet', array $skills = ['4.0.2/E00'], string $body = 'Corps du projet.', string $lang = 'fr', ?string $key = null): string
     {
         $codes = implode(', ', array_map(static fn (string $code): string => "\"{$code}\"", $skills));
-        $language = ($lang === null ? '' : "lang: \"{$lang}\"\n") . ($key === null ? '' : "translation_key: \"{$key}\"\n");
+        $language = "lang: \"{$lang}\"\n" . ($key === null ? '' : "translation_key: \"{$key}\"\n");
 
         return "---\ntitle: \"Projet\"\nslug: \"{$slug}\"\ntype: \"project\"\n{$language}status: \"en-cours\"\ntags: [php]\nskills: [{$codes}]\n---\n\n{$body}\n";
     }
 
     private static function page(string $slug = 'a-propos'): string
     {
-        return "---\ntitle: \"À propos\"\nslug: \"{$slug}\"\ntype: \"page\"\n---\n\nLe parcours.\n";
+        return "---\ntitle: \"À propos\"\nslug: \"{$slug}\"\ntype: \"page\"\nlang: \"fr\"\n---\n\nLe parcours.\n";
     }
 
     // ------------------------------------------------------------ languages (ADR-020, lot 1b)

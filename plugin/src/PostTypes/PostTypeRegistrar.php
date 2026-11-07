@@ -37,7 +37,7 @@ final class PostTypeRegistrar
 
     /**
      * WordPress's own page type. The plugin does not register it, but it
-     * writes it (the static pages of content/pages) and keeps the document
+     * writes it (the static pages of content/fr/pages) and keeps the document
      * metas on it; see Meta\MetaRegistration::MARKDOWN_POST_TYPES.
      */
     public const PAGE = 'page';

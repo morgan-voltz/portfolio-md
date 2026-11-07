@@ -38,7 +38,7 @@ final class EditorMetaBoxTest extends TestCase
 {
     private const POST_ID = 5;
 
-    private const DOCUMENT = "---\ntitle: \"Article\"\nslug: \"article\"\ntype: \"article\"\ntags: [php]\n---\n\n# Article\n\nUn `C:\\chemin`.\n";
+    private const DOCUMENT = "---\ntitle: \"Article\"\nslug: \"article\"\ntype: \"article\"\nlang: \"fr\"\ntags: [php]\n---\n\n# Article\n\nUn `C:\\chemin`.\n";
 
     private InMemoryContentRepository $repository;
 
@@ -133,6 +133,14 @@ final class EditorMetaBoxTest extends TestCase
         self::assertStringContainsString('seo_description: &quot;&quot;', $page);
         self::assertStringNotContainsString('tags:', $page);
         self::assertStringNotContainsString('skills:', $page);
+    }
+
+    #[Test]
+    public function the_template_says_the_language_of_the_site(): void
+    {
+        foreach (ContentType::cases() as $type) {
+            self::assertStringContainsString("\ntype: \"{$type->value}\"\nlang: \"fr\"\n", EditorMetaBox::templateFor($type, '2026-11-07'), $type->value);
+        }
     }
 
     #[Test]

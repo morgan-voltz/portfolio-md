@@ -131,12 +131,13 @@ if ($subscriberId instanceof WP_Error) {
     WP_CLI::error('A subscriber could not be created for the rights check: ' . $subscriberId->get_error_message());
 }
 
-$page = static fn (string $body = 'Corps de la page.'): string => "---\ntitle: \"Page de fumée (sync)\"\nslug: \"zz-smoke-sync-page\"\ntype: \"page\"\ndate: 2026-10-28\n---\n\n{$body}\n";
+$page = static fn (string $body = 'Corps de la page.'): string => "---\ntitle: \"Page de fumée (sync)\"\nslug: \"zz-smoke-sync-page\"\ntype: \"page\"\nlang: \"fr\"\ndate: 2026-10-28\n---\n\n{$body}\n";
 $project = static fn (string $body = 'Corps du projet.') => <<<MD
 ---
 title: "Projet de fumée (sync)"
 slug: "zz-smoke-sync-project"
 type: "project"
+lang: "fr"
 date: 2026-10-28
 status: "en-cours"
 tags: [zz-smoke-sync-tag]
@@ -191,7 +192,7 @@ try {
     $check('a path of the former layout is skipped with the move to make', $response->get_status() === 200 && $statuses($response) === ['skipped'] && str_contains((string) $line($response, 0)['message'], 'layout before the language folders'), json_encode($line($response, 0)));
     $check('and the post was not touched', str_contains((string) get_post($projectPost->ID)->post_content, 'Un autre corps.'));
 
-    $german = static fn (string $body = 'Deutsche Fassung, siehe [das Projekt](../projects/zz-smoke-sync-project-de.md).'): string => str_replace(['slug: "zz-smoke-sync-project"', 'type: "project"', 'title: "Projet de fumée (sync)"'], ['slug: "zz-smoke-sync-project-de"', "type: \"project\"\nlang: \"de\"\ntranslation_key: \"zz-smoke-sync-project\"", 'title: "Rauchprojekt (sync)"'], $project($body));
+    $german = static fn (string $body = 'Deutsche Fassung, siehe [das Projekt](../projects/zz-smoke-sync-project-de.md).'): string => str_replace(['slug: "zz-smoke-sync-project"', 'lang: "fr"', 'title: "Projet de fumée (sync)"'], ['slug: "zz-smoke-sync-project-de"', "lang: \"de\"\ntranslation_key: \"zz-smoke-sync-project\"", 'title: "Rauchprojekt (sync)"'], $project($body));
     $response = $sync(['files' => [['path' => 'fr/projects/zz-smoke-sync-project-de.md', 'content' => $german()]]]);
     $check('a German document in the French folder fails', $response->get_status() === 422 && $statuses($response) === ['failed'] && str_contains((string) $line($response, 0)['message'], 'language folder'), json_encode($line($response, 0)));
 

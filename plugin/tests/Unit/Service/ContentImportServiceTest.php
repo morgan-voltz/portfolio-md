@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Voltz\PortfolioMd\Domain\ContentSource;
 use Voltz\PortfolioMd\Domain\ContentType;
+use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
 use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Parsing\ContentRenderer;
 use Voltz\PortfolioMd\Parsing\FrontmatterParser;
@@ -281,7 +282,7 @@ final class ContentImportServiceTest extends TestCase
     #[Test]
     public function creates_a_page_without_terms_nor_competency_codes(): void
     {
-        $markdown = "---\ntitle: \"À propos\"\nslug: \"a-propos\"\ntype: \"page\"\ndate: 2026-10-26\nseo_description: \"Qui je suis.\"\n---\n\n# À propos\n\nCorps.\n";
+        $markdown = "---\ntitle: \"À propos\"\nslug: \"a-propos\"\ntype: \"page\"\nlang: \"fr\"\ndate: 2026-10-26\nseo_description: \"Qui je suis.\"\n---\n\n# À propos\n\nCorps.\n";
 
         $result = $this->service->import($markdown, new ImportOptions());
 
@@ -329,7 +330,7 @@ final class ContentImportServiceTest extends TestCase
     #[Test]
     public function an_article_carries_no_skills(): void
     {
-        $markdown = "---\ntitle: \"Billet\"\nslug: \"billet\"\ntype: \"article\"\nreading_time: 4\ntags: [php]\n---\n\nCorps.\n";
+        $markdown = "---\ntitle: \"Billet\"\nslug: \"billet\"\ntype: \"article\"\nlang: \"fr\"\nreading_time: 4\ntags: [php]\n---\n\nCorps.\n";
 
         $result = $this->service->import($markdown, new ImportOptions());
 
@@ -518,17 +519,7 @@ final class ContentImportServiceTest extends TestCase
 
     private static function project(string $title = 'Projet', string $skills = '["4.0.2/E00", "4.0.2/E01"]'): string
     {
-        return "---\ntitle: \"{$title}\"\nslug: \"projet\"\ntype: \"project\"\nstatus: \"en-cours\"\nskills: {$skills}\ntags: [php]\n---\n\n# Projet\n\nCorps.\n";
-    }
-
-    #[Test]
-    public function a_french_document_that_says_its_language_is_imported(): void
-    {
-        $markdown = "---\ntitle: \"MomoCad\"\nslug: \"momocad\"\ntype: \"project\"\nstatus: \"en-cours\"\nlang: \"fr\"\n---\n\nVersion française.\n";
-
-        $result = $this->service->import($markdown, new ImportOptions());
-
-        self::assertSame(ImportOutcome::Created, $result->outcome);
+        return "---\ntitle: \"{$title}\"\nslug: \"projet\"\ntype: \"project\"\nlang: \"fr\"\nstatus: \"en-cours\"\nskills: {$skills}\ntags: [php]\n---\n\n# Projet\n\nCorps.\n";
     }
 
     // ------------------------------------------------------------ languages (ADR-020, lot 1b)
@@ -541,13 +532,22 @@ final class ContentImportServiceTest extends TestCase
     }
 
     #[Test]
-    public function a_document_without_lang_is_french_for_the_folder_check(): void
+    public function a_french_document_stores_its_language_and_is_its_own_translation_key(): void
     {
         $result = $this->service->import(self::project(), new ImportOptions(), 'projet', null, ContentType::Project, Language::Fr);
 
         self::assertSame(ImportOutcome::Created, $result->outcome);
         self::assertSame(Language::Fr, $this->repository->findBySlug(ContentType::Project, 'projet')?->lang);
         self::assertSame('projet', $this->repository->findBySlug(ContentType::Project, 'projet')?->translationKey);
+    }
+
+    #[Test]
+    public function a_document_without_lang_is_refused(): void
+    {
+        $this->expectException(InvalidFrontmatterException::class);
+        $this->expectExceptionMessage('missing required key "lang"');
+
+        $this->service->import("---\ntitle: \"Sans langue\"\nslug: \"sans-langue\"\ntype: \"page\"\n---\n\nTexte.\n", new ImportOptions());
     }
 
     #[Test]
@@ -619,7 +619,7 @@ final class ContentImportServiceTest extends TestCase
     public function a_post_keeps_its_language(): void
     {
         $german = $this->service->import("---\ntitle: \"Lebenslauf\"\nslug: \"cv\"\ntype: \"page\"\nlang: \"de\"\ntranslation_key: \"cv\"\n---\n\nText.\n", new ImportOptions());
-        $french = "---\ntitle: \"CV\"\nslug: \"cv\"\ntype: \"page\"\n---\n\nTexte.\n";
+        $french = "---\ntitle: \"CV\"\nslug: \"cv\"\ntype: \"page\"\nlang: \"fr\"\n---\n\nTexte.\n";
 
         // By its slug (Git, WP-CLI, paste) and by its post (the admin box): the same refusal.
         foreach ([null, $german->postId] as $targetPostId) {

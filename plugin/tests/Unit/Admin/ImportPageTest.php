@@ -30,7 +30,7 @@ use Voltz\PortfolioMd\Tests\Support\WordPressSpy;
 #[CoversClass(ImportPage::class)]
 final class ImportPageTest extends TestCase
 {
-    private const DOCUMENT = "---\ntitle: \"Article\"\nslug: \"article\"\ntype: \"article\"\n---\n\n# Article\n\nCorps.\n";
+    private const DOCUMENT = "---\ntitle: \"Article\"\nslug: \"article\"\ntype: \"article\"\nlang: \"fr\"\n---\n\n# Article\n\nCorps.\n";
 
     private InMemoryContentRepository $repository;
 
@@ -97,6 +97,10 @@ final class ImportPageTest extends TestCase
         self::assertStringContainsString("<textarea name=\"markdown\"", $html);
         self::assertStringContainsString(' data-portfolio-md-editor="1" ', $html);
         self::assertStringContainsString(">\n</textarea>", $html);
+        self::assertSame(1, preg_match('/placeholder="([^"]*)"/', $html, $placeholder), 'the textarea shows the shape of a document');
+        $skeleton = str_replace('…', 'x', html_entity_decode($placeholder[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        self::assertStringContainsString("\nlang: \"fr\"\n", $skeleton);
+        self::assertSame(ContentType::Article, (new FrontmatterParser())->parse($skeleton)->frontmatter->type, 'the placeholder, once filled, is a document the plugin accepts');
         self::assertStringContainsString('name="mode" value="import"', $html);
         self::assertStringContainsString('name="mode" value="check"', $html);
         self::assertStringNotContainsString('class="notice', $html);
@@ -119,7 +123,7 @@ final class ImportPageTest extends TestCase
     #[Test]
     public function a_pasted_page_takes_the_capability_of_pages_on_top(): void
     {
-        $page = "---\ntitle: \"À propos\"\nslug: \"a-propos\"\ntype: \"page\"\n---\n\nQui je suis.\n";
+        $page = "---\ntitle: \"À propos\"\nslug: \"a-propos\"\ntype: \"page\"\nlang: \"fr\"\n---\n\nQui je suis.\n";
         WordPressSpy::$capabilityResults['edit_others_posts'] = true;
         WordPressSpy::$capabilityResults['edit_others_pages'] = false;
         $this->post(['markdown' => wp_slash($page), 'mode' => 'import']);

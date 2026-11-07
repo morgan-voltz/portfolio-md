@@ -101,6 +101,7 @@ $article = <<<'MD'
 title: "Article de fumée"
 slug: "zz-smoke-article"
 type: "article"
+lang: "fr"
 date: 2026-10-26
 subtitle: "Sous-titre de fumée"
 seo_description: "Description SEO de fumée."
@@ -149,6 +150,7 @@ $project = static fn (string $skillCode): string => <<<MD
 title: "Projet de fumée"
 slug: "zz-smoke-project"
 type: "project"
+lang: "fr"
 status: "en-cours"
 role: "Développeur de fumée"
 period_start: 2026-01-12
@@ -243,7 +245,7 @@ try {
         $check('the project stores its language and is its own translation key', $meta($projectId, InternalMetaRegistrar::LANG) === 'fr' && $meta($projectId, InternalMetaRegistrar::TRANSLATION_KEY) === $projectSlug);
 
         // 3b. A German translation (ADR-020, lot 1b) -----------------------------------------------
-        $german = str_replace(['slug: "zz-smoke-project"', 'type: "project"'], ['slug: "zz-smoke-project-de"', "type: \"project\"\nlang: \"de\"\ntranslation_key: \"zz-smoke-project\""], $project($skill->code));
+        $german = str_replace(['slug: "zz-smoke-project"', 'lang: "fr"'], ['slug: "zz-smoke-project-de"', "lang: \"de\"\ntranslation_key: \"zz-smoke-project\""], $project($skill->code));
         try {
             $service->import($german, new ImportOptions(), 'zz-smoke-project-de', null, ContentType::Project, Language::Fr);
             $check('a German document announced as French is refused', false);
@@ -280,7 +282,7 @@ try {
     $check('an unknown competency code is refused', $refused !== null && str_contains($refused, '9.9.9/ZZ-99'), (string) $refused);
 
     // A page goes to the native page type: no term, the SEO description and the internal metas only.
-    $pageDocument = "---\ntitle: \"Page de fumée\"\nslug: \"zz-smoke-page\"\ntype: \"page\"\ndate: 2026-10-26\nseo_description: \"Description de la page de fumée.\"\n---\n\n# Page de fumée\n\nCorps de la page.\n";
+    $pageDocument = "---\ntitle: \"Page de fumée\"\nslug: \"zz-smoke-page\"\ntype: \"page\"\nlang: \"fr\"\ndate: 2026-10-26\nseo_description: \"Description de la page de fumée.\"\n---\n\n# Page de fumée\n\nCorps de la page.\n";
     $pageResult = $service->import($pageDocument, new ImportOptions());
     $pageId = $pageResult->postId ?? 0;
     if ($pageId > 0) {

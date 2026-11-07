@@ -26,7 +26,7 @@ use WP_REST_Request;
 #[CoversClass(HtmlSanitizer::class)]
 final class PreviewControllerTest extends TestCase
 {
-    private const DOCUMENT = "---\ntitle: \"Article\"\nslug: \"article\"\ntype: \"article\"\ntags: [php]\n---\n\nUn paragraphe.\n";
+    private const DOCUMENT = "---\ntitle: \"Article\"\nslug: \"article\"\ntype: \"article\"\nlang: \"fr\"\ntags: [php]\n---\n\nUn paragraphe.\n";
 
     private PreviewController $controller;
 

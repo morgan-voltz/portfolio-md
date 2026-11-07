@@ -8,9 +8,7 @@ namespace Voltz\PortfolioMd\Domain;
  * Language of a document, from its `lang` frontmatter key (ADR-020).
  *
  * Three languages, French being the default: the language the site was born
- * in, the one a document is read as while it carries no `lang` key (the
- * transition of lot 1a, until the content migration makes the key required),
- * and the end of every fallback chain. Articles and projects say their
+ * in, and the end of every fallback chain. Articles and projects say their
  * language in their slug (`momocad`, `momocad-de`, `momocad-en`); pages have
  * a natural slug in each language (`cv`, `lebenslauf`, `resume`), which
  * ContentType::suffixesSlugs() tells apart.
@@ -24,7 +22,7 @@ enum Language: string
     case De = 'de';
     case En = 'en';
 
-    /** The language of the site, and of a document that does not say its own. */
+    /** The language of the site, the end of every fallback chain. */
     public static function default(): self
     {
         return self::Fr;

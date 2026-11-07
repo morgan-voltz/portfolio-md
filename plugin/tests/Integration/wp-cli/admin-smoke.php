@@ -110,6 +110,7 @@ $document = <<<'MD'
 title: "Projet de fumée (admin)"
 slug: "zz-smoke-admin"
 type: "project"
+lang: "fr"
 date: 2026-10-26
 status: "en-cours"
 skills: []
@@ -192,7 +193,7 @@ try {
         WP_CLI::error('Cannot create the bare page: ' . (is_wp_error($bareId) ? $bareId->get_error_message() : 'no id'));
     }
     $createdPosts[] = $bareId;
-    $pageDocument = "---\ntitle: \"Page de fumée\"\nslug: \"zz-smoke-page\"\ntype: \"page\"\ndate: 2026-10-26\nseo_description: \"Page de fumée.\"\n---\n\n# Page de fumée\n\nCorps.\n";
+    $pageDocument = "---\ntitle: \"Page de fumée\"\nslug: \"zz-smoke-page\"\ntype: \"page\"\nlang: \"fr\"\ndate: 2026-10-26\nseo_description: \"Page de fumée.\"\n---\n\n# Page de fumée\n\nCorps.\n";
     $pageId = $service->import($pageDocument, new ImportOptions())->postId ?? 0;
     if ($pageId > 0) {
         $createdPosts[] = $pageId;
@@ -304,7 +305,7 @@ try {
     $check('its slug did not change', get_post($shellId)->post_name === 'zz-smoke-admin');
     delete_transient($feedbackKey($shellId));
 
-    $article = "---\ntitle: \"Article de fumée\"\nslug: \"zz-smoke-admin\"\ntype: \"article\"\n---\n\nCorps.\n";
+    $article = "---\ntitle: \"Article de fumée\"\nslug: \"zz-smoke-admin\"\ntype: \"article\"\nlang: \"fr\"\n---\n\nCorps.\n";
     $submit($shellId, $article);
     $feedback = get_transient($feedbackKey($shellId));
     $check('a document of another type is refused', is_array($feedback) && str_contains((string) $feedback['message'], 'is not an existing article'), is_array($feedback) ? (string) $feedback['message'] : 'no feedback');

@@ -144,7 +144,7 @@ final class EditorMetaBox
      */
     public static function templateFor(ContentType $type, string $today): string
     {
-        $lines = ['---', 'title: ""', 'slug: ""', "type: \"{$type->value}\"", "date: {$today}"];
+        $lines = ['---', 'title: ""', 'slug: ""', "type: \"{$type->value}\"", 'lang: "fr"', "date: {$today}"];
         if ($type === ContentType::Page) {
             $lines[] = 'seo_description: ""';
         } else {

@@ -32,11 +32,20 @@ final class FrontmatterParserTest extends TestCase
     #[Test]
     public function splits_frontmatter_and_body(): void
     {
-        $document = $this->parser->parse("---\ntitle: \"Hello\"\nslug: hello\ntype: page\n---\n\n# Hello\n\nBody.\n");
+        $document = $this->parser->parse("---\ntitle: \"Hello\"\nslug: hello\ntype: page\nlang: fr\n---\n\n# Hello\n\nBody.\n");
 
         self::assertSame('Hello', $document->frontmatter->title);
         self::assertSame(ContentType::Page, $document->frontmatter->type);
         self::assertSame("\n# Hello\n\nBody.\n", $document->body);
+    }
+
+    #[Test]
+    public function a_document_without_lang_is_refused(): void
+    {
+        $this->expectException(InvalidFrontmatterException::class);
+        $this->expectExceptionMessage('missing required key "lang"');
+
+        $this->parser->parse("---\ntitle: \"Hello\"\nslug: hello\ntype: page\n---\n\nBody.\n");
     }
 
     #[Test]
@@ -75,7 +84,7 @@ final class FrontmatterParserTest extends TestCase
     #[Test]
     public function bare_yaml_dates_become_calendar_dates(): void
     {
-        $document = $this->parser->parse("---\ntitle: x\nslug: x\ntype: page\ndate: 2026-10-26\n---\n");
+        $document = $this->parser->parse("---\ntitle: x\nslug: x\ntype: page\nlang: fr\ndate: 2026-10-26\n---\n");
 
         self::assertSame('2026-10-26', $document->frontmatter->date?->format('Y-m-d'));
         self::assertSame('00:00:00', $document->frontmatter->date?->format('H:i:s'));
@@ -87,7 +96,7 @@ final class FrontmatterParserTest extends TestCase
         $this->expectException(InvalidFrontmatterException::class);
         $this->expectExceptionMessage('invalid value for "period_start": 2026-02-30 is not a calendar date');
 
-        $this->parser->parse("---\ntitle: x\nslug: x\ntype: project\nstatus: stable\nperiod_start: 2026-02-30\n---\n");
+        $this->parser->parse("---\ntitle: x\nslug: x\ntype: project\nlang: fr\nstatus: stable\nperiod_start: 2026-02-30\n---\n");
     }
 
     #[Test]
@@ -96,7 +105,7 @@ final class FrontmatterParserTest extends TestCase
         $this->expectException(InvalidFrontmatterException::class);
         $this->expectExceptionMessage('2026-2-30 is not a calendar date');
 
-        $this->parser->parse("---\ntitle: x\nslug: x\ntype: project\nstatus: stable\nperiod_start: 2026-2-30\n---\n");
+        $this->parser->parse("---\ntitle: x\nslug: x\ntype: project\nlang: fr\nstatus: stable\nperiod_start: 2026-2-30\n---\n");
     }
 
     #[Test]
@@ -105,13 +114,13 @@ final class FrontmatterParserTest extends TestCase
         $this->expectException(InvalidFrontmatterException::class);
         $this->expectExceptionMessage('period_end');
 
-        $this->parser->parse("---\ntitle: x\nslug: x\ntype: project\nstatus: stable\nperiod_end: \"2026-02-30\"\n---\n");
+        $this->parser->parse("---\ntitle: x\nslug: x\ntype: project\nlang: fr\nstatus: stable\nperiod_end: \"2026-02-30\"\n---\n");
     }
 
     #[Test]
     public function a_bare_date_time_is_reduced_to_its_calendar_day(): void
     {
-        $document = $this->parser->parse("---\ntitle: x\nslug: x\ntype: page\ndate: 2026-10-26T23:30:00+02:00\n---\n");
+        $document = $this->parser->parse("---\ntitle: x\nslug: x\ntype: page\nlang: fr\ndate: 2026-10-26T23:30:00+02:00\n---\n");
 
         self::assertSame('2026-10-26 00:00:00 UTC', $document->frontmatter->date?->format('Y-m-d H:i:s e'));
     }
@@ -119,7 +128,7 @@ final class FrontmatterParserTest extends TestCase
     #[Test]
     public function tolerates_windows_line_endings_and_a_byte_order_mark(): void
     {
-        $document = $this->parser->parse("\xEF\xBB\xBF---\r\ntitle: x\r\nslug: x\r\ntype: page\r\n---\r\nBody\r\n");
+        $document = $this->parser->parse("\xEF\xBB\xBF---\r\ntitle: x\r\nslug: x\r\ntype: page\r\nlang: fr\r\n---\r\nBody\r\n");
 
         self::assertSame('x', $document->frontmatter->slug);
         self::assertSame("Body\n", $document->body);
@@ -139,7 +148,7 @@ final class FrontmatterParserTest extends TestCase
     {
         $this->expectException(MalformedDocumentException::class);
 
-        $this->parser->parse("---\ntitle: x\nslug: x\ntype: page\n\n# Body without closing fence\n");
+        $this->parser->parse("---\ntitle: x\nslug: x\ntype: page\nlang: fr\n\n# Body without closing fence\n");
     }
 
     #[Test]
@@ -166,6 +175,6 @@ final class FrontmatterParserTest extends TestCase
         $this->expectException(InvalidFrontmatterException::class);
         $this->expectExceptionMessage('ADR-015');
 
-        $this->parser->parse("---\ntitle: x\nslug: x\ntype: article\ncategory: Architecture\n---\n");
+        $this->parser->parse("---\ntitle: x\nslug: x\ntype: article\nlang: fr\ncategory: Architecture\n---\n");
     }
 }
