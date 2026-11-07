@@ -99,15 +99,11 @@ final readonly class Frontmatter
             }
         }
 
-        // TRANSITION (lot 1a of ADR-020): "lang" is optional until the content
-        // migration makes it required; absent means French. A translation key
-        // without a language has no meaning, so it is refused meanwhile.
-        if (!array_key_exists('lang', $data) && array_key_exists('translation_key', $data)) {
-            throw InvalidFrontmatterException::invalidValue('translation_key', 'requires the "lang" key');
+        // The language of the document (ADR-020): required, one of the three.
+        if (!array_key_exists('lang', $data)) {
+            throw InvalidFrontmatterException::missingKey('lang');
         }
-        $lang = array_key_exists('lang', $data)
-            ? Language::tryFrom(is_string($data['lang']) ? $data['lang'] : '')
-            : Language::default();
+        $lang = Language::tryFrom(is_string($data['lang']) ? $data['lang'] : '');
         if ($lang === null) {
             throw InvalidFrontmatterException::invalidValue('lang', 'expected one of ' . implode(', ', Language::values()));
         }

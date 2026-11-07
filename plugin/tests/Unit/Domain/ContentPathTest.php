@@ -46,7 +46,7 @@ final class ContentPathTest extends TestCase
     /** @return iterable<string, array{string}> */
     public static function refusedProvider(): iterable
     {
-        yield 'the legacy two-level layout' => ['projects/momocad.md'];
+        yield 'two levels, no language folder' => ['projects/momocad.md'];
         yield 'four levels' => ['fr/projects/momocad/notes.md'];
         yield 'an unknown language' => ['es/projects/momocad.md'];
         yield 'an unknown folder' => ['fr/posts/momocad.md'];

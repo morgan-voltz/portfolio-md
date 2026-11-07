@@ -2,6 +2,7 @@
 title: "AUTOFIN Control"
 slug: "autofin-control"
 type: "project"
+lang: "fr"
 date: 2026-10-26
 subtitle: "Lire des bilans PDF hétérogènes par géométrie plutôt que par IA, pour un contrôle financier qui doit rester en local"
 seo_description: "AUTOFIN Control extrait et vérifie des données comptables de PDF pour le contrôle financier des associations subventionnées par m2A, en .NET 10."

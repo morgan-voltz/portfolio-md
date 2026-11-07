@@ -58,7 +58,7 @@ use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
  * description and the internal metas only.
  *
  * Languages (ADR-020): a document that sits in a language folder must say
- * that language (a document without a `lang` line is French), a post keeps
+ * that language, a post keeps
  * the language it was given, and after every write, and after an unchanged
  * document too, the post is placed in its language and tied to the other
  * posts of its translation key through the LanguageGateway, which is
@@ -113,7 +113,7 @@ final class ContentImportService
             : $this->findTarget($frontmatter->type, $frontmatter->slug, $targetPostId);
         $postId = $existing?->id ?? $targetPostId;
 
-        // A post keeps its language; a post that has none yet (written before languages, or by hand) takes the document's.
+        // A post keeps its language; a post that has none yet (made by hand, or not yet imported since the plugin stores languages) takes the document's.
         if ($existing !== null && $existing->lang !== null && $existing->lang !== $frontmatter->lang) {
             throw ImportException::languageOfPostDiffers($frontmatter->type, $frontmatter->slug, $existing->id, $existing->lang, $frontmatter->lang);
         }
@@ -173,8 +173,8 @@ final class ContentImportService
      * it to the other posts of its translation key, one per language, the
      * oldest post of a language winning should two carry the same key (the
      * validator reports such a duplicate; the import does not arbitrate).
-     * A post without stored language (written before the plugin stored
-     * languages) is left out of the group until it is imported again.
+     * A post without stored language (made by hand, or not imported
+     * since the plugin stores languages) is left out of the group until it is imported again.
      */
     private function placeInLanguage(Frontmatter $frontmatter, int $postId): void
     {

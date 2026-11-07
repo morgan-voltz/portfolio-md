@@ -2,6 +2,7 @@
 title: "Atlas"
 slug: "atlas"
 type: "project"
+lang: "fr"
 date: 2026-10-26
 subtitle: "Une plateforme .NET qui unifie les données publiques françaises des entreprises et de la propriété industrielle, verrouillée par les tests"
 seo_description: "Atlas agrège les données publiques françaises des entreprises et de la propriété industrielle derrière une API .NET en architecture hexagonale testée."

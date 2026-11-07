@@ -2,6 +2,7 @@
 title: "UHA Learn"
 slug: "uha-learn"
 type: "project"
+lang: "fr"
 date: 2026-10-26
 subtitle: "Catalogue de cours et suivi de progression pour UHA 4.0, avec son API REST PHP écrite sans framework"
 seo_description: "UHA Learn, fil rouge UHA 4.0.1 : catalogue de cours et suivi de progression, API REST PHP 8.2 sans framework, JWT, MySQL, déploiement multi-distributions."

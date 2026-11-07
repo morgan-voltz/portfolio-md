@@ -12,7 +12,7 @@ use WP_Post;
  * Which posts the Markdown document is the editor of.
  *
  * Articles and projects always: the document is their only source. Native
- * pages only when they hold a document (content/pages, imported or
+ * pages only when they hold a document (content/fr/pages, imported or
  * pasted): a page made by hand in the block editor, a contact page say,
  * stays a normal page. The mark of a held document is the stored hash,
  * written by the repository along with the document and by no user.

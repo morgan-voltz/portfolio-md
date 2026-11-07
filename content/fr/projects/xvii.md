@@ -2,6 +2,7 @@
 title: "xvii"
 slug: "xvii"
 type: "project"
+lang: "fr"
 date: 2026-10-26
 subtitle: "Un studio audio seize pistes en Rust dont le thread temps réel ne peut ni allouer ni attendre"
 seo_description: "XVII est un prototype de studio audio seize pistes en Rust et Dioxus : thread temps réel sans allocation ni verrou, architecture actée avant le code."

@@ -51,7 +51,7 @@ final class ImportException extends RuntimeException
     {
         return new self(
             "The document says lang \"{$document->value}\" but sits in the \"{$folder->value}/\" language folder: a document lives in the folder of its language"
-            . ' (ADR-020; a document without a "lang" line is French).',
+            . ' (ADR-020).',
         );
     }
 

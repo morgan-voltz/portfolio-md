@@ -23,7 +23,7 @@ final class MetaRegistration
 
     /**
      * Post types that can hold a Markdown document: the plugin's two, and
-     * the native page (content/pages). They carry the internal metas and
+     * the native page (content/fr/pages). They carry the internal metas and
      * the SEO description; the other public metas stay on the plugin's own
      * types, where they mean something.
      */

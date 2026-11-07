@@ -2,6 +2,7 @@
 title: "DevEye"
 slug: "deveye"
 type: "project"
+lang: "fr"
 date: 2026-10-26
 subtitle: "Un serveur MCP en Rust qui donne à un agent IA des yeux et des mains sur une application graphique vivante"
 seo_description: "DevEye, serveur MCP en Rust (41 outils), donne à un agent IA des yeux et des mains sur une application graphique, jusqu'à l'injection d'entrées sous Wayland."

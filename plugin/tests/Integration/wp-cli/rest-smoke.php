@@ -110,6 +110,7 @@ $article = <<<'MD'
 title: "Article de fumée (lecture)"
 slug: "zz-smoke-article"
 type: "article"
+lang: "fr"
 date: 2026-10-26
 subtitle: "Sous-titre de fumée"
 seo_description: "Description SEO de fumée."
@@ -127,6 +128,7 @@ $project = <<<MD
 title: "Projet de fumée (lecture)"
 slug: "zz-smoke-project"
 type: "project"
+lang: "fr"
 date: 2026-10-25
 status: "en-cours"
 role: "Développeur de fumée"
@@ -150,6 +152,7 @@ $secondProject = <<<'MD'
 title: "Second projet de fumée (lecture)"
 slug: "zz-smoke-project-2"
 type: "project"
+lang: "fr"
 date: 2026-10-23
 status: "archive"
 tags: []
@@ -165,6 +168,7 @@ $page = <<<'MD'
 title: "Page de fumée (lecture)"
 slug: "zz-smoke-page"
 type: "page"
+lang: "fr"
 date: 2026-10-24
 seo_description: "Description de la page de fumée."
 ---

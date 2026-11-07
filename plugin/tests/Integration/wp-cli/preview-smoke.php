@@ -68,6 +68,7 @@ $document = <<<'MD'
 title: "Projet de fumée (aperçu)"
 slug: "zz-smoke-preview"
 type: "project"
+lang: "fr"
 date: 2026-10-27
 status: "en-cours"
 skills: []
@@ -124,7 +125,7 @@ try {
     $data = $preview(['markdown' => str_replace('skills: []', 'skills: ["4.0.2/E99"]', $document)])->get_data();
     $check('an unknown competency code is reported and the body still rendered', ($data['importable'] ?? null) === false && str_contains((string) ($data['problems'][0] ?? ''), '4.0.2/E99') && is_string($data['html'] ?? null));
 
-    $data = $preview(['markdown' => "---\ntitle: \"Page\"\nslug: \"zz-smoke-preview-page\"\ntype: \"page\"\n---\n\nCorps.\n"])->get_data();
+    $data = $preview(['markdown' => "---\ntitle: \"Page\"\nslug: \"zz-smoke-preview-page\"\ntype: \"page\"\nlang: \"fr\"\n---\n\nCorps.\n"])->get_data();
     $check('a page is importable and rendered like the others', ($data['importable'] ?? null) === true && is_string($data['html'] ?? null) && (((array) ($data['summary'] ?? []))['type'] ?? '') === 'page');
 
     $data = $preview(['markdown' => "No frontmatter here.\n"])->get_data();

@@ -2,6 +2,7 @@
 title: "ancestors-modding"
 slug: "ancestors-modding"
 type: "project"
+lang: "fr"
 date: 2026-10-26
 subtitle: "Une boîte à outils de rétro-ingénierie pour moder un jeu Unreal Engine que son studio a abandonné sans SDK ni documentation"
 seo_description: "Rétro-ingénierie d'un jeu Unreal Engine abandonné par son studio, pour reconstituer son architecture interne et publier les premiers outils de modding."

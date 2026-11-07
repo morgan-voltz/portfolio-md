@@ -34,11 +34,10 @@ use Voltz\PortfolioMd\Parsing\SkillsGridLoader;
  * `<lang>/<folder>/<slug>.md`, `skills.yaml` at the root; a leading
  * `content/` is tolerated, since a diff taken at the root of the repository
  * prints it. The language folder says the language the document must
- * declare. A path of the former two-level layout, `<folder>/<slug>.md`, is
- * skipped, deletion included: when the content moves to its language
- * folders, the push shows sixteen deletions of the old paths and sixteen
- * creations of the new ones, and the deletions must not trash the posts
- * the creations are about to update.
+ * declare. A two-level path, `<folder>/<slug>.md`, is never a document and
+ * is skipped, deletion included: a stale script or a direct call must not
+ * retire a post through it (the content once lived there, and a push that
+ * moves files shows the old paths as deletions beside the creations).
  */
 final class ContentSyncService
 {
@@ -118,7 +117,7 @@ final class ContentSyncService
         if ($depth === 2) {
             [$folder] = $segments;
             if (ContentType::fromFolder($folder) !== null) {
-                return ContentSyncLine::skipped($file->path, "the file sits in the layout before the language folders (ADR-020): it is left alone until it moves to content/<lang>/{$folder}/");
+                return ContentSyncLine::skipped($file->path, "not a document path: documents live in content/<lang>/{$folder}/");
             }
 
             return ContentSyncLine::skipped($file->path, Language::tryFrom($folder) !== null
@@ -179,8 +178,9 @@ final class ContentSyncService
      * rule; the validator applies it to the files). A post that stores
      * another language is skipped too, which covers the pages, whose slugs
      * carry no suffix: a stray `en/pages/cv.md` must not retire the French
-     * `cv`. A post written before languages stores none and is retired on
-     * the strength of the folder alone. Retiring does not untie the group:
+     * `cv`. A post that stores no language (made by hand, or not imported
+     * since the plugin stores languages) is retired on the strength of the
+     * folder alone. Retiring does not untie the group:
      * the Polylang bridge of lot 2 reconciles the translations.
      */
     private function retire(string $path, ContentType $type, string $slug, Language $lang, bool $dryRun): ContentSyncLine

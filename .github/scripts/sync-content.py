@@ -5,7 +5,8 @@ The same script serves the GitHub Actions workflow (sync-content.yml) and a
 developer at the keyboard: it takes the list of changed files (the output of
 `git diff --no-renames --name-status -z`) or walks the whole content/ folder,
 keeps the documents the plugin knows (content/skills.yaml and the Markdown
-files of content/articles, content/projects and content/pages), reads them,
+files of content/<lang>/articles, content/<lang>/projects and
+content/<lang>/pages), reads them,
 and POSTs them to /wp-json/portfolio/v1/sync in batches, authenticated with a
 WordPress application password over Basic auth.
 
@@ -65,14 +66,16 @@ def is_document(relative: str) -> bool:
     return len(parts) == 3 and parts[0] in LANGUAGES and parts[1] in DOCUMENT_FOLDERS and parts[2].endswith(".md")
 
 
-def legacy_documents(paths: Iterable[str]) -> list[str]:
-    """The paths, as given, that are Markdown documents of the former layout, content/<folder>/<slug>.md.
-
-    The plugin skips them since ADR-020 (a document lives in content/<lang>/<folder>/), so a push that
-    touches them synchronizes nothing: worth a warning, not a failure.
+def stray_documents(entries: Iterable[tuple[str, str]]) -> list[str]:
+    """The paths, as given, of the Markdown files a push left in a type folder without a language folder,
+    content/<folder>/<slug>.md: not documents (ADR-020), the plugin skips them, so the push synchronizes
+    nothing for them: worth a warning, not a failure. A deletion is left out: a path that no longer exists
+    needs no move.
     """
     found: list[str] = []
-    for path in paths:
+    for status, path in entries:
+        if status == "D":
+            continue
         relative = relative_to_content(path)
         if relative is None:
             continue
@@ -160,11 +163,11 @@ def files_from_tree(repo: Path) -> tuple[list[dict], list[str]]:
     return files, problems
 
 
-def legacy_documents_of_tree(repo: Path) -> list[str]:
-    """Every Markdown document still at content/<folder>/<slug>.md, as repository paths."""
+def stray_documents_of_tree(repo: Path) -> list[str]:
+    """Every Markdown file sitting at content/<folder>/<slug>.md, as repository paths."""
     root = repo / CONTENT_ROOT
     paths = (str(path.relative_to(repo)) for folder in DOCUMENT_FOLDERS for path in sorted((root / folder).glob("*.md")))
-    return legacy_documents(paths)
+    return stray_documents(("M", path) for path in paths)
 
 
 def read_document(path: Path, relative: str, problems: list[str]) -> dict | None:
@@ -276,21 +279,21 @@ def main() -> int:
     repo = Path(args.repo)
     if args.all:
         files, problems = files_from_tree(repo)
-        legacy = legacy_documents_of_tree(repo)
+        stray = stray_documents_of_tree(repo)
     else:
         data = sys.stdin.buffer.read() if args.name_status == "-" else Path(args.name_status).read_bytes()
         entries, problems = parse_name_status(data)
         files, more = files_from_name_status(entries, repo)
         problems += more
-        legacy = legacy_documents(path for _, path in entries)
+        stray = stray_documents(entries)
 
     for problem in problems:
         print(one_line(f"WARN   {problem}"))
-    for path in legacy:
+    for path in stray:
         # A GitHub Actions warning annotation: visible in the run, never a failure.
-        print(f"::warning::{escape_data(path)} is still laid out as content/<folder>/<slug>.md, the layout before the language folders (ADR-020): the plugin skips it until it moves to content/<lang>/<folder>/")
+        print(f"::warning::{escape_data(path)} is not a document path: documents live in content/<lang>/<folder>/<slug>.md; the plugin skips this path")
     if not files:
-        print("Nothing to synchronize: only documents of the former layout changed; move them to content/<lang>/<folder>/." if legacy else "Nothing to synchronize: no document of content/ changed.")
+        print("Nothing to synchronize: only paths outside content/<lang>/<folder>/ changed." if stray else "Nothing to synchronize: no document of content/ changed.")
         return 1 if problems else 0
 
     url = args.url.rstrip("/") + ROUTE

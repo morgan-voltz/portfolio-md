@@ -22,7 +22,7 @@ final readonly class StoredContent
      *                              It may differ from the post's own URL slug if that one was
      *                              changed behind the document's back: the document wins.
      * @param ?Language $lang         the language the plugin stored for the post (ADR-020); null
-     *                              when the post was written before the plugin stored languages,
+     *                              when the post was made by hand, or not imported since the plugin stores languages,
      *                              or made by hand
      * @param ?string   $translationKey the key the post shares with its translations; null likewise
      */

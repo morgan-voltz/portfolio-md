@@ -2,6 +2,7 @@
 title: "GeoForge, le jeu"
 slug: "geoforge-jeu"
 type: "project"
+lang: "fr"
 date: 2026-10-26
 subtitle: "Un puzzle géométrique sur grille où seul le serveur décide si un placement est valide"
 seo_description: "GeoForge, puzzle géométrique en API .NET 10 Clean Architecture et front React 19/Phaser 3, fil rouge UHA 4.0.2 mené et soutenu seul."

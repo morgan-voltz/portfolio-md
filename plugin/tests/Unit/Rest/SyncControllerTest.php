@@ -33,7 +33,7 @@ use WP_REST_Request;
 #[CoversClass(SyncController::class)]
 final class SyncControllerTest extends TestCase
 {
-    private const PAGE = "---\ntitle: \"À propos\"\nslug: \"a-propos\"\ntype: \"page\"\n---\n\nLe parcours.\n";
+    private const PAGE = "---\ntitle: \"À propos\"\nslug: \"a-propos\"\ntype: \"page\"\nlang: \"fr\"\n---\n\nLe parcours.\n";
 
     private InMemoryContentRepository $repository;
     private ContentImportService $import;

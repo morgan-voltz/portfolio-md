@@ -14,7 +14,7 @@ use Voltz\PortfolioMd\Domain\Frontmatter;
  * articles but are registered on both post types: an unused meta on a project
  * costs nothing, while a fourth registrar for a single field would. The SEO
  * description is also registered on the native page type, whose documents
- * (content/pages) carry one.
+ * (content/fr/pages) carry one.
  *
  * Hooked on the WordPress `init` action by the composition root (`Plugin`).
  * See docs/architecture/04-structure-wordpress.md section 5.1.

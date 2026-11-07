@@ -11,12 +11,11 @@ namespace Voltz\PortfolioMd\Domain;
  *
  * The language folder says the language, the type folder says the kind
  * (ContentType::fromFolder()), the file name says the slug. Anything else,
- * the former two-level layout included, is not a document path.
+ * a two-level `<folder>/<slug>.md` path included, is not a document path.
  *
- * Lot 1a of ADR-020: the content validator reads it to recognise a document
- * of the new layout. Lot 1b plugs it into the Git door
- * (Service\ContentSyncService) and the WP-CLI import (Cli\ImportCommand),
- * which still expect the two-level layout.
+ * The content validator (Validation\ContentValidator), the Git door
+ * (Service\ContentSyncService) and the WP-CLI import (Cli\ImportCommand)
+ * read it to recognise a document.
  */
 final readonly class ContentPath
 {

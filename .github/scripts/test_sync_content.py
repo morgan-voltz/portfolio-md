@@ -38,21 +38,24 @@ class IsDocument(unittest.TestCase):
             self.assertFalse(sync.is_document(path), path)
 
 
-class LegacyDocuments(unittest.TestCase):
-    def test_lists_the_markdown_files_of_the_former_layout_only(self) -> None:
-        paths = ["content/projects/x.md", "content/fr/projects/x.md", "content/skills.yaml", "docs/x.md", "content/projects/sub/x.md", "content/projects/notes.txt", "./content/pages/cv.md"]
+class StrayDocuments(unittest.TestCase):
+    def test_lists_the_markdown_files_left_in_a_type_folder_without_language_folder(self) -> None:
+        entries = [("M", "content/projects/x.md"), ("A", "content/fr/projects/x.md"), ("M", "content/skills.yaml"), ("A", "docs/x.md"), ("M", "content/projects/sub/x.md"), ("M", "content/projects/notes.txt"), ("A", "./content/pages/cv.md")]
 
-        self.assertEqual(["content/projects/x.md", "./content/pages/cv.md"], sync.legacy_documents(paths))
+        self.assertEqual(["content/projects/x.md", "./content/pages/cv.md"], sync.stray_documents(entries))
+
+    def test_a_deleted_stray_path_needs_no_warning(self) -> None:
+        self.assertEqual([], sync.stray_documents([("D", "content/projects/gone.md"), ("D", "content/pages/cv.md")]))
 
 
 class RelativeToContent(unittest.TestCase):
     def test_strips_the_content_prefix_and_a_leading_dot_slash(self) -> None:
-        self.assertEqual("projects/x.md", sync.relative_to_content("content/projects/x.md"))
+        self.assertEqual("fr/projects/x.md", sync.relative_to_content("content/fr/projects/x.md"))
         self.assertEqual("skills.yaml", sync.relative_to_content("./content/skills.yaml"))
 
     def test_keeps_the_path_bytes_as_git_gave_them(self) -> None:
-        self.assertEqual("projects/fiche accentuée.md", sync.relative_to_content("content/projects/fiche accentuée.md"))
-        self.assertEqual("projects/back\\slash.md", sync.relative_to_content("content/projects/back\\slash.md"))
+        self.assertEqual("fr/projects/fiche accentuée.md", sync.relative_to_content("content/fr/projects/fiche accentuée.md"))
+        self.assertEqual("fr/projects/back\\slash.md", sync.relative_to_content("content/fr/projects/back\\slash.md"))
 
     def test_a_path_outside_content_is_none(self) -> None:
         for path in ("docs/x.md", "contents/x.md", "content", "README.md"):
@@ -61,15 +64,15 @@ class RelativeToContent(unittest.TestCase):
 
 class ParseNameStatus(unittest.TestCase):
     def test_reads_nul_separated_pairs_with_unquoted_paths(self) -> None:
-        data = b"A\0content/pages/about.md\0M\0content/projects/fiche accentu\xc3\xa9e.md\0D\0content/projects/tab\tname.md\0"
+        data = b"A\0content/fr/pages/about.md\0M\0content/fr/projects/fiche accentu\xc3\xa9e.md\0D\0content/fr/projects/tab\tname.md\0"
 
         entries, problems = sync.parse_name_status(data)
 
         self.assertEqual([], problems)
         self.assertEqual([
-            ("A", "content/pages/about.md"),
-            ("M", "content/projects/fiche accentuée.md"),
-            ("D", "content/projects/tab\tname.md"),
+            ("A", "content/fr/pages/about.md"),
+            ("M", "content/fr/projects/fiche accentuée.md"),
+            ("D", "content/fr/projects/tab\tname.md"),
         ], entries)
 
     def test_an_empty_diff_is_nothing_to_do(self) -> None:
@@ -77,21 +80,21 @@ class ParseNameStatus(unittest.TestCase):
         self.assertEqual(([], []), sync.parse_name_status(b"\n"))
 
     def test_refuses_the_line_oriented_form_with_a_hint(self) -> None:
-        entries, problems = sync.parse_name_status(b"A\tcontent/pages/about.md\nM\tcontent/skills.yaml\n")
+        entries, problems = sync.parse_name_status(b"A\tcontent/fr/pages/about.md\nM\tcontent/skills.yaml\n")
 
         self.assertEqual([], entries)
         self.assertEqual(1, len(problems))
         self.assertIn("--name-status -z", problems[0])
 
     def test_a_status_without_path_is_reported_and_the_rest_kept(self) -> None:
-        entries, problems = sync.parse_name_status(b"A\0content/pages/about.md\0M\0")
+        entries, problems = sync.parse_name_status(b"A\0content/fr/pages/about.md\0M\0")
 
-        self.assertEqual([("A", "content/pages/about.md")], entries)
+        self.assertEqual([("A", "content/fr/pages/about.md")], entries)
         self.assertEqual(1, len(problems))
         self.assertIn("truncated", problems[0])
 
     def test_a_path_that_is_not_utf8_is_reported_and_the_rest_kept(self) -> None:
-        entries, problems = sync.parse_name_status(b"A\0content/pages/\xff.md\0M\0content/skills.yaml\0")
+        entries, problems = sync.parse_name_status(b"A\0content/fr/pages/\xff.md\0M\0content/skills.yaml\0")
 
         self.assertEqual([("M", "content/skills.yaml")], entries)
         self.assertEqual(1, len(problems))
@@ -137,8 +140,8 @@ class FilesFromNameStatus(unittest.TestCase):
 
         files, problems = sync.files_from_name_status(entries, self.repo)
 
-        self.assertEqual(([], []), (files, problems), "a document of the former layout is not sent: the plugin would skip it")
-        self.assertEqual(["content/projects/old.md", "content/projects/gone.md"], sync.legacy_documents(path for _, path in entries))
+        self.assertEqual(([], []), (files, problems), "a Markdown file outside the language folders is not sent: the plugin would skip it")
+        self.assertEqual(["content/projects/old.md"], sync.stray_documents(entries), "the modified stray file is reported, the deleted one is not")
 
     def test_an_unexpected_status_and_an_unreadable_file_are_problems(self) -> None:
         entries = [("U", "content/fr/projects/a.md"), ("A", "content/fr/projects/missing.md")]
@@ -155,17 +158,17 @@ class FilesFromTree(unittest.TestCase):
     def test_walks_the_grid_then_each_language_then_the_three_folders_in_name_order(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
-            for relative in ("content/skills.yaml", "content/fr/projects/b.md", "content/fr/projects/a.md", "content/fr/pages/cv.md", "content/de/projects/c-de.md", "content/README.md", "content/fr/projects/a/x.md", "content/projects/legacy.md"):
+            for relative in ("content/skills.yaml", "content/fr/projects/b.md", "content/fr/projects/a.md", "content/fr/pages/cv.md", "content/de/projects/c-de.md", "content/README.md", "content/fr/projects/a/x.md", "content/projects/stray.md"):
                 path = repo / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("x", encoding="utf-8")
 
             files, problems = sync.files_from_tree(repo)
-            legacy = sync.legacy_documents_of_tree(repo)
+            stray = sync.stray_documents_of_tree(repo)
 
         self.assertEqual([], problems)
         self.assertEqual(["skills.yaml", "fr/projects/a.md", "fr/projects/b.md", "fr/pages/cv.md", "de/projects/c-de.md"], [f["path"] for f in files])
-        self.assertEqual(["content/projects/legacy.md"], legacy, "the former layout is reported, not sent")
+        self.assertEqual(["content/projects/stray.md"], stray, "a Markdown file in a type folder at the root is reported, not sent")
 
 
 class Batches(unittest.TestCase):
@@ -289,21 +292,41 @@ class Main(unittest.TestCase):
         self.assertEqual(0, code)
         self.assertIn("Nothing to synchronize", out)
 
-    def test_a_push_that_only_touches_the_former_layout_warns_and_succeeds(self) -> None:
+    def test_a_push_that_only_touches_a_stray_markdown_file_warns_and_succeeds(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             diff = Path(tmp) / "changes.nul"
-            diff.write_bytes(b"M\0content/projects/old.md\0D\0content/pages/cv.md\0")
+            diff.write_bytes(b"M\0content/projects/old.md\0")
             code, out = self.run_main("--url", "http://x", "--user", "u", "--password-env", "PW", "--name-status", str(diff), "--repo", tmp, env={"PW": "secret"})
 
         self.assertEqual(0, code)
-        self.assertIn("::warning::content/projects/old.md is still laid out", out)
-        self.assertIn("::warning::content/pages/cv.md", out)
-        self.assertIn("only documents of the former layout changed", out)
+        self.assertIn("::warning::content/projects/old.md is not a document path: documents live in content/<lang>/<folder>/<slug>.md", out)
+        self.assertIn("only paths outside content/<lang>/<folder>/ changed", out)
+
+    def test_a_push_that_only_deletes_stray_files_warns_about_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            diff = Path(tmp) / "changes.nul"
+            diff.write_bytes(b"D\0content/projects/old.md\0D\0content/pages/cv.md\0")
+            code, out = self.run_main("--url", "http://x", "--user", "u", "--password-env", "PW", "--name-status", str(diff), "--repo", tmp, env={"PW": "secret"})
+
+        self.assertEqual(0, code)
+        self.assertNotIn("::warning::", out)
+        self.assertIn("Nothing to synchronize: no document of content/ changed.", out)
+
+    def test_a_full_sync_of_a_tree_with_only_a_stray_file_warns_and_succeeds(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stray = Path(tmp) / "content" / "projects" / "stray.md"
+            stray.parent.mkdir(parents=True)
+            stray.write_text("x", encoding="utf-8")
+            code, out = self.run_main("--url", "http://x", "--user", "u", "--password-env", "PW", "--all", "--repo", tmp, env={"PW": "secret"})
+
+        self.assertEqual(0, code)
+        self.assertIn("::warning::content/projects/stray.md is not a document path: documents live in content/<lang>/<folder>/<slug>.md", out)
+        self.assertIn("only paths outside content/<lang>/<folder>/ changed", out)
 
     def test_a_problem_without_documents_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             diff = Path(tmp) / "changes.nul"
-            diff.write_bytes(b"A\tcontent/pages/x.md\n")
+            diff.write_bytes(b"A\tcontent/fr/pages/x.md\n")
             code, out = self.run_main("--url", "http://x", "--user", "u", "--password-env", "PW", "--name-status", str(diff), "--repo", tmp, env={"PW": "secret"})
 
         self.assertEqual(1, code)

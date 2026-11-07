@@ -2,6 +2,7 @@
 title: "À propos"
 slug: "a-propos"
 type: "page"
+lang: "fr"
 date: 2026-10-26
 seo_description: "Électricien puis automaticien pendant quinze ans, aujourd'hui développeur full-stack en Licence Informatique à l'UHA, en recherche d'alternance."
 ---

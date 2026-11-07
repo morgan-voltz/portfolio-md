@@ -86,7 +86,7 @@ if (in_array('cleanup', $args ?? [], true)) {
 $fr = get_page_by_path('momocad', OBJECT, 'project');
 $cvFr = get_page_by_path('cv', OBJECT, 'page');
 if (!$fr instanceof WP_Post || !$cvFr instanceof WP_Post) {
-    WP_CLI::error('Import the content first: the sheet "momocad" and the page "cv" are missing (wp portfolio import /srv/portfolio-content/projects and /pages).');
+    WP_CLI::error('Import the content first: the sheet "momocad" and the page "cv" are missing (wp portfolio import /srv/portfolio-content/fr/projects and /fr/pages).');
 }
 $leftovers = $purge();
 if ($leftovers > 0) {

@@ -28,6 +28,7 @@ final class PreviewServiceTest extends TestCase
 title: "Projet"
 slug: "projet"
 type: "project"
+lang: "fr"
 date: 2026-10-27
 status: "en-cours"
 skills: ["4.0.2/E07"]
@@ -78,7 +79,7 @@ MD;
     #[Test]
     public function an_article_has_no_status_line_and_shows_what_is_empty_as_empty(): void
     {
-        $result = $this->service->preview("---\ntitle: \"Article\"\nslug: \"article\"\ntype: \"article\"\n---\n\nTexte.\n");
+        $result = $this->service->preview("---\ntitle: \"Article\"\nslug: \"article\"\ntype: \"article\"\nlang: \"fr\"\n---\n\nTexte.\n");
 
         self::assertSame(['type' => 'article', 'slug' => 'article', 'date' => '', 'skills' => '', 'tags' => ''], $result->summary);
     }
@@ -86,7 +87,7 @@ MD;
     #[Test]
     public function a_document_with_an_empty_body_is_importable_and_renders_nothing(): void
     {
-        $result = $this->service->preview("---\ntitle: \"Article\"\nslug: \"article\"\ntype: \"article\"\n---\n\n   \n");
+        $result = $this->service->preview("---\ntitle: \"Article\"\nslug: \"article\"\ntype: \"article\"\nlang: \"fr\"\n---\n\n   \n");
 
         self::assertTrue($result->importable());
         self::assertSame('Article', $result->title);
@@ -108,7 +109,7 @@ MD;
     #[Test]
     public function a_page_is_rendered_and_importable_like_the_others(): void
     {
-        $result = $this->service->preview("---\ntitle: \"À propos\"\nslug: \"a-propos\"\ntype: \"page\"\n---\n\nQui je suis.\n");
+        $result = $this->service->preview("---\ntitle: \"À propos\"\nslug: \"a-propos\"\ntype: \"page\"\nlang: \"fr\"\n---\n\nQui je suis.\n");
 
         self::assertTrue($result->importable());
         self::assertSame('À propos', $result->title);

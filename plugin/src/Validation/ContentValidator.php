@@ -37,9 +37,9 @@ use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
  * them; the plugin's own messages stay English. A file collects every
  * error it has, where the plugin's parser stops at the first one.
  *
- * Two layouts are accepted: the one of ADR-020, content/<lang>/<folder>/,
- * and, until the content migration, the former content/<folder>/ where
- * every file is read as French. A tree that mixes both is refused.
+ * The tree has one layout, the one of ADR-020, content/<lang>/<folder>/:
+ * a type folder left at the root, or a Markdown file outside the language
+ * folders, is reported as such.
  */
 final class ContentValidator
 {
@@ -108,35 +108,23 @@ final class ContentValidator
             throw new InvalidArgumentException("dossier de contenu introuvable : {$contentDir}");
         }
 
-        $layout = self::layoutOf($root);
         $errors = [];
         $notes = [];
         $documents = [];
 
-        $entries = self::discover($root, $layout, $errors);
+        $entries = self::discover($root, $errors);
         if ($entries === []) {
             $errors[self::TREE][] = 'aucun document trouvé';
         }
         foreach ($entries as $entry) {
-            $this->validateFile($entry, $layout, $root, $errors, $notes, $documents);
+            $this->validateFile($entry, $root, $errors, $notes, $documents);
         }
         self::validateAcross($documents, $errors);
 
         ksort($errors);
         ksort($notes);
 
-        return new ValidationReport($layout, $errors, $notes);
-    }
-
-    private static function layoutOf(string $root): string
-    {
-        foreach (Language::values() as $language) {
-            if (is_dir("{$root}/{$language}")) {
-                return ValidationReport::LANGUAGES;
-            }
-        }
-
-        return ValidationReport::LEGACY;
+        return new ValidationReport($errors, $notes);
     }
 
     /**
@@ -146,34 +134,16 @@ final class ContentValidator
      *
      * @param array<string, list<string>> $errors
      *
-     * @return list<array{relative: string, file: string, lang: ?Language, type: ContentType}>
+     * @return list<array{relative: string, file: string, lang: Language, type: ContentType}>
      */
-    private static function discover(string $root, string $layout, array &$errors): array
+    private static function discover(string $root, array &$errors): array
     {
         $entries = [];
         foreach (self::directories($root) as $top) {
-            if ($layout === ValidationReport::LEGACY) {
-                $type = ContentType::fromFolder($top);
-                if ($type === null) {
-                    $errors[self::TREE][] = "dossier inattendu à la racine : {$top}/";
-                    continue;
-                }
-                foreach (self::markdownFiles("{$root}/{$top}") as $file) {
-                    $slug = basename($file, '.md');
-                    if (preg_match(Patterns::SLUG, $slug) !== 1 || strlen($slug) > Patterns::SLUG_MAX_LENGTH) {
-                        $errors["{$top}/" . basename($file)][] = 'nom de fichier invalide : attendu <slug>.md (minuscules, chiffres, tirets)';
-                        continue;
-                    }
-                    $entries[] = ['relative' => "{$top}/" . basename($file), 'file' => $file, 'lang' => null, 'type' => $type];
-                }
-                self::reportNested("{$root}/{$top}", $top, '<dossier>/<slug>.md', $errors);
-                continue;
-            }
-
             $lang = Language::tryFrom($top);
             if ($lang === null) {
                 if (ContentType::fromFolder($top) !== null) {
-                    $errors[self::TREE][] = "arbre mixte : {$top}/ à côté des dossiers de langue";
+                    $errors[self::TREE][] = "dossier de type à la racine : {$top}/ ; les documents vivent dans content/<lang>/{$top}/";
                 } else {
                     self::reportMisplaced("{$root}/{$top}", $top, '<lang>/<dossier>/<slug>.md', $errors);
                 }
@@ -269,12 +239,12 @@ final class ContentValidator
     }
 
     /**
-     * @param array{relative: string, file: string, lang: ?Language, type: ContentType} $entry
+     * @param array{relative: string, file: string, lang: Language, type: ContentType} $entry
      * @param array<string, list<string>>                                               $errors
      * @param array<string, string>                                                     $notes
      * @param list<array<string, mixed>>                                                $documents
      */
-    private function validateFile(array $entry, string $layout, string $root, array &$errors, array &$notes, array &$documents): void
+    private function validateFile(array $entry, string $root, array &$errors, array &$notes, array &$documents): void
     {
         $relative = $entry['relative'];
         $file = $entry['file'];
@@ -313,27 +283,20 @@ final class ContentValidator
             $found[] = 'type doit valoir ' . implode(', ', ContentType::values());
         }
 
-        // The language: said by the folder in the languages layout, French in the legacy one.
-        $lang = $entry['lang'] ?? Language::default();
+        // The language: said by the folder, and the frontmatter must say the same.
+        $lang = $entry['lang'];
         $langOk = true;
-        if ($layout === ValidationReport::LANGUAGES) {
-            if (!array_key_exists('lang', $fm)) {
-                $langOk = false; // reported below, with the other missing keys
-            } else {
-                $declared = Language::tryFrom(is_string($fm['lang']) ? $fm['lang'] : '');
-                if ($declared === null) {
-                    $found[] = 'lang doit valoir ' . implode(', ', Language::values());
-                    $langOk = false;
-                } elseif ($declared !== $lang) {
-                    $found[] = "lang ({$declared->value}) ne correspond pas au dossier {$lang->value}/";
-                    $langOk = false;
-                }
+        if (!array_key_exists('lang', $fm)) {
+            $langOk = false; // reported below, with the other missing keys
+        } else {
+            $declared = Language::tryFrom(is_string($fm['lang']) ? $fm['lang'] : '');
+            if ($declared === null) {
+                $found[] = 'lang doit valoir ' . implode(', ', Language::values());
+                $langOk = false;
+            } elseif ($declared !== $lang) {
+                $found[] = "lang ({$declared->value}) ne correspond pas au dossier {$lang->value}/";
+                $langOk = false;
             }
-        } elseif (array_key_exists('lang', $fm) && $fm['lang'] !== Language::default()->value) {
-            $found[] = 'lang (' . (is_string($fm['lang']) ? $fm['lang'] : '?') . ') impossible avant migration : pas de dossier de langue';
-            $langOk = false;
-        } elseif (!array_key_exists('lang', $fm) && array_key_exists('translation_key', $fm)) {
-            $found[] = 'translation_key sans lang : impossible avant migration';
         }
 
         if ($type !== null) {
@@ -341,9 +304,6 @@ final class ContentValidator
             $required = array_diff($allowed, ['reading_time']);
             if ($lang->isDefault()) {
                 $required = array_diff($required, ['translation_key']);
-            }
-            if ($layout === ValidationReport::LEGACY) {
-                $required = array_diff($required, ['lang']);
             }
             foreach ($required as $key) {
                 if (!array_key_exists($key, $fm)) {

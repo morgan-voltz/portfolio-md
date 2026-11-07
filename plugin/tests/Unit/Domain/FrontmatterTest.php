@@ -28,6 +28,7 @@ final class FrontmatterTest extends TestCase
             'title' => 'MomoCad',
             'slug' => 'momocad',
             'type' => 'project',
+            'lang' => 'fr',
             'date' => new DateTimeImmutable('2026-10-26'),
             'subtitle' => 'Un logiciel de dessin',
             'seo_description' => 'Une phrase.',
@@ -73,6 +74,7 @@ final class FrontmatterTest extends TestCase
             'title' => 'À propos',
             'slug' => 'a-propos',
             'type' => 'page',
+            'lang' => 'fr',
             'date' => '2026-10-26',
             'seo_description' => 'Qui je suis.',
         ]);
@@ -91,6 +93,7 @@ final class FrontmatterTest extends TestCase
             'title' => 'Rust',
             'slug' => 'rust-ownership',
             'type' => 'article',
+            'lang' => 'fr',
             'reading_time' => 8,
             'tags' => ['rust'],
         ]);
@@ -149,7 +152,7 @@ final class FrontmatterTest extends TestCase
         $this->expectException(InvalidFrontmatterException::class);
         $this->expectExceptionMessage('missing required key "slug"');
 
-        Frontmatter::fromArray(['title' => 'x', 'type' => 'page']);
+        Frontmatter::fromArray(['title' => 'x', 'type' => 'page', 'lang' => 'fr']);
     }
 
     #[Test]
@@ -158,7 +161,7 @@ final class FrontmatterTest extends TestCase
         $this->expectException(InvalidFrontmatterException::class);
         $this->expectExceptionMessage('reading_time');
 
-        Frontmatter::fromArray(['title' => 'x', 'slug' => 'x', 'type' => 'article', 'reading_time' => -1]);
+        Frontmatter::fromArray(['title' => 'x', 'slug' => 'x', 'type' => 'article', 'lang' => 'fr', 'reading_time' => -1]);
     }
 
     #[Test]
@@ -167,7 +170,7 @@ final class FrontmatterTest extends TestCase
         $this->expectException(InvalidFrontmatterException::class);
         $this->expectExceptionMessage('between 0 and 240');
 
-        Frontmatter::fromArray(['title' => 'x', 'slug' => 'x', 'type' => 'article', 'reading_time' => Frontmatter::READING_TIME_MAX_MINUTES + 1]);
+        Frontmatter::fromArray(['title' => 'x', 'slug' => 'x', 'type' => 'article', 'lang' => 'fr', 'reading_time' => Frontmatter::READING_TIME_MAX_MINUTES + 1]);
     }
 
     #[Test]
@@ -180,12 +183,24 @@ final class FrontmatterTest extends TestCase
     }
 
     #[Test]
-    public function lang_is_optional_during_the_transition_and_means_french(): void
+    public function a_french_document_says_its_language_and_is_its_own_translation_key(): void
     {
         $fm = Frontmatter::fromArray(self::project());
 
         self::assertSame(Language::Fr, $fm->lang);
         self::assertSame('momocad', $fm->translationKey, 'a French document is its own translation key');
+    }
+
+    #[Test]
+    public function lang_is_required(): void
+    {
+        $data = self::project();
+        unset($data['lang']);
+
+        $this->expectException(InvalidFrontmatterException::class);
+        $this->expectExceptionMessage('missing required key "lang"');
+
+        Frontmatter::fromArray($data);
     }
 
     #[Test]
@@ -213,13 +228,12 @@ final class FrontmatterTest extends TestCase
     {
         yield 'lang outside the list' => [['lang' => 'es'], 'expected one of fr, de, en'];
         yield 'lang that is not a string' => [['lang' => 42], 'invalid value for "lang"'];
-        yield 'translation key without lang (transition)' => [['translation_key' => 'momocad'], 'requires the "lang" key'];
         yield 'french translation key different from the slug' => [['lang' => 'fr', 'translation_key' => 'other'], 'must use its own slug as key'];
         yield 'translation key that is not a slug' => [['lang' => 'de', 'slug' => 'momocad-de', 'translation_key' => 'Momo Cad'], 'invalid value for "translation_key"'];
         yield 'german project without the suffix' => [['lang' => 'de', 'slug' => 'momocad', 'translation_key' => 'momocad'], 'must end with "-de"'];
         yield 'english project without the suffix' => [['lang' => 'en', 'slug' => 'momocad', 'translation_key' => 'momocad'], 'must end with "-en"'];
         yield 'atlas-de in a french document' => [['lang' => 'fr', 'slug' => 'atlas-de'], 'must not end with "-de" or "-en"'];
-        yield 'atlas-en in a document without lang' => [['slug' => 'atlas-en'], 'must not end with "-de" or "-en"'];
+        yield 'atlas-en in a french document' => [['slug' => 'atlas-en'], 'must not end with "-de" or "-en"'];
         yield 'german project with the english suffix' => [['lang' => 'de', 'slug' => 'momocad-en', 'translation_key' => 'momocad'], 'must end with "-de"'];
     }
 
