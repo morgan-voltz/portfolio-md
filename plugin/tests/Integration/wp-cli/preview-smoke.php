@@ -106,7 +106,8 @@ try {
     $check('and the task-list checkboxes kept by the kses pass', substr_count($html, '<input type="checkbox"') === 2 || substr_count($html, 'type="checkbox"') === 2, $html);
 
     // The pass the preview applies is the one the store applies, and it is a no-op on this document.
-    $blocks = (new ContentRenderer(new MarkdownParser(), new GutenbergTransformer()))->render((new FrontmatterParser())->parse($document)->body);
+    $parsed = (new FrontmatterParser())->parse($document);
+    $blocks = (new ContentRenderer(new MarkdownParser(), new GutenbergTransformer()))->render($parsed->body, $parsed->frontmatter->lang);
     $check('the kses pass of the store leaves the rendered document untouched', HtmlSanitizer::sanitize($blocks) === $blocks);
 
     // Nothing of the document runs: a shortcode stays as typed, an embed fetches nothing and writes no oEmbed cache.

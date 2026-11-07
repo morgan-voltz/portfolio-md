@@ -20,6 +20,8 @@
  */
 
 use Voltz\PortfolioMd\Domain\ContentSource;
+use Voltz\PortfolioMd\Domain\ContentType;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Meta\CommonMetaRegistrar;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
 use Voltz\PortfolioMd\Meta\MetaWriter;
@@ -194,7 +196,7 @@ try {
     // kses normalises two things it leaves otherwise intact: numeric entities get three digits
     // and a self-closing tag gets a space before its slash. Once undone, nothing else may differ.
     $normalised = str_replace(['&#091;', ' />'], ['&#91;', '/>'], $content);
-    $check('kses stripped nothing from the rendered HTML', $normalised === $renderer->render($frontmatterParser->parse($article)->body));
+    $check('kses stripped nothing from the rendered HTML', $normalised === $renderer->render($frontmatterParser->parse($article)->body, $frontmatterParser->parse($article)->frontmatter->lang));
 
     // The block parser reports the blank lines between blocks as nameless freeform blocks; nothing else may be nameless.
     $freeform = array_filter(parse_blocks($content), static fn (array $block): bool => $block['blockName'] === null && trim($block['innerHTML']) !== '');
@@ -238,6 +240,30 @@ try {
         $projectId = (int) $post->ID;
         $check('the project status term is attached', wp_get_object_terms($projectId, TaxonomyRegistrar::PROJECT_STATUS, ['fields' => 'slugs']) === ['en-cours']);
         $check('the competency term is attached by its code', wp_get_object_terms($projectId, TaxonomyRegistrar::SKILL, ['fields' => 'ids']) === [$skill->id]);
+        $check('the project stores its language and is its own translation key', $meta($projectId, InternalMetaRegistrar::LANG) === 'fr' && $meta($projectId, InternalMetaRegistrar::TRANSLATION_KEY) === $projectSlug);
+
+        // 3b. A German translation (ADR-020, lot 1b) -----------------------------------------------
+        $german = str_replace(['slug: "zz-smoke-project"', 'type: "project"'], ['slug: "zz-smoke-project-de"', "type: \"project\"\nlang: \"de\"\ntranslation_key: \"zz-smoke-project\""], $project($skill->code));
+        try {
+            $service->import($german, new ImportOptions(), 'zz-smoke-project-de', null, ContentType::Project, Language::Fr);
+            $check('a German document announced as French is refused', false);
+        } catch (ImportException $exception) {
+            $check('a German document announced as French is refused', str_contains($exception->getMessage(), 'language folder'), $exception->getMessage());
+        }
+        $translated = $service->import($german, new ImportOptions(), 'zz-smoke-project-de', null, ContentType::Project, Language::De);
+        $germanPost = $postBySlug(PostTypeRegistrar::PROJECT, 'zz-smoke-project-de');
+        $check('a German translation is created', $translated->outcome === ImportOutcome::Created && $germanPost instanceof WP_Post, $translated->outcome->value);
+        if ($germanPost instanceof WP_Post) {
+            $createdPosts[] = (int) $germanPost->ID;
+            $check('with its language and the key of its original', $meta((int) $germanPost->ID, InternalMetaRegistrar::LANG) === 'de' && $meta((int) $germanPost->ID, InternalMetaRegistrar::TRANSLATION_KEY) === $projectSlug);
+            $repository = new WordPressContentRepository();
+            $byKey = $repository->findByKey(ContentType::Project, $projectSlug);
+            $check('findByKey returns the two posts of the key, oldest first, with their languages', count($byKey) === 2 && $byKey[0]->id === $projectId && $byKey[0]->lang === Language::Fr && $byKey[1]->id === (int) $germanPost->ID && $byKey[1]->lang === Language::De);
+            $check('findByKey is filtered by kind', $repository->findByKey(ContentType::Article, $projectSlug) === []);
+            wp_trash_post((int) $germanPost->ID);
+            $check('a trashed translation is left out of its key', count($repository->findByKey(ContentType::Project, $projectSlug)) === 1);
+            $check('the stored language survives the trash', $repository->findBySlug(ContentType::Project, 'zz-smoke-project-de')?->lang === Language::De);
+        }
         $check('the shared tech tag is reused, not duplicated', wp_get_object_terms($projectId, TaxonomyRegistrar::TECH_TAG, ['fields' => 'slugs']) === [$tagSlug] && get_term_by('slug', $tagSlug, TaxonomyRegistrar::TECH_TAG) instanceof WP_Term);
         $check('the project metas are filled', $meta($projectId, ProjectMetaRegistrar::PROJECT_STATUS) === 'en-cours' && $meta($projectId, ProjectMetaRegistrar::PROJECT_ROLE) === 'Développeur de fumée' && $meta($projectId, ProjectMetaRegistrar::PROJECT_PERIOD_START) === '2026-01-12' && $meta($projectId, ProjectMetaRegistrar::PROJECT_PERIOD_END) === '' && $meta($projectId, ProjectMetaRegistrar::PROJECT_REPO_URL) === 'https://example.com/repo' && (bool) $meta($projectId, ProjectMetaRegistrar::IS_FIL_ROUGE) === false);
         $check('the project keeps no post date of its own', get_post($projectId)->post_date !== '0000-00-00 00:00:00');

@@ -15,6 +15,7 @@
  *       wp-content/plugins/portfolio-md/tests/Integration/wp-cli/sync-smoke.php --user=<admin login>
  *
  * `--user` is required: the route runs as that user, who authors the posts.
+ * Paths follow the layout of ADR-020, content/<lang>/<folder>/<slug>.md.
  * The script creates zz-smoke-sync-* posts, a tech tag and a subscriber,
  * and deletes them at the end (trashed posts included); it saves the option
  * `portfolio_md_last_sync` and puts it back. The grid of the repository is
@@ -27,7 +28,10 @@
  */
 
 use Voltz\PortfolioMd\Domain\ContentSource;
+use Voltz\PortfolioMd\Domain\ContentType;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
+use Voltz\PortfolioMd\Meta\MetaWriter;
 use Voltz\PortfolioMd\Parsing\ContentRenderer;
 use Voltz\PortfolioMd\Parsing\FrontmatterParser;
 use Voltz\PortfolioMd\Parsing\GutenbergTransformer;
@@ -114,7 +118,7 @@ $import = new ContentImportService(
 );
 
 $tagSlug = 'zz-smoke-sync-tag';
-$slugs = ['zz-smoke-sync-page', 'zz-smoke-sync-project', 'zz-smoke-sync-dry', 'zz-smoke-sync-hand', 'zz-smoke-sync-casse'];
+$slugs = ['zz-smoke-sync-page', 'zz-smoke-sync-project', 'zz-smoke-sync-project-de', 'zz-smoke-sync-dry', 'zz-smoke-sync-hand', 'zz-smoke-sync-casse'];
 $previousOption = get_option(SyncController::LAST_SYNC_OPTION, null);
 
 require_once ABSPATH . 'wp-admin/includes/user.php';
@@ -153,8 +157,8 @@ try {
     // 2. A push creates, replays, updates ------------------------------------------------------------------
 
     $response = $sync(['commit_sha' => 'deadbeef', 'files' => [
-        ['path' => 'pages/zz-smoke-sync-page.md', 'content' => $page()],
-        ['path' => 'content/projects/zz-smoke-sync-project.md', 'content' => $project()],
+        ['path' => 'fr/pages/zz-smoke-sync-page.md', 'content' => $page()],
+        ['path' => 'content/fr/projects/zz-smoke-sync-project.md', 'content' => $project()],
         ['path' => 'README.md', 'content' => "# Content\n"],
         ['path' => 'projects/zz-smoke-sync-project/capture.png', 'content' => 'not an image'],
     ]]);
@@ -170,14 +174,56 @@ try {
     $option = get_option(SyncController::LAST_SYNC_OPTION);
     $check('the last synchronization is recorded with its commit and counts', is_array($option) && ($option['commit'] ?? null) === 'deadbeef' && preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/', (string) ($option['at'] ?? '')) === 1 && ($option['counts']['created'] ?? null) === 2, json_encode($option));
 
-    $response = $sync(['files' => [['path' => 'pages/zz-smoke-sync-page.md', 'content' => $page()], ['path' => 'projects/zz-smoke-sync-project.md', 'content' => $project()]]]);
+    $response = $sync(['files' => [['path' => 'fr/pages/zz-smoke-sync-page.md', 'content' => $page()], ['path' => 'fr/projects/zz-smoke-sync-project.md', 'content' => $project()]]]);
     $check('the same push again changes nothing', $response->get_status() === 200 && $statuses($response) === ['unchanged', 'unchanged']);
     $recorded = get_option(SyncController::LAST_SYNC_OPTION);
     $check('and is recorded without a commit', array_key_exists('commit_sha', (array) $response->get_data()) && $response->get_data()['commit_sha'] === null && is_array($recorded) && array_key_exists('commit', $recorded) && $recorded['commit'] === null, json_encode($recorded));
 
-    $response = $sync(['files' => [['path' => 'projects/zz-smoke-sync-project.md', 'content' => $project('Un autre corps.')]]]);
+    $response = $sync(['files' => [['path' => 'fr/projects/zz-smoke-sync-project.md', 'content' => $project('Un autre corps.')]]]);
     $check('a changed document updates its post', $response->get_status() === 200 && $statuses($response) === ['updated'] && $line($response, 0)['post_id'] === $projectPost->ID);
     $check('and the content follows', str_contains((string) get_post($projectPost->ID)->post_content, 'Un autre corps.'));
+
+    // 2b. Languages (ADR-020, lot 1b) ----------------------------------------------------------------------
+
+    $check('the French project stores its language and its key', $projectPost instanceof WP_Post && get_post_meta($projectPost->ID, InternalMetaRegistrar::LANG, true) === 'fr' && get_post_meta($projectPost->ID, InternalMetaRegistrar::TRANSLATION_KEY, true) === 'zz-smoke-sync-project');
+
+    $response = $sync(['files' => [['path' => 'projects/zz-smoke-sync-project.md', 'content' => $project('Ancienne disposition.')]]]);
+    $check('a path of the former layout is skipped with the move to make', $response->get_status() === 200 && $statuses($response) === ['skipped'] && str_contains((string) $line($response, 0)['message'], 'layout before the language folders'), json_encode($line($response, 0)));
+    $check('and the post was not touched', str_contains((string) get_post($projectPost->ID)->post_content, 'Un autre corps.'));
+
+    $german = static fn (string $body = 'Deutsche Fassung.'): string => str_replace(['slug: "zz-smoke-sync-project"', 'type: "project"', 'title: "Projet de fumée (sync)"'], ['slug: "zz-smoke-sync-project-de"', "type: \"project\"\nlang: \"de\"\ntranslation_key: \"zz-smoke-sync-project\"", 'title: "Rauchprojekt (sync)"'], $project($body));
+    $response = $sync(['files' => [['path' => 'fr/projects/zz-smoke-sync-project-de.md', 'content' => $german()]]]);
+    $check('a German document in the French folder fails', $response->get_status() === 422 && $statuses($response) === ['failed'] && str_contains((string) $line($response, 0)['message'], 'language folder'), json_encode($line($response, 0)));
+
+    $response = $sync(['files' => [['path' => 'de/projects/zz-smoke-sync-project-de.md', 'content' => $german()]]]);
+    $germanPost = $postBySlug(PostTypeRegistrar::PROJECT, 'zz-smoke-sync-project-de');
+    $check('a German document in its folder is created', $response->get_status() === 200 && $statuses($response) === ['created'] && $germanPost instanceof WP_Post, json_encode($line($response, 0)));
+    $check('with its language and the key of its French original', $germanPost instanceof WP_Post && get_post_meta($germanPost->ID, InternalMetaRegistrar::LANG, true) === 'de' && get_post_meta($germanPost->ID, InternalMetaRegistrar::TRANSLATION_KEY, true) === 'zz-smoke-sync-project');
+    $check('its links are rendered in the German URL tree', $germanPost instanceof WP_Post && !str_contains((string) get_post($germanPost->ID)->post_content, 'href="/fr/'));
+    $byKey = (new WordPressContentRepository())->findByKey(ContentType::Project, 'zz-smoke-sync-project');
+    $check('the repository finds the two posts of the key, oldest first', count($byKey) === 2 && $byKey[0]->id === $projectPost->ID && $byKey[0]->lang === Language::Fr && $byKey[1]->lang === Language::De, json_encode(array_map(static fn ($c) => [$c->id, $c->lang?->value], $byKey)));
+
+    $response = $sync(['files' => [['path' => 'fr/projects/zz-smoke-sync-project-de.md', 'deleted' => true]]]);
+    $check('deleting the translation from the French folder retires nothing', $statuses($response) === ['skipped'] && str_contains((string) $line($response, 0)['message'], 'does not belong to a document in "fr"') && get_post_status($germanPost->ID) === 'publish', json_encode($line($response, 0)));
+    $response = $sync(['files' => [['path' => 'de/projects/zz-smoke-sync-project-de.md', 'deleted' => true]]]);
+    $check('deleting it from its folder retires the German post only', $statuses($response) === ['deleted'] && get_post_status($germanPost->ID) === 'trash' && get_post_status($projectPost->ID) === 'publish');
+    $check('a retired translation leaves the key', count((new WordPressContentRepository())->findByKey(ContentType::Project, 'zz-smoke-sync-project')) === 1);
+
+    // The migration of the content to its language folders, as the Git door will see it: the old path
+    // deleted and the new path created in one push, in either order, on a post rendered by the previous
+    // renderer (hence "updated"), never trashed, never doubled; an admin-written post with the same hash too.
+    foreach ([['old', 'new'], ['new', 'old']] as $order) {
+        MetaWriter::update($projectPost->ID, InternalMetaRegistrar::RENDER_VERSION, '1.1.0');
+        $files = ['old' => ['path' => 'projects/zz-smoke-sync-project.md', 'deleted' => true], 'new' => ['path' => 'fr/projects/zz-smoke-sync-project.md', 'content' => $project('Un autre corps.')]];
+        $response = $sync(['files' => [$files[$order[0]], $files[$order[1]]]]);
+        $expected = $order[0] === 'old' ? ['skipped', 'updated'] : ['updated', 'skipped'];
+        $check("the migration push ({$order[0]} then {$order[1]}) skips the old path and updates the post", $response->get_status() === 200 && $statuses($response) === $expected, implode(',', $statuses($response)));
+        $check('without trashing or doubling it', get_post_status($projectPost->ID) === 'publish' && count(get_posts(['post_type' => PostTypeRegistrar::PROJECT, 'name' => 'zz-smoke-sync-project', 'post_status' => 'any', 'numberposts' => -1])) === 1);
+    }
+    MetaWriter::update($projectPost->ID, InternalMetaRegistrar::RENDER_VERSION, '1.1.0');
+    MetaWriter::update($projectPost->ID, InternalMetaRegistrar::SOURCE_TYPE, ContentSource::Admin->value);
+    $response = $sync(['files' => [['path' => 'fr/projects/zz-smoke-sync-project.md', 'content' => $project('Un autre corps.')]]]);
+    $check('the renderer bump re-renders an admin-written post with the same hash, no conflict', $response->get_status() === 200 && $statuses($response) === ['updated'] && get_post_meta($projectPost->ID, InternalMetaRegistrar::RENDER_VERSION, true) === ContentRenderer::VERSION, implode(',', $statuses($response)));
 
     // 3. The grid, the conflicts, the failures ------------------------------------------------------------
 
@@ -188,15 +234,15 @@ try {
     $check('and the same grid again is unchanged', $response->get_status() === 200 && $statuses($response) === ['unchanged'], json_encode($line($response, 0)));
 
     $import->import($project('Depuis l\'admin.'), new ImportOptions(source: ContentSource::Admin));
-    $response = $sync(['files' => [['path' => 'projects/zz-smoke-sync-project.md', 'content' => $project('Depuis Git.')], ['path' => 'pages/zz-smoke-sync-page.md', 'content' => $page()]]]);
+    $response = $sync(['files' => [['path' => 'fr/projects/zz-smoke-sync-project.md', 'content' => $project('Depuis Git.')], ['path' => 'fr/pages/zz-smoke-sync-page.md', 'content' => $page()]]]);
     $check('a document edited from the admin makes the push answer 409', $response->get_status() === 409 && $statuses($response) === ['conflict', 'unchanged'], 'status ' . $response->get_status());
     $check('the conflicting line says who wrote last', str_contains((string) $line($response, 0)['message'], 'last written from admin'));
     $check('and the admin text stays', str_contains((string) get_post($projectPost->ID)->post_content, 'Depuis l\'admin.'));
 
     $response = $sync(['files' => [
-        ['path' => 'projects/zz-smoke-sync-project.md', 'content' => $project('Depuis Git.')],
-        ['path' => 'pages/zz-smoke-sync-casse.md', 'content' => "No frontmatter here.\n"],
-        ['path' => 'pages/zz-smoke-sync-project.md', 'content' => $project()],
+        ['path' => 'fr/projects/zz-smoke-sync-project.md', 'content' => $project('Depuis Git.')],
+        ['path' => 'fr/pages/zz-smoke-sync-casse.md', 'content' => "No frontmatter here.\n"],
+        ['path' => 'fr/pages/zz-smoke-sync-project.md', 'content' => $project()],
     ]]);
     $check('a document that cannot be processed makes the push answer 422, conflicts included', $response->get_status() === 422 && $statuses($response) === ['conflict', 'failed', 'failed'], 'status ' . $response->get_status() . ' ' . implode(',', $statuses($response)));
     $check('a document in the folder of another kind is refused with the reason', str_contains((string) $line($response, 2)['message'], '"pages/" folder'));
@@ -224,7 +270,7 @@ try {
     // 5. Dry run -------------------------------------------------------------------------------------------
 
     $before = get_option(SyncController::LAST_SYNC_OPTION);
-    $response = $sync(['dry_run' => true, 'files' => [['path' => 'pages/zz-smoke-sync-dry.md', 'content' => str_replace('zz-smoke-sync-page', 'zz-smoke-sync-dry', $page())]]]);
+    $response = $sync(['dry_run' => true, 'files' => [['path' => 'fr/pages/zz-smoke-sync-dry.md', 'content' => str_replace('zz-smoke-sync-page', 'zz-smoke-sync-dry', $page())]]]);
     $check('a dry run decides without writing', $response->get_status() === 200 && ($response->get_data()['dry_run'] ?? null) === true && $statuses($response) === ['created'] && $postBySlug('page', 'zz-smoke-sync-dry') === null);
     $check('and records nothing', get_option(SyncController::LAST_SYNC_OPTION) === $before);
 
@@ -232,20 +278,20 @@ try {
 
     $handMadeId = wp_insert_post(['post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Fait main (sync)', 'post_name' => 'zz-smoke-sync-hand', 'post_content' => '<p>Sans document.</p>'], true);
     $response = $sync(['files' => [
-        ['path' => 'pages/zz-smoke-sync-page.md', 'deleted' => true],
-        ['path' => 'projects/zz-smoke-sync-project.md', 'deleted' => true],
-        ['path' => 'pages/zz-smoke-sync-hand.md', 'deleted' => true],
-        ['path' => 'articles/zz-smoke-sync-nobody.md', 'deleted' => true],
+        ['path' => 'fr/pages/zz-smoke-sync-page.md', 'deleted' => true],
+        ['path' => 'fr/projects/zz-smoke-sync-project.md', 'deleted' => true],
+        ['path' => 'fr/pages/zz-smoke-sync-hand.md', 'deleted' => true],
+        ['path' => 'fr/articles/zz-smoke-sync-nobody.md', 'deleted' => true],
     ]]);
     $check('a push of deletions answers 409 when one of them is not Git\'s to make', $response->get_status() === 409, 'status ' . $response->get_status());
     $check('Git retires the page it wrote, leaves the admin-edited project and the hand-made page, skips the unknown slug', $statuses($response) === ['deleted', 'conflict', 'conflict', 'skipped'], implode(',', $statuses($response)));
     $check('the page is in the trash', get_post_status($pagePost->ID) === 'trash');
     $check('the project and the hand-made page are not', get_post_status($projectPost->ID) === 'publish' && !($handMadeId instanceof WP_Error) && get_post_status((int) $handMadeId) === 'publish');
 
-    $response = $sync(['files' => [['path' => 'pages/zz-smoke-sync-page.md', 'deleted' => true]]]);
+    $response = $sync(['files' => [['path' => 'fr/pages/zz-smoke-sync-page.md', 'deleted' => true]]]);
     $check('deleting it again is unchanged', $response->get_status() === 200 && $statuses($response) === ['unchanged'] && str_contains((string) $line($response, 0)['message'], 'already in the trash'));
 
-    $response = $sync(['files' => [['path' => 'pages/zz-smoke-sync-page.md', 'content' => $page()]]]);
+    $response = $sync(['files' => [['path' => 'fr/pages/zz-smoke-sync-page.md', 'content' => $page()]]]);
     $check('a trashed slug refuses its document until a human restores or removes the post', $response->get_status() === 422 && str_contains((string) $line($response, 0)['message'], 'in the trash'));
 
     // 7. Who may call ------------------------------------------------------------------------------------
