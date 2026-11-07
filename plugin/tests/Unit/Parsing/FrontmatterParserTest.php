@@ -9,7 +9,6 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Voltz\PortfolioMd\Domain\ContentPath;
 use Voltz\PortfolioMd\Domain\ContentType;
-use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
 use Voltz\PortfolioMd\Parsing\FrontmatterParser;
 use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
@@ -64,18 +63,15 @@ final class FrontmatterParserTest extends TestCase
     #[Test]
     public function parses_every_sheet_of_the_content_folder(): void
     {
-        $files = array_merge(
-            glob(self::CONTENT_DIR . '/fr/projects/*.md') ?: [],
-            glob(self::CONTENT_DIR . '/fr/pages/*.md') ?: [],
-        );
-        self::assertCount(16, $files, 'the fourteen sheets and the two pages of content/fr/ (ADR-020)');
+        $files = glob(self::CONTENT_DIR . '/*/*/*.md') ?: [];
+        self::assertGreaterThanOrEqual(16, count($files), 'the fourteen sheets and the two pages of content/fr/ (ADR-020), at least');
 
         foreach ($files as $file) {
             $document = $this->parser->parse((string) file_get_contents($file));
             $path = ContentPath::fromRelative(substr($file, strlen(self::CONTENT_DIR) + 1));
 
+            self::assertNotNull($path, $file . ' is not a document path');
             self::assertSame(basename($file, '.md'), $document->frontmatter->slug, $file);
-            self::assertSame(Language::Fr, $document->frontmatter->lang, $file);
             self::assertSame($path->lang, $document->frontmatter->lang, $file . ' says a language that is not the one of its folder');
             self::assertSame($path->type, $document->frontmatter->type, $file . ' says a type that is not the one of its folder');
         }

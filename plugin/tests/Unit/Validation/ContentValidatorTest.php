@@ -61,7 +61,8 @@ final class ContentValidatorTest extends TestCase
         $report = (new ContentValidator(ContentValidator::skillCodes(is_array($grid) ? $grid : [])))->validate(self::CONTENT);
 
         self::assertClean($report);
-        self::assertCount(16, $report->notes, 'the fourteen sheets and the two pages of content/fr/');
+        self::assertCount(count(glob(self::CONTENT . '/*/*/*.md') ?: []), $report->notes, 'every document of the tree passes');
+        self::assertGreaterThanOrEqual(16, count($report->notes), 'the fourteen sheets and the two pages of content/fr/, at least');
     }
 
     #[Test]

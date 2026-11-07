@@ -372,17 +372,21 @@ try {
     $check('the restored post is found again under its slug', get_post($articleId)->post_name === $articleSlug && $restored->outcome === ImportOutcome::Unchanged && $restored->postId === $articleId, get_post($articleId)->post_name . ' / ' . $restored->outcome->value);
     // 7. The WP-CLI command refuses a file that is not under a language folder -------------------
     // (the only automated check of Cli\ImportCommand: the command runs in a second wp process)
-    $cliDir = sys_get_temp_dir() . '/zz-smoke/pages';
-    if (!is_dir($cliDir) && !mkdir($cliDir, 0700, true)) {
+    $cliBase = sys_get_temp_dir() . '/zz-smoke-' . getmypid();
+    $cliDir = "{$cliBase}/pages";
+    if (!mkdir($cliDir, 0700, true)) {
         $check('a temporary folder can be made for the WP-CLI check', false, $cliDir);
     } else {
-        file_put_contents("{$cliDir}/zz-smoke-cli.md", "---\ntitle: \"Page de fumée (cli)\"\nslug: \"zz-smoke-cli\"\ntype: \"page\"\nlang: \"fr\"\n---\n\nTexte.\n");
-        $run = WP_CLI::runcommand("portfolio import {$cliDir}/zz-smoke-cli.md --dry-run --user=" . wp_get_current_user()->user_login, ['return' => 'all', 'exit_error' => false, 'launch' => true]);
-        $output = trim($run->stderr . "\n" . $run->stdout);
-        $check('wp portfolio import refuses a file that is not under a language folder', $run->return_code !== 0 && str_contains($output, 'not a document path: documents live in content/<lang>/<folder>/'), $output);
-        unlink("{$cliDir}/zz-smoke-cli.md");
-        rmdir($cliDir);
-        rmdir(dirname($cliDir));
+        try {
+            file_put_contents("{$cliDir}/zz-smoke-cli.md", "---\ntitle: \"Page de fumée (cli)\"\nslug: \"zz-smoke-cli\"\ntype: \"page\"\nlang: \"fr\"\n---\n\nTexte.\n");
+            $run = WP_CLI::runcommand("portfolio import {$cliDir}/zz-smoke-cli.md --dry-run --user=" . wp_get_current_user()->user_login, ['return' => 'all', 'exit_error' => false, 'launch' => true]);
+            $output = trim($run->stderr . "\n" . $run->stdout);
+            $check('wp portfolio import refuses a file that is not under a language folder', $run->return_code !== 0 && str_contains($output, 'not a document path: documents live in content/<lang>/<folder>/'), $output);
+        } finally {
+            @unlink("{$cliDir}/zz-smoke-cli.md");
+            @rmdir($cliDir);
+            @rmdir($cliBase);
+        }
     }
 } finally {
     foreach ($createdPosts as $postId) {
