@@ -8,6 +8,7 @@ use RuntimeException;
 use Voltz\PortfolioMd\Domain\ContentSource;
 use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Service\ContentImportService;
 use Voltz\PortfolioMd\Service\ImportException;
 use Voltz\PortfolioMd\Service\ImportOptions;
@@ -37,10 +38,12 @@ final class ImportCommand
      * the last import is left alone. Content last written from the admin or
      * a paste is not overwritten by a Git import unless --force is given
      * (ADR-005). A file must be named after its slug (<slug>.md), so that a
-     * sheet copied from another one never overwrites its model, and a file
-     * that sits in one of the three document folders must be of that kind; a
-     * slug whose post is in the trash is refused until the post is restored
-     * or deleted.
+     * sheet copied from another one never overwrites its model; a file that
+     * sits in one of the three document folders must be of that kind, and
+     * the folder above says its language (content/<lang>/<folder>/<slug>.md,
+     * ADR-020): a file still laid out as content/<folder>/<slug>.md is
+     * refused until it moves; a slug whose post is in the trash is refused
+     * until the post is restored or deleted.
      * Documents are processed one by one: a failure is reported and the
      * others go on; the command exits with an error at the end if anything
      * failed or conflicted.
@@ -74,9 +77,9 @@ final class ImportCommand
      *
      * ## EXAMPLES
      *
-     *     wp portfolio import /srv/portfolio-content/projects/momocad.md --user=morgan
-     *     wp portfolio import /srv/portfolio-content/projects --dry-run --user=morgan
-     *     wp portfolio import /srv/portfolio-content/pages --user=morgan
+     *     wp portfolio import /srv/portfolio-content/fr/projects/momocad.md --user=morgan
+     *     wp portfolio import /srv/portfolio-content/fr/projects --dry-run --user=morgan
+     *     wp portfolio import /srv/portfolio-content/de/pages --user=morgan
      *
      * @param list<string>         $args
      * @param array<string, mixed> $assocArgs
@@ -112,8 +115,16 @@ final class ImportCommand
                 continue;
             }
 
+            $type = self::kindOfFolder($file);
+            $lang = self::languageOfFolder($file);
+            if ($type !== null && $lang === null) {
+                $counts['failed']++;
+                WP_CLI::warning("{$prefix}FAILED     {$file}: this file is still laid out as content/<folder>/<slug>.md, the layout before the language folders (ADR-020): move it to content/<lang>/<folder>/ before importing it.");
+                continue;
+            }
+
             try {
-                $result = $this->service->import($markdown, $options, basename($file, '.md'), null, self::kindOfFolder($file));
+                $result = $this->service->import($markdown, $options, basename($file, '.md'), null, $type, $type === null ? null : $lang);
             } catch (MalformedDocumentException | InvalidFrontmatterException | ImportException | RuntimeException $exception) {
                 $counts['failed']++;
                 WP_CLI::warning("{$prefix}FAILED     {$file}: " . $exception->getMessage());
@@ -154,7 +165,9 @@ final class ImportCommand
             if (is_dir($path)) {
                 $found = glob(rtrim($path, '/') . '/*.md');
                 if ($found === false || $found === []) {
-                    WP_CLI::error("No Markdown file in {$path}.");
+                    WP_CLI::error(Language::tryFrom(basename(rtrim($path, '/'))) === null
+                        ? "No Markdown file in {$path}."
+                        : "No Markdown file in {$path}: give a document folder (fr/projects, fr/pages), not the language folder.");
                 }
                 sort($found);
                 array_push($files, ...$found);
@@ -179,6 +192,18 @@ final class ImportCommand
         $resolved = realpath($file);
 
         return ContentType::fromFolder(basename(dirname($resolved === false ? $file : $resolved)));
+    }
+
+    /**
+     * The folder above the document folder says the language (ADR-020):
+     * content/<lang>/<folder>/<slug>.md. Null for a file of the former
+     * two-level layout, or outside the content tree.
+     */
+    private static function languageOfFolder(string $file): ?Language
+    {
+        $resolved = realpath($file);
+
+        return Language::tryFrom(basename(dirname($resolved === false ? $file : $resolved, 2)));
     }
 
     private static function describe(ImportResult $result): string

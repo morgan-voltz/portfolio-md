@@ -47,16 +47,19 @@ final class ImportException extends RuntimeException
         );
     }
 
-    /**
-     * TRANSITION (lot 1a of ADR-020): the stores and the doors know nothing
-     * of languages yet, so a document in another language would be filed as
-     * French and lose its language. Lot 1b lifts this refusal.
-     */
-    public static function languageNotYetSupported(Language $lang): self
+    public static function languageMismatch(Language $document, Language $folder): self
     {
         return new self(
-            "The document is in \"{$lang->value}\", which the import does not support yet: until the content is laid out by language"
-            . ' (ADR-020, lot 1b), only French documents are imported.',
+            "The document says lang \"{$document->value}\" but sits in the \"{$folder->value}/\" language folder: a document lives in the folder of its language"
+            . ' (ADR-020; a document without a "lang" line is French).',
+        );
+    }
+
+    public static function languageOfPostDiffers(ContentType $type, string $slug, int $postId, Language $stored, Language $document): self
+    {
+        return new self(
+            "Post {$postId} ({$type->value}/{$slug}) is in \"{$stored->value}\" and the document is in \"{$document->value}\": a post keeps its language."
+            . ' Delete it, or give the new document its own slug.',
         );
     }
 

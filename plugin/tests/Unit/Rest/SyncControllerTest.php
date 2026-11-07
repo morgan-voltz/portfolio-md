@@ -108,7 +108,7 @@ final class SyncControllerTest extends TestCase
     {
         $response = $this->controller->handle(self::request([
             'files' => [
-                ['path' => 'pages/a-propos.md', 'content' => self::PAGE],
+                ['path' => 'fr/pages/a-propos.md', 'content' => self::PAGE],
                 ['path' => 'README.md', 'content' => "# Content\n"],
             ],
             'commit_sha' => 'abc1234',
@@ -121,7 +121,7 @@ final class SyncControllerTest extends TestCase
         self::assertFalse($data['dry_run']);
         self::assertSame(['created' => 1, 'updated' => 0, 'unchanged' => 0, 'conflict' => 0, 'failed' => 0, 'deleted' => 0, 'skipped' => 1], $data['summary']);
         self::assertSame(['path', 'status', 'type', 'slug', 'post_id', 'message'], array_keys($data['results'][0]));
-        self::assertSame(['path' => 'pages/a-propos.md', 'status' => 'created', 'type' => 'page', 'slug' => 'a-propos', 'post_id' => 100, 'message' => ''], $data['results'][0]);
+        self::assertSame(['path' => 'fr/pages/a-propos.md', 'status' => 'created', 'type' => 'page', 'slug' => 'a-propos', 'post_id' => 100, 'message' => ''], $data['results'][0]);
         self::assertSame('skipped', $data['results'][1]['status']);
         self::assertNull($data['results'][1]['type']);
 
@@ -135,9 +135,9 @@ final class SyncControllerTest extends TestCase
     #[Test]
     public function a_replayed_push_is_recorded_too_even_though_it_wrote_nothing(): void
     {
-        $this->controller->handle(self::request(['files' => [['path' => 'pages/a-propos.md', 'content' => self::PAGE]], 'commit_sha' => 'abc1234']));
+        $this->controller->handle(self::request(['files' => [['path' => 'fr/pages/a-propos.md', 'content' => self::PAGE]], 'commit_sha' => 'abc1234']));
 
-        $this->controller->handle(self::request(['files' => [['path' => 'pages/a-propos.md', 'content' => self::PAGE]]]));
+        $this->controller->handle(self::request(['files' => [['path' => 'fr/pages/a-propos.md', 'content' => self::PAGE]]]));
 
         $recorded = get_option(SyncController::LAST_SYNC_OPTION);
         self::assertNull($recorded['commit']);
@@ -147,10 +147,10 @@ final class SyncControllerTest extends TestCase
     #[Test]
     public function the_booleans_are_read_as_the_rest_server_reads_them(): void
     {
-        $this->controller->handle(self::request(['files' => [['path' => 'pages/a-propos.md', 'content' => self::PAGE]]]));
+        $this->controller->handle(self::request(['files' => [['path' => 'fr/pages/a-propos.md', 'content' => self::PAGE]]]));
 
         $response = $this->controller->handle(self::request([
-            'files' => [['path' => 'pages/a-propos.md', 'content' => self::PAGE, 'deleted' => 'false']],
+            'files' => [['path' => 'fr/pages/a-propos.md', 'content' => self::PAGE, 'deleted' => 'false']],
             'dry_run' => 'false',
         ]));
 
@@ -165,7 +165,7 @@ final class SyncControllerTest extends TestCase
     {
         $this->import->import(self::PAGE, new ImportOptions(source: ContentSource::Admin));
 
-        $response = $this->controller->handle(self::request(['files' => [['path' => 'pages/a-propos.md', 'content' => str_replace('Le parcours.', 'Depuis Git.', self::PAGE)]]]));
+        $response = $this->controller->handle(self::request(['files' => [['path' => 'fr/pages/a-propos.md', 'content' => str_replace('Le parcours.', 'Depuis Git.', self::PAGE)]]]));
 
         self::assertSame(409, $response->get_status());
         self::assertSame('conflict', $response->get_data()['results'][0]['status']);
@@ -179,8 +179,8 @@ final class SyncControllerTest extends TestCase
         $this->import->import(self::PAGE, new ImportOptions(source: ContentSource::Admin));
 
         $response = $this->controller->handle(self::request(['files' => [
-            ['path' => 'pages/a-propos.md', 'content' => str_replace('Le parcours.', 'Depuis Git.', self::PAGE)],
-            ['path' => 'pages/casse.md', 'content' => "No frontmatter.\n"],
+            ['path' => 'fr/pages/a-propos.md', 'content' => str_replace('Le parcours.', 'Depuis Git.', self::PAGE)],
+            ['path' => 'fr/pages/casse.md', 'content' => "No frontmatter.\n"],
         ]]));
 
         self::assertSame(422, $response->get_status());
@@ -190,7 +190,7 @@ final class SyncControllerTest extends TestCase
     #[Test]
     public function a_dry_run_writes_nothing_and_records_nothing(): void
     {
-        $response = $this->controller->handle(self::request(['files' => [['path' => 'pages/a-propos.md', 'content' => self::PAGE]], 'dry_run' => true]));
+        $response = $this->controller->handle(self::request(['files' => [['path' => 'fr/pages/a-propos.md', 'content' => self::PAGE]], 'dry_run' => true]));
         $data = $response->get_data();
 
         self::assertSame(200, $response->get_status());
@@ -205,9 +205,9 @@ final class SyncControllerTest extends TestCase
     #[Test]
     public function a_deleted_file_is_handed_over_without_content(): void
     {
-        $this->controller->handle(self::request(['files' => [['path' => 'pages/a-propos.md', 'content' => self::PAGE]]]));
+        $this->controller->handle(self::request(['files' => [['path' => 'fr/pages/a-propos.md', 'content' => self::PAGE]]]));
 
-        $response = $this->controller->handle(self::request(['files' => [['path' => 'pages/a-propos.md', 'deleted' => true]]]));
+        $response = $this->controller->handle(self::request(['files' => [['path' => 'fr/pages/a-propos.md', 'deleted' => true]]]));
 
         self::assertSame(200, $response->get_status());
         self::assertSame('deleted', $response->get_data()['results'][0]['status']);
@@ -217,7 +217,7 @@ final class SyncControllerTest extends TestCase
     #[Test]
     public function items_that_are_not_objects_are_ignored(): void
     {
-        $response = $this->controller->handle(self::request(['files' => ['pages/a-propos.md', ['path' => 'pages/a-propos.md', 'content' => self::PAGE]]]));
+        $response = $this->controller->handle(self::request(['files' => ['fr/pages/a-propos.md', ['path' => 'fr/pages/a-propos.md', 'content' => self::PAGE]]]));
 
         self::assertCount(1, $response->get_data()['results']);
     }

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Voltz\PortfolioMd\Service;
 
 use Voltz\PortfolioMd\Domain\ContentType;
+use Voltz\PortfolioMd\Domain\Frontmatter;
 use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Parsing\ContentRenderer;
 use Voltz\PortfolioMd\Parsing\FrontmatterParser;
 use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
@@ -51,9 +53,16 @@ use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
  *     to be written, so a grid that changed never fails a document that
  *     did not.
  *
- * Pages (content/pages) take the same path as articles and projects, into
- * the native page type: no terms, no competency codes, the SEO description
- * and the internal metas only.
+ * Pages (content/<lang>/pages) take the same path as articles and projects,
+ * into the native page type: no terms, no competency codes, the SEO
+ * description and the internal metas only.
+ *
+ * Languages (ADR-020): a document that sits in a language folder must say
+ * that language (a document without a `lang` line is French), a post keeps
+ * the language it was given, and after every write, and after an unchanged
+ * document too, the post is placed in its language and tied to the other
+ * posts of its translation key through the LanguageGateway, which is
+ * idempotent and so repairs a placement an earlier failure left undone.
  */
 final class ContentImportService
 {
@@ -64,6 +73,7 @@ final class ContentImportService
         private readonly SkillTermGateway $skills,
         private readonly ConflictResolver $conflicts,
         private readonly Clock $clock,
+        private readonly LanguageGateway $languages = new NullLanguageGateway(),
     ) {
     }
 
@@ -74,13 +84,15 @@ final class ContentImportService
      *                                  edits one; the post is found by slug otherwise
      * @param ?ContentType $expectedType the kind the folder of the file holds, when the caller
      *                                  knows that folder: the type has to match it
+     * @param ?Language    $expectedLang the language the folder of the file says, when the caller
+     *                                  knows that folder: the document's language has to match it
      *
      * @throws MalformedDocumentException  when the document has no usable frontmatter or is not UTF-8
      * @throws InvalidFrontmatterException when the metadata break the contract
      * @throws ImportException             when the document cannot be imported as it stands
      * @throws \RuntimeException           when the store refuses the write
      */
-    public function import(string $markdown, ImportOptions $options, ?string $expectedSlug = null, ?int $targetPostId = null, ?ContentType $expectedType = null): ImportResult
+    public function import(string $markdown, ImportOptions $options, ?string $expectedSlug = null, ?int $targetPostId = null, ?ContentType $expectedType = null, ?Language $expectedLang = null): ImportResult
     {
         $document = $this->frontmatterParser->parse($markdown);
         $frontmatter = $document->frontmatter;
@@ -91,8 +103,8 @@ final class ContentImportService
         if ($expectedType !== null && $frontmatter->type !== $expectedType) {
             throw ImportException::typeMismatch($frontmatter->type, $expectedType);
         }
-        if (!$frontmatter->lang->isDefault()) {
-            throw ImportException::languageNotYetSupported($frontmatter->lang); // TRANSITION, see the factory
+        if ($expectedLang !== null && $frontmatter->lang !== $expectedLang) {
+            throw ImportException::languageMismatch($frontmatter->lang, $expectedLang);
         }
 
         $hash = hash('sha256', $markdown);
@@ -100,6 +112,11 @@ final class ContentImportService
             ? $this->findBySlug($frontmatter->type, $frontmatter->slug)
             : $this->findTarget($frontmatter->type, $frontmatter->slug, $targetPostId);
         $postId = $existing?->id ?? $targetPostId;
+
+        // A post keeps its language; a post that has none yet (written before languages, or by hand) takes the document's.
+        if ($existing !== null && $existing->lang !== null && $existing->lang !== $frontmatter->lang) {
+            throw ImportException::languageOfPostDiffers($frontmatter->type, $frontmatter->slug, $existing->id, $existing->lang, $frontmatter->lang);
+        }
 
         $outcome = $this->conflicts->decide($existing, $hash, ContentRenderer::VERSION, $options->source, $options->force);
 
@@ -115,6 +132,11 @@ final class ContentImportService
         }
 
         if ($outcome === ImportOutcome::Unchanged) {
+            // Placed again on purpose: the gateway is idempotent, and this repairs a placement a failed earlier call left undone.
+            if (!$options->dryRun && $postId !== null) {
+                $this->placeInLanguage($frontmatter, $postId);
+            }
+
             return new ImportResult($outcome, $frontmatter->type, $frontmatter->slug, $frontmatter->title, $postId);
         }
 
@@ -122,7 +144,7 @@ final class ContentImportService
         $skillTermIds = $this->resolveSkills($frontmatter->skills);
 
         // Rendered even in a dry run: a document that cannot be rendered must be reported.
-        $html = $this->renderer->render($document->body);
+        $html = $this->renderer->render($document->body, $frontmatter->lang);
 
         if ($options->dryRun) {
             return new ImportResult($outcome, $frontmatter->type, $frontmatter->slug, $frontmatter->title, $postId);
@@ -141,7 +163,33 @@ final class ContentImportService
             postStatus: $options->postStatus,
         ));
 
+        $this->placeInLanguage($frontmatter, $savedId);
+
         return new ImportResult($outcome, $frontmatter->type, $frontmatter->slug, $frontmatter->title, $savedId);
+    }
+
+    /**
+     * Tells the language gateway which language the post is in, then ties
+     * it to the other posts of its translation key, one per language, the
+     * oldest post of a language winning should two carry the same key (the
+     * validator reports such a duplicate; the import does not arbitrate).
+     * A post without stored language (written before the plugin stored
+     * languages) is left out of the group until it is imported again.
+     */
+    private function placeInLanguage(Frontmatter $frontmatter, int $postId): void
+    {
+        $this->languages->setLanguage($postId, $frontmatter->lang);
+
+        $byLanguage = [];
+        foreach ($this->repository->findByKey($frontmatter->type, $frontmatter->translationKey) as $sibling) {
+            if ($sibling->lang === null) {
+                continue;
+            }
+            $byLanguage[$sibling->lang->value] ??= $sibling->id;
+        }
+        if (count($byLanguage) > 1) {
+            $this->languages->linkTranslations($byLanguage);
+        }
     }
 
     /**

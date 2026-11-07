@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Voltz\PortfolioMd\Domain\ContentSource;
 use Voltz\PortfolioMd\Domain\ContentType;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Parsing\ContentRenderer;
 use Voltz\PortfolioMd\Parsing\FrontmatterParser;
 use Voltz\PortfolioMd\Parsing\GutenbergTransformer;
@@ -24,6 +25,7 @@ use Voltz\PortfolioMd\Service\ImportResult;
 use Voltz\PortfolioMd\Service\StoredContent;
 use Voltz\PortfolioMd\Tests\Support\FixedClock;
 use Voltz\PortfolioMd\Tests\Support\InMemoryContentRepository;
+use Voltz\PortfolioMd\Tests\Support\InMemoryLanguageGateway;
 use Voltz\PortfolioMd\Tests\Support\InMemorySkillTermGateway;
 
 /**
@@ -44,6 +46,8 @@ final class ContentImportServiceTest extends TestCase
 
     private InMemorySkillTermGateway $skills;
 
+    private InMemoryLanguageGateway $languages;
+
     private ContentImportService $service;
 
     /** @var array<string, int> code => term id */
@@ -58,6 +62,7 @@ final class ContentImportServiceTest extends TestCase
             $this->skillIds[$code] = $this->skills->seed("Compétence {$slug}", $slug, '', $referential->id, $code)->id;
         }
 
+        $this->languages = new InMemoryLanguageGateway();
         $this->service = new ContentImportService(
             new FrontmatterParser(),
             new ContentRenderer(new MarkdownParser(), new GutenbergTransformer()),
@@ -65,6 +70,7 @@ final class ContentImportServiceTest extends TestCase
             $this->skills,
             new ConflictResolver(),
             FixedClock::at(self::NOW),
+            $this->languages,
         );
     }
 
@@ -516,17 +522,6 @@ final class ContentImportServiceTest extends TestCase
     }
 
     #[Test]
-    public function a_document_in_another_language_is_refused_until_lot_1b(): void
-    {
-        $markdown = "---\ntitle: \"MomoCad\"\nslug: \"momocad-de\"\ntype: \"project\"\nstatus: \"en-cours\"\nlang: \"de\"\ntranslation_key: \"momocad\"\n---\n\nDeutsche Fassung.\n";
-
-        $this->expectException(ImportException::class);
-        $this->expectExceptionMessage('does not support yet');
-
-        $this->service->import($markdown, new ImportOptions());
-    }
-
-    #[Test]
     public function a_french_document_that_says_its_language_is_imported(): void
     {
         $markdown = "---\ntitle: \"MomoCad\"\nslug: \"momocad\"\ntype: \"project\"\nstatus: \"en-cours\"\nlang: \"fr\"\n---\n\nVersion française.\n";
@@ -534,5 +529,112 @@ final class ContentImportServiceTest extends TestCase
         $result = $this->service->import($markdown, new ImportOptions());
 
         self::assertSame(ImportOutcome::Created, $result->outcome);
+    }
+
+    // ------------------------------------------------------------ languages (ADR-020, lot 1b)
+
+    private static function german(string $slug = 'projet-de', string $key = 'projet', string $type = 'project'): string
+    {
+        $status = $type === 'project' ? "status: \"en-cours\"\n" : '';
+
+        return "---\ntitle: \"Projekt\"\nslug: \"{$slug}\"\ntype: \"{$type}\"\nlang: \"de\"\ntranslation_key: \"{$key}\"\n{$status}skills: [\"4.0.2/E00\"]\ntags: [php]\n---\n\nDeutsche Fassung.\n";
+    }
+
+    #[Test]
+    public function a_document_without_lang_is_french_for_the_folder_check(): void
+    {
+        $result = $this->service->import(self::project(), new ImportOptions(), 'projet', null, ContentType::Project, Language::Fr);
+
+        self::assertSame(ImportOutcome::Created, $result->outcome);
+        self::assertSame(Language::Fr, $this->repository->findBySlug(ContentType::Project, 'projet')?->lang);
+        self::assertSame('projet', $this->repository->findBySlug(ContentType::Project, 'projet')?->translationKey);
+    }
+
+    #[Test]
+    public function a_document_in_another_language_than_its_folder_is_refused(): void
+    {
+        $this->expectException(ImportException::class);
+        $this->expectExceptionMessage('language folder');
+
+        $this->service->import(self::german(), new ImportOptions(), 'projet-de', null, ContentType::Project, Language::Fr);
+    }
+
+    #[Test]
+    public function a_german_document_is_imported_with_its_language_stored_and_told_to_the_gateway(): void
+    {
+        $result = $this->service->import(self::german(), new ImportOptions(), 'projet-de', null, ContentType::Project, Language::De);
+
+        self::assertSame(ImportOutcome::Created, $result->outcome);
+        $stored = $this->repository->findBySlug(ContentType::Project, 'projet-de');
+        self::assertSame(Language::De, $stored?->lang);
+        self::assertSame('projet', $stored?->translationKey);
+        self::assertSame(Language::De, $this->languages->languages[(int) $result->postId]);
+    }
+
+    #[Test]
+    public function the_gateway_is_told_the_language_on_creation_update_and_unchanged_documents(): void
+    {
+        $this->service->import(self::project(), new ImportOptions());
+        $this->service->import(self::project(title: 'Projet renommé'), new ImportOptions());
+        $result = $this->service->import(self::project(title: 'Projet renommé'), new ImportOptions());
+
+        self::assertSame(ImportOutcome::Unchanged, $result->outcome);
+        self::assertSame([[100, Language::Fr], [100, Language::Fr], [100, Language::Fr]], $this->languages->calls);
+    }
+
+    #[Test]
+    public function the_gateway_is_not_called_in_a_dry_run_nor_on_a_conflict(): void
+    {
+        $this->service->import(self::project(), new ImportOptions(dryRun: true));
+        self::assertSame([], $this->languages->calls, 'a dry run writes nothing, so it places nothing');
+
+        $this->repository->seed(ContentType::Project, 'projet', new StoredContent(42, str_repeat('0', 64), ContentSource::Admin, ContentRenderer::VERSION));
+        $result = $this->service->import(self::project(), new ImportOptions());
+
+        self::assertSame(ImportOutcome::Conflict, $result->outcome);
+        self::assertSame([], $this->languages->calls);
+    }
+
+    #[Test]
+    public function two_translations_of_one_key_are_linked_and_a_lone_document_is_not(): void
+    {
+        $french = $this->service->import(self::project(), new ImportOptions());
+        self::assertSame([], $this->languages->links, 'a French document alone has nobody to be linked to');
+
+        $german = $this->service->import(self::german(), new ImportOptions());
+
+        self::assertSame([['fr' => (int) $french->postId, 'de' => (int) $german->postId]], $this->languages->links);
+    }
+
+    #[Test]
+    public function a_translation_key_is_linked_per_kind(): void
+    {
+        $this->service->import(self::project(), new ImportOptions());
+        $this->service->import(self::german('projet-de', 'projet', 'article'), new ImportOptions());
+
+        self::assertSame([], $this->languages->links, 'a project and an article never form a group');
+    }
+
+    #[Test]
+    public function a_post_keeps_its_language(): void
+    {
+        $this->service->import("---\ntitle: \"Lebenslauf\"\nslug: \"cv\"\ntype: \"page\"\nlang: \"de\"\ntranslation_key: \"cv\"\n---\n\nText.\n", new ImportOptions());
+
+        $this->expectException(ImportException::class);
+        $this->expectExceptionMessage('a post keeps its language');
+
+        $this->service->import("---\ntitle: \"CV\"\nslug: \"cv\"\ntype: \"page\"\n---\n\nTexte.\n", new ImportOptions());
+    }
+
+    #[Test]
+    public function a_post_without_stored_language_takes_the_language_of_the_document(): void
+    {
+        $markdown = self::german();
+        $this->repository->seed(ContentType::Project, 'projet-de', new StoredContent(42, hash('sha256', $markdown), ContentSource::Git, ContentRenderer::VERSION));
+
+        $result = $this->service->import($markdown, new ImportOptions());
+
+        self::assertSame(ImportOutcome::Unchanged, $result->outcome);
+        self::assertSame(Language::De, $this->languages->languages[42], 'placed even though nothing was written');
     }
 }
