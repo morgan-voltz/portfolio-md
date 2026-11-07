@@ -180,8 +180,8 @@ final class ContentSyncService
      * carry no suffix: a stray `en/pages/cv.md` must not retire the French
      * `cv`. A post that stores no language (made by hand, or not imported
      * since the plugin stores languages) is retired on the strength of the
-     * folder alone. Retiring does not untie the group:
-     * the Polylang bridge of lot 2 reconciles the translations.
+     * folder alone. Retiring does not untie the group: only
+     * `wp portfolio translations reconcile` dissolves what remains of it.
      */
     private function retire(string $path, ContentType $type, string $slug, Language $lang, bool $dryRun): ContentSyncLine
     {

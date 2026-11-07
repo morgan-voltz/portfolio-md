@@ -10,6 +10,7 @@ use Voltz\PortfolioMd\Admin\EditorMetaBox;
 use Voltz\PortfolioMd\Admin\ImportPage;
 use Voltz\PortfolioMd\Cli\ImportCommand;
 use Voltz\PortfolioMd\Cli\SkillsCommand;
+use Voltz\PortfolioMd\Cli\TranslationsCommand;
 use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Meta\CommonMetaRegistrar;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
@@ -32,6 +33,7 @@ use Voltz\PortfolioMd\Service\ContentSyncService;
 use Voltz\PortfolioMd\Service\PreviewService;
 use Voltz\PortfolioMd\Service\SkillTermSynchronizer;
 use Voltz\PortfolioMd\Service\SystemClock;
+use Voltz\PortfolioMd\Service\TranslationReconciler;
 use Voltz\PortfolioMd\Storage\PolylangLanguageGateway;
 use Voltz\PortfolioMd\Storage\PolylangPostTypes;
 use Voltz\PortfolioMd\Storage\WordPressContentCatalog;
@@ -256,6 +258,14 @@ final class Plugin
         ));
 
         \WP_CLI::add_command('portfolio import', new ImportCommand($this->importService()));
+
+        // The guarantee of ADR-020 against Polylang's own screens: the stored language is pushed back.
+        \WP_CLI::add_command('portfolio translations', new TranslationsCommand(new TranslationReconciler(
+            $this->repository(),
+            $this->repository(),
+            $this->languageGateway(),
+            $this->languageGateway(),
+        )));
     }
 
     /**
