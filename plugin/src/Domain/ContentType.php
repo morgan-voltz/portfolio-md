@@ -20,7 +20,11 @@ enum ContentType: string
     case Project = 'project';
     case Page = 'page';
 
-    /** The folder of the content repository that holds documents of this kind. */
+    /**
+     * The folder of the content repository that holds documents of this kind,
+     * under a language folder once the content is laid out by language
+     * (content/<lang>/<folder>/, ADR-020; see ContentPath).
+     */
     public function folder(): string
     {
         return match ($this) {
@@ -67,12 +71,31 @@ enum ContentType: string
         };
     }
 
-    /** The path of a document of this kind on the site: /projets/<slug>/, /articles/<slug>/, /<slug>/. */
-    public function path(string $slug): string
+    /**
+     * The path of a document of this kind on the site. With a language, the
+     * site's URL tree of ADR-020: /fr/projets/<slug>/, /de/articles/<slug>/,
+     * /en/<slug>/. Without, the shape the site had before languages:
+     * /projets/<slug>/, /articles/<slug>/, /<slug>/; the link rewriter still
+     * calls it that way until lot 1b gives it the language of the document.
+     */
+    public function path(string $slug, ?Language $lang = null): string
     {
         $base = $this->urlBase();
+        $prefix = $lang === null ? '/' : '/' . $lang->value . '/';
 
-        return '/' . ($base === '' ? '' : $base . '/') . $slug . '/';
+        return $prefix . ($base === '' ? '' : $base . '/') . $slug . '/';
+    }
+
+    /**
+     * Whether documents of this kind say their language in their slug
+     * (ADR-020): an article or a project in German ends with "-de", in
+     * English with "-en", and a French one with neither, because WordPress
+     * wants one slug per post type. A page has a natural slug in each
+     * language (cv, lebenslauf, resume) instead.
+     */
+    public function suffixesSlugs(): bool
+    {
+        return $this !== self::Page;
     }
 
     /**

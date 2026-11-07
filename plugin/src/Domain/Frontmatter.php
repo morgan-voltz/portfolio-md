@@ -19,7 +19,8 @@ use DateTimeZone;
  *
  * Keys are grouped by content type. A page only carries the common keys; an
  * article may add reading_time; a project adds its eight specific keys and
- * must declare a status.
+ * must declare a status. Every document carries a language, and its
+ * translations share a translation key (ADR-020).
  */
 final readonly class Frontmatter
 {
@@ -27,6 +28,7 @@ final readonly class Frontmatter
     private const ARTICLE_KEYS = ['reading_time'];
     private const PROJECT_KEYS = ['status', 'role', 'period_start', 'period_end', 'repo_url', 'demo_url', 'client', 'is_fil_rouge'];
     private const PAGE_KEYS = ['title', 'slug', 'type', 'date', 'seo_description'];
+    private const LANGUAGE_KEYS = ['lang', 'translation_key'];
 
     /** Google truncates meta descriptions around this length; mirrored by CommonMetaRegistrar. */
     public const SEO_DESCRIPTION_MAX_LENGTH = 160;
@@ -42,6 +44,8 @@ final readonly class Frontmatter
         public string $title,
         public string $slug,
         public ContentType $type,
+        public Language $lang,
+        public string $translationKey,
         public ?DateTimeImmutable $date,
         public string $subtitle,
         public string $seoDescription,
@@ -78,12 +82,7 @@ final readonly class Frontmatter
             throw InvalidFrontmatterException::invalidValue('type', 'expected one of ' . implode(', ', ContentType::values()));
         }
 
-        $allowed = match ($type) {
-            ContentType::Page => self::PAGE_KEYS,
-            ContentType::Article => [...self::COMMON_KEYS, ...self::ARTICLE_KEYS],
-            ContentType::Project => [...self::COMMON_KEYS, ...self::PROJECT_KEYS],
-        };
-        $unknown = array_values(array_diff(array_keys($data), $allowed));
+        $unknown = array_values(array_diff(array_keys($data), self::allowedKeys($type)));
         if ($unknown !== []) {
             throw InvalidFrontmatterException::unknownKeys(array_map('strval', $unknown));
         }
@@ -100,6 +99,39 @@ final readonly class Frontmatter
             }
         }
 
+        // TRANSITION (lot 1a of ADR-020): "lang" is optional until the content
+        // migration makes it required; absent means French. A translation key
+        // without a language has no meaning, so it is refused meanwhile.
+        if (!array_key_exists('lang', $data) && array_key_exists('translation_key', $data)) {
+            throw InvalidFrontmatterException::invalidValue('translation_key', 'requires the "lang" key');
+        }
+        $lang = array_key_exists('lang', $data)
+            ? Language::tryFrom(is_string($data['lang']) ? $data['lang'] : '')
+            : Language::default();
+        if ($lang === null) {
+            throw InvalidFrontmatterException::invalidValue('lang', 'expected one of ' . implode(', ', Language::values()));
+        }
+
+        $slug = self::slug($data, 'slug');
+        if ($type->suffixesSlugs() && !$lang->acceptsSlug($slug)) {
+            throw InvalidFrontmatterException::invalidValue('slug', $lang->isDefault()
+                ? 'a "fr" project or article slug must not end with "-de" or "-en"'
+                : 'a "' . $lang->value . '" project or article slug must end with "' . $lang->slugSuffix() . '"');
+        }
+
+        // The key a document shares with its translations: the slug of the
+        // French document. French may leave it out, or write its own slug.
+        if (array_key_exists('translation_key', $data)) {
+            $translationKey = self::slug($data, 'translation_key');
+            if ($lang->isDefault() && $translationKey !== $slug) {
+                throw InvalidFrontmatterException::invalidValue('translation_key', 'a "fr" document must use its own slug as key');
+            }
+        } elseif ($lang->isDefault()) {
+            $translationKey = $slug;
+        } else {
+            throw InvalidFrontmatterException::missingKey('translation_key');
+        }
+
         $seoDescription = self::text($data, 'seo_description');
         if (mb_strlen($seoDescription) > self::SEO_DESCRIPTION_MAX_LENGTH) {
             throw InvalidFrontmatterException::invalidValue('seo_description', 'longer than ' . self::SEO_DESCRIPTION_MAX_LENGTH . ' characters');
@@ -107,8 +139,10 @@ final readonly class Frontmatter
 
         return new self(
             title: self::requiredText($data, 'title'),
-            slug: self::slug($data, 'slug'),
+            slug: $slug,
             type: $type,
+            lang: $lang,
+            translationKey: $translationKey,
             date: self::date($data, 'date'),
             subtitle: self::text($data, 'subtitle'),
             seoDescription: $seoDescription,
@@ -125,6 +159,21 @@ final readonly class Frontmatter
             client: self::text($data, 'client'),
             isFilRouge: self::bool($data, 'is_fil_rouge'),
         );
+    }
+
+    /**
+     * The keys a document of this kind may carry, the language keys included.
+     * Read by the content validator, so that the two never disagree.
+     *
+     * @return list<string>
+     */
+    public static function allowedKeys(ContentType $type): array
+    {
+        return match ($type) {
+            ContentType::Page => [...self::PAGE_KEYS, ...self::LANGUAGE_KEYS],
+            ContentType::Article => [...self::COMMON_KEYS, ...self::ARTICLE_KEYS, ...self::LANGUAGE_KEYS],
+            ContentType::Project => [...self::COMMON_KEYS, ...self::PROJECT_KEYS, ...self::LANGUAGE_KEYS],
+        };
     }
 
     /**
