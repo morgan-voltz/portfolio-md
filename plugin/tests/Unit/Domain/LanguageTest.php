@@ -62,5 +62,14 @@ final class LanguageTest extends TestCase
         yield 'de, english suffix' => [Language::De, 'atlas-en', false];
         yield 'en, english suffix' => [Language::En, 'atlas-en', true];
         yield 'en, german suffix' => [Language::En, 'atlas-de', false];
+        yield 'fr, ends with the letters de without a hyphen' => [Language::Fr, 'code', true];
+        yield 'fr, ends with the letters en without a hyphen' => [Language::Fr, 'pen', true];
+        yield 'fr, suffix in the middle' => [Language::Fr, 'atlas-de-notes', true];
+        yield 'fr, the bare word de' => [Language::Fr, 'de', true];
+        yield 'de, the bare word de has no hyphen' => [Language::De, 'de', false];
+        yield 'en, the bare word en has no hyphen' => [Language::En, 'en', false];
+        yield 'en, stacked suffixes end with -en' => [Language::En, 'atlas-de-en', true];
+        yield 'fr, stacked suffixes' => [Language::Fr, 'atlas-de-en', false];
+        yield 'de, stacked suffixes end with -en' => [Language::De, 'atlas-de-en', false];
     }
 }

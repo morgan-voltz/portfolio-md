@@ -514,4 +514,25 @@ final class ContentImportServiceTest extends TestCase
     {
         return "---\ntitle: \"{$title}\"\nslug: \"projet\"\ntype: \"project\"\nstatus: \"en-cours\"\nskills: {$skills}\ntags: [php]\n---\n\n# Projet\n\nCorps.\n";
     }
+
+    #[Test]
+    public function a_document_in_another_language_is_refused_until_lot_1b(): void
+    {
+        $markdown = "---\ntitle: \"MomoCad\"\nslug: \"momocad-de\"\ntype: \"project\"\nstatus: \"en-cours\"\nlang: \"de\"\ntranslation_key: \"momocad\"\n---\n\nDeutsche Fassung.\n";
+
+        $this->expectException(ImportException::class);
+        $this->expectExceptionMessage('does not support yet');
+
+        $this->service->import($markdown, new ImportOptions());
+    }
+
+    #[Test]
+    public function a_french_document_that_says_its_language_is_imported(): void
+    {
+        $markdown = "---\ntitle: \"MomoCad\"\nslug: \"momocad\"\ntype: \"project\"\nstatus: \"en-cours\"\nlang: \"fr\"\n---\n\nVersion française.\n";
+
+        $result = $this->service->import($markdown, new ImportOptions());
+
+        self::assertSame(ImportOutcome::Created, $result->outcome);
+    }
 }

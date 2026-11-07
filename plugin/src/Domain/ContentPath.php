@@ -13,9 +13,10 @@ namespace Voltz\PortfolioMd\Domain;
  * (ContentType::fromFolder()), the file name says the slug. Anything else,
  * the former two-level layout included, is not a document path.
  *
- * Lot 1a: only the validator and the tests read this. Lot 1b plugs it into
- * the Git door (Service\ContentSyncService) and the WP-CLI import
- * (Cli\ImportCommand), which still expect the two-level layout.
+ * Lot 1a of ADR-020: the content validator reads it to recognise a document
+ * of the new layout. Lot 1b plugs it into the Git door
+ * (Service\ContentSyncService) and the WP-CLI import (Cli\ImportCommand),
+ * which still expect the two-level layout.
  */
 final readonly class ContentPath
 {
@@ -44,7 +45,7 @@ final readonly class ContentPath
         }
 
         $slug = substr($file, 0, -3);
-        if (preg_match(Patterns::SLUG, $slug) !== 1) {
+        if (preg_match(Patterns::SLUG, $slug) !== 1 || strlen($slug) > Patterns::SLUG_MAX_LENGTH) {
             return null;
         }
 

@@ -91,6 +91,9 @@ final class ContentImportService
         if ($expectedType !== null && $frontmatter->type !== $expectedType) {
             throw ImportException::typeMismatch($frontmatter->type, $expectedType);
         }
+        if (!$frontmatter->lang->isDefault()) {
+            throw ImportException::languageNotYetSupported($frontmatter->lang); // TRANSITION, see the factory
+        }
 
         $hash = hash('sha256', $markdown);
         $existing = $targetPostId === null

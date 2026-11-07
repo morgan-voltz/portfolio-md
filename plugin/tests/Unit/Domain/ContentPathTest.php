@@ -56,6 +56,8 @@ final class ContentPathTest extends TestCase
         yield 'an empty slug' => ['fr/projects/.md'];
         yield 'a badly shaped slug' => ['fr/projects/Foo.md'];
         yield 'an empty segment' => ['fr//momocad.md'];
+        yield 'a trailing newline in the slug' => ["fr/projects/momocad\n.md"];
+        yield 'a slug longer than WordPress allows' => ['fr/projects/' . str_repeat('a', 201) . '.md'];
     }
 
     #[Test]

@@ -22,8 +22,10 @@ final class FrontmatterParser
     /**
      * The frontmatter is the block between the opening "---" line (first
      * line of the file) and the next "---" line; everything after is the body.
+     * Public, with normalize(): the content validator reads documents the
+     * same way, so that it never refuses a file the plugin would accept.
      */
-    private const PATTERN = '/\A---\n(?<yaml>.*?)\n---(?:\n|\z)(?<body>.*)\z/s';
+    public const PATTERN = '/\A---\n(?<yaml>.*?)\n---(?:\n|\z)(?<body>.*)\z/s';
 
     /**
      * @throws MalformedDocumentException when the block is missing or not YAML
@@ -31,7 +33,7 @@ final class FrontmatterParser
      */
     public function parse(string $markdown): ParsedDocument
     {
-        $normalized = self::normalizeLineEndings(self::stripByteOrderMark($markdown));
+        $normalized = self::normalize($markdown);
 
         if (preg_match(self::PATTERN, $normalized, $matches) !== 1) {
             throw MalformedDocumentException::missingFrontmatter();
@@ -77,6 +79,12 @@ final class FrontmatterParser
                 );
             }
         }
+    }
+
+    /** The text as the parser reads it: without a byte order mark, with "\n" line endings. */
+    public static function normalize(string $markdown): string
+    {
+        return self::normalizeLineEndings(self::stripByteOrderMark($markdown));
     }
 
     private static function stripByteOrderMark(string $text): string
