@@ -4,7 +4,7 @@
 **Rôle** : document d'entrée dans l'architecture, porte d'accès aux documents détaillés
 **Lectorat** : contributeur, recruteur, étudiant, Morgan lui-même à froid
 **Temps de lecture** : environ quinze minutes
-**Dernière mise à jour** : 7 novembre 2026 (ADR-020, site trilingue : modèle de langue, portes et contenu migré vers `content/fr/` ; phases 5 et 9 terminées le 29 octobre : endpoints REST publics en lecture, webhook Git)
+**Dernière mise à jour** : 7 novembre 2026 (ADR-020, site trilingue : modèle de langue, portes, contenu migré vers `content/fr/` et pont Polylang, lot 2 ; phases 5 et 9 terminées le 29 octobre : endpoints REST publics en lecture, webhook Git)
 
 ---
 

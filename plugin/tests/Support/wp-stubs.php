@@ -818,3 +818,131 @@ if (!function_exists('esc_url_raw')) {
         return in_array($protocol, $allowed, true) ? $url : '';
     }
 }
+
+// --- Polylang (the API Storage\PolylangLanguageGateway calls) -------------------
+// A double faithful to the three traps of the real one: an unknown slug clears
+// the language and answers true; a saved group drops a member whose language is
+// not its key, needs a language on its first member and writes a term for two
+// members or more only; a post sees its own language plus the description of
+// its term; a member taken out of a group leaves its description and is
+// detached from the term, so it sees only itself, while the survivor of a
+// group of one keeps a one-member term.
+
+if (!function_exists('PLL')) {
+    function PLL(): ?object
+    {
+        return null;
+    }
+}
+
+if (!function_exists('pll_languages_list')) {
+    /** @return list<string> */
+    function pll_languages_list(array $args = []): array
+    {
+        return WordPressSpy::$pllLanguages;
+    }
+}
+
+if (!function_exists('pll_get_post_language')) {
+    function pll_get_post_language(int $post_id, string $field = 'slug'): string|false
+    {
+        return WordPressSpy::$pllPostLanguages[$post_id] ?? false;
+    }
+}
+
+if (!function_exists('pll_set_post_language')) {
+    function pll_set_post_language(int $id, string $lang): bool
+    {
+        WordPressSpy::$pllCalls[] = ['set', $id, $lang];
+        if (WordPressSpy::$pllRefuseWrites) {
+            return true;
+        }
+        $known = in_array($lang, WordPressSpy::$pllLanguages, true) ? $lang : null;
+        if (($known ?? '') === (WordPressSpy::$pllPostLanguages[$id] ?? '')) {
+            return false;
+        }
+        if ($known === null) {
+            unset(WordPressSpy::$pllPostLanguages[$id]);
+        } else {
+            WordPressSpy::$pllPostLanguages[$id] = $known;
+        }
+
+        return true;
+    }
+}
+
+if (!function_exists('pll_get_post_translations')) {
+    /** @return array<string, int> */
+    function pll_get_post_translations(int $post_id): array
+    {
+        $term = WordPressSpy::$pllTermOf[$post_id] ?? null;
+        $description = $term === null ? [] : (WordPressSpy::$pllTerms[$term] ?? []);
+        $description = array_intersect_key($description, array_flip(WordPressSpy::$pllLanguages));
+        $own = WordPressSpy::$pllPostLanguages[$post_id] ?? null;
+
+        return $own === null ? $description : array_merge([$own => $post_id], $description);
+    }
+}
+
+if (!function_exists('pll_save_post_translations')) {
+    /**
+     * @param array<string, int> $arr
+     *
+     * @return array<string, int>
+     */
+    function pll_save_post_translations(array $arr): array
+    {
+        WordPressSpy::$pllCalls[] = ['save', $arr];
+        $first = reset($arr);
+        $firstLanguage = $first === false ? null : (WordPressSpy::$pllPostLanguages[$first] ?? null);
+        if ($first === false || $firstLanguage === null || WordPressSpy::$pllRefuseGroups) {
+            return [];
+        }
+        $valid = [];
+        foreach ($arr as $slug => $member) {
+            if (in_array($slug, WordPressSpy::$pllLanguages, true) && (WordPressSpy::$pllPostLanguages[$member] ?? null) === $slug) {
+                $valid[$slug] = $member;
+            }
+        }
+        $valid = array_merge([$firstLanguage => $first], $valid);
+
+        // Members taken out of the group leave its description, and keep their own term.
+        $old = [];
+        foreach ($valid as $member) {
+            $term = WordPressSpy::$pllTermOf[$member] ?? null;
+            if ($term !== null) {
+                $old += WordPressSpy::$pllTerms[$term] ?? [];
+            }
+        }
+        foreach (array_diff_assoc($old, $valid) as $removed) {
+            $term = WordPressSpy::$pllTermOf[$removed] ?? null;
+            if ($term !== null) {
+                // PLL_Translated_Post::delete_translation(): out of the description, detached from the term.
+                WordPressSpy::$pllTerms[$term] = array_filter(WordPressSpy::$pllTerms[$term], static fn (int $id): bool => $id !== $removed);
+                unset(WordPressSpy::$pllTermOf[$removed]);
+                if (WordPressSpy::$pllTerms[$term] === []) {
+                    unset(WordPressSpy::$pllTerms[$term]);
+                }
+            }
+        }
+        if (count($valid) <= 1) {
+            return $valid;
+        }
+
+        $term = null;
+        foreach ($valid as $member) {
+            $term ??= WordPressSpy::$pllTermOf[$member] ?? null;
+        }
+        if ($term === null) {
+            $term = WordPressSpy::$pllTerms === [] ? 0 : max(array_keys(WordPressSpy::$pllTerms)) + 1;
+            WordPressSpy::$pllTerms[$term] = $valid;
+        } else {
+            WordPressSpy::$pllTerms[$term] = array_merge(array_diff_key(WordPressSpy::$pllTerms[$term], $old), $valid);
+        }
+        foreach ($valid as $member) {
+            WordPressSpy::$pllTermOf[$member] = $term;
+        }
+
+        return $valid;
+    }
+}

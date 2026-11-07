@@ -20,9 +20,9 @@ Static pages (`type: page`, 27 October 2026) take the same path into the native 
 
 The public read API is in (29 October 2026, ADR-018): `GET /wp-json/portfolio/v1/{articles,projects,pages}`, their `/{slug}` routes and `/sitemap` serve the published documents, Markdown source included, see "REST API" below. So is the Git door (29 October 2026, ADR-019): `POST /wp-json/portfolio/v1/sync` takes the files a push changed, authenticated with a WordPress application password, and a GitHub Actions workflow feeds it, see "Git door" below.
 
-The content is **trilingual** (ADR-020, 7 November 2026): `content/<lang>/<folder>/<slug>.md`, every document with a `lang` and the `translation_key` it shares with its translations (`Domain\Language`, `Domain\ContentPath`, the content validator `tools/validate-content.php`; lot 1a). Since lot 1b every door reads the language from the path, stores `_portfolio_lang` and `_portfolio_translation_key`, tells a `Service\LanguageGateway` the language of the post (a null adapter until the Polylang one of lot 2) and links the translations of a key. Since the content migration (lot 1c, 7 November 2026) the sixteen documents live in `content/fr/` and `lang` is required of every document; a path outside `content/<lang>/<folder>/` is skipped by the Git door and refused by `wp portfolio import`.
+The content is **trilingual** (ADR-020, 7 November 2026): `content/<lang>/<folder>/<slug>.md`, every document with a `lang` and the `translation_key` it shares with its translations (`Domain\Language`, `Domain\ContentPath`, the content validator `tools/validate-content.php`; lot 1a). Since lot 1b every door reads the language from the path, stores `_portfolio_lang` and `_portfolio_translation_key`, tells a `Service\LanguageGateway` the language of the post (Polylang, through `Storage\PolylangLanguageGateway`, since lot 2; it does nothing while Polylang is absent) and links the translations of a key. The plugin hands its post types to Polylang itself, every query of the plugin sees every language, a translation is read-only in the admin (Git is the only writer of translations), and `wp portfolio translations reconcile` pushes the stored languages and groups back when Polylang's own screens changed them. Since the content migration (lot 1c, 7 November 2026) the sixteen documents live in `content/fr/` and `lang` is required of every document; a path outside `content/<lang>/<folder>/` is skipped by the Git door and refused by `wp portfolio import`.
 
-What is **not yet** implemented: the Polylang adapter of the language gateway and the language of the REST routes (lots 2 and 3 of ADR-020), image import into the media library. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
+What is **not yet** implemented: the language of the REST routes and the fallback between languages (lot 3 of ADR-020), image import into the media library. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
 
 ## Local setup
 
@@ -107,9 +107,18 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/import-smoke.php --user=<your admin login>
 ```
 
+Keep Polylang in line with what the plugin stores (ADR-020, lot 2): the command compares the language and the translation group Polylang holds for every document with the stored ones and repairs the differences. `--dry-run` writes nothing and exits with an error when a difference exists; a post without stored language is skipped, never adopted from Polylang; two live posts sharing a key and a language are reported and left alone (`--format=json` for a machine):
+
+```bash
+podman-compose --profile tools run --rm wpcli wp portfolio translations reconcile --dry-run
+podman-compose --profile tools run --rm wpcli wp portfolio translations reconcile
+```
+
+The languages of the site (fr, de, en, French by default, the language in the URL) are created once by `tools/polylang-setup-languages.php`, run by `bootstrap.sh` on the local stack and by hand on a fresh site before the first synchronization: without them every import fails on the language gateway.
+
 ## Admin screens
 
-Articles and projects open in the **classic edit screen** with a « Document Markdown » box holding the whole document, frontmatter included. Saving the post hands that text to the import service with the post as target and `admin` as source: the document rewrites the title, the slug, the date, the content, the terms and the metas, and the source-of-truth rule of ADR-005 then protects the edit from `wp portfolio import` (which reports a `CONFLICT` until `--force`). Everything the document owns is removed from the screen on purpose: the block editor, the title field, the content editor, the permalink editor, the slug and taxonomy boxes, Quick Edit and Bulk Edit. The publish box, the author, the featured image, the revisions and the custom fields stay.
+Articles and projects open in the **classic edit screen** with a « Document Markdown » box holding the whole document, frontmatter included. Saving the post hands that text to the import service with the post as target and `admin` as source: the document rewrites the title, the slug, the date, the content, the terms and the metas, and the source-of-truth rule of ADR-005 then protects the edit from `wp portfolio import` (which reports a `CONFLICT` until `--force`). Everything the document owns is removed from the screen on purpose: the block editor, the title field, the content editor, the permalink editor, the slug and taxonomy boxes, Quick Edit and Bulk Edit. The publish box, the author, the featured image, the revisions and the custom fields stay. A **translation** (a post whose stored language is not the site's) is shown read-only: no nonce, a `readonly` textarea, a non-editable editor and a notice saying that Git is the only writer of translations and where the file lives (`content/<lang>/`); the save handler refuses it as defence in depth, and the paste page refuses a document that is not French for the same reason (ADR-020, lot 2).
 
 Four refusals protect the post being edited: the post must exist with the document's type, it must not be in the trash, the document's slug must be free or already the post's own, and a post that holds a document keeps the slug written in that document (rename the file in the repository instead; a URL slug changed through the REST API does not count, the document wins at its next write). A refusal that names another post is detailed only to a user who may edit that post. A refused document leaves the post as it was; the reason and the text are shown in the box at the next visit; a post that never held a document goes back to draft, so that nothing empty is published. The text of the form is normalised (CRLF → LF, final newline) before hashing, so a document saved without changes keeps the hash of its Git file.
 
@@ -231,7 +240,14 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   --user=<your admin login>
 ```
 
-`--user` is required for the capability checks. The other smoke scripts (`skills`, `import`, `admin`, `preview`, `rest`, `sync`) are listed in their sections above. The official `wp-phpunit` framework will come if the smoke scripts stop being enough.
+**Polylang bridge (lot 2 of ADR-020).** `tests/Integration/wp-cli/i18n-smoke.php` plays the bridge against the real Polylang of the stack: a French page and its German translation imported through the gateway (language pushed, the default Polylang gives on insert corrected, both members see the group), a replay, a language drift and a group drift reported by a dry run and repaired by the reconciliation, the stale group of a survivor dissolved, and the proof that the repository, the catalog and the lister still see every language while Polylang filters a plain query by a forced language. The command runs once in a second `wp` process. It creates two pages and deletes them for good (`--user` required; Polylang must hold fr, de and en):
+
+```bash
+podman-compose --profile tools run --rm wpcli wp eval-file \
+  wp-content/plugins/portfolio-md/tests/Integration/wp-cli/i18n-smoke.php --user=<your admin login>
+```
+
+`--user` is required for the capability checks. The other smoke scripts (`skills`, `import`, `admin`, `preview`, `rest`, `sync`, `i18n`) are listed in their sections above. The official `wp-phpunit` framework will come if the smoke scripts stop being enough.
 
 **CI script (Python, no network).** `.github/scripts/test_sync_content.py` covers the pure parts of `sync-content.py`: reading the `-z` diff, which paths are documents (the language layout, the stray files left in a type folder without a language folder), the grid first, batches by count and bytes, the summaries. From the repository root:
 
@@ -299,6 +315,11 @@ The most frequent issues you'll hit while developing locally are documented in [
 - `wp portfolio import` or `/sync` reports `sits in the "fr/" language folder` → the `lang` of the document and its folder differ: move the file to its language folder, or fix its `lang` line
 - `Frontmatter: missing required key "lang"` → every document says its language since the content migration (ADR-020): add `lang: "fr"` (or `de` / `en`, equal to the folder). A post written from the admin before the migration, whose stored document has no `lang` line, cannot be saved from the Markdown box until the line is added; the next synchronization adds it to every post Git wrote
 - `wp portfolio import` or `/sync` reports `a post keeps its language` → the slug already belongs to a post of another language: give the document its own slug (`-de`, `-en`, or a natural page slug), or delete the post
+- `The language "de" is not configured on the site (found: fr)` on an import or a sync → Polylang misses a language of the site: run `wp eval-file wp-content/plugins/portfolio-md/tools/polylang-setup-languages.php` (once, before the first synchronization of a fresh site), then replay the import; the post was written, only its language waits
+- A German document is created but Polylang shows it in French, or a translation is not linked to its original → `wp portfolio translations reconcile --dry-run`, then without `--dry-run`: Polylang's own screens (its language box, quick edit, bulk edit) can change a language, the command pushes the stored one back
+- Posts of another language vanish from a query of the plugin in the admin → the query misses `'lang' => ''`: every query of the plugin passes it so that Polylang holds it for already filtered (`PLL_Query::is_already_filtered`)
+- Nothing happens in Polylang after an import → Polylang is inactive, or not loaded for this request (a front request on a site without languages): the gateway does nothing on purpose; check `wp plugin list` and `wp eval 'print_r(pll_languages_list());'`
+- The Markdown box of a translation is still editable → the editor bundle predates lot 2: `npm run build` in `plugin/assets` (the textarea itself is `readonly`, and the save is refused anyway)
 - `sync-content.py` warns `the diff is not NUL-separated` → it was given the line form of `git diff --name-status`, which quotes and escapes an accented path (`"content/fr/projects/fiche accentu\303\251e.md"`); produce the diff with `-z`
 - `sync-content.py` reports `HTTP 413` or a `400 rest_invalid_json` for a big batch → the body exceeded PHP's `post_max_size` (8M by default): lower `--batch-bytes`, or raise the limit on the host
 

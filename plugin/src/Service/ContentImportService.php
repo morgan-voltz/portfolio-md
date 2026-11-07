@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Voltz\PortfolioMd\Service;
 
+use Voltz\PortfolioMd\Domain\ContentSource;
 use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Domain\Frontmatter;
 use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
@@ -106,6 +107,10 @@ final class ContentImportService
         if ($expectedLang !== null && $frontmatter->lang !== $expectedLang) {
             throw ImportException::languageMismatch($frontmatter->lang, $expectedLang);
         }
+        // Git is the only writer of translations (ADR-020): the admin box and the paste page write French only.
+        if ($options->source !== ContentSource::Git && !$frontmatter->lang->isDefault()) {
+            throw ImportException::translationFromGit($frontmatter->lang, $options->source);
+        }
 
         $hash = hash('sha256', $markdown);
         $existing = $targetPostId === null
@@ -180,13 +185,7 @@ final class ContentImportService
     {
         $this->languages->setLanguage($postId, $frontmatter->lang);
 
-        $byLanguage = [];
-        foreach ($this->repository->findByKey($frontmatter->type, $frontmatter->translationKey) as $sibling) {
-            if ($sibling->lang === null) {
-                continue;
-            }
-            $byLanguage[$sibling->lang->value] ??= $sibling->id;
-        }
+        $byLanguage = TranslationGroup::fromStored($this->repository->findByKey($frontmatter->type, $frontmatter->translationKey));
         if (count($byLanguage) > 1) {
             $this->languages->linkTranslations($byLanguage);
         }

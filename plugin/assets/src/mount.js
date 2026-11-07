@@ -33,7 +33,7 @@ export function mountAll(doc, deps) {
 /**
  * @param {HTMLTextAreaElement} textarea
  * @param {object} deps
- * @param {Function} deps.createEditor    (parent, value, { onChange }) => { getValue, focus, destroy }
+ * @param {Function} deps.createEditor    (parent, value, { onChange, readOnly }) => { getValue, focus, destroy }
  * @param {Function} deps.request         (markdown) => Promise<object>
  * @param {object} deps.config            previewPath, stylesheets, labels
  * @param {object} deps.timers            setTimeout, clearTimeout
@@ -87,6 +87,8 @@ export function mountEditor(textarea, { createEditor, request, config, timers, s
   })
 
   const editor = createEditor(code, textarea.value, {
+    // A readonly textarea (a translation, written by Git only) gets an editor that shows and never edits.
+    readOnly: textarea.readOnly,
     onChange: (value) => {
       textarea.value = value
       if (shown) {

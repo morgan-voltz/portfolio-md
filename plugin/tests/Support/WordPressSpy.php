@@ -117,6 +117,29 @@ final class WordPressSpy
     /** @var list<array{handle: string, data: string, position: string}> */
     public static array $inlineScripts = [];
 
+    // --- Polylang double (the pll_* stubs) ---
+
+    /** @var list<string> the language slugs the site is configured with */
+    public static array $pllLanguages = ['fr', 'de', 'en'];
+
+    /** @var array<int, string> post id => language slug Polylang holds */
+    public static array $pllPostLanguages = [];
+
+    /** @var array<int, int> post id => index of its translation term in $pllTerms */
+    public static array $pllTermOf = [];
+
+    /** @var array<int, array<string, int>> translation term => its description, language slug => post id */
+    public static array $pllTerms = [];
+
+    /** @var list<array<int, mixed>> every writing pll_* call: ['set', id, slug] or ['save', group] */
+    public static array $pllCalls = [];
+
+    /** When true, pll_set_post_language() records the call but keeps the language unchanged. */
+    public static bool $pllRefuseWrites = false;
+
+    /** When true, pll_save_post_translations() records the call but writes no term. */
+    public static bool $pllRefuseGroups = false;
+
     private function __construct()
     {
     }
@@ -158,6 +181,13 @@ final class WordPressSpy
         self::$enqueuedScripts = [];
         self::$enqueuedStyles = [];
         self::$inlineScripts = [];
+        self::$pllLanguages = ['fr', 'de', 'en'];
+        self::$pllPostLanguages = [];
+        self::$pllTermOf = [];
+        self::$pllTerms = [];
+        self::$pllCalls = [];
+        self::$pllRefuseWrites = false;
+        self::$pllRefuseGroups = false;
     }
 
     /**

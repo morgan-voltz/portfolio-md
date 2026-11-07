@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Voltz\PortfolioMd\Admin\MarkdownPosts;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
 use Voltz\PortfolioMd\Tests\Support\WordPressSpy;
 use WP_Post;
@@ -49,5 +50,21 @@ final class MarkdownPostsTest extends TestCase
         self::assertFalse(MarkdownPosts::editsDocumentOf('page', 0));
         self::assertTrue(MarkdownPosts::editsDocumentOf('page', 9));
         self::assertFalse(MarkdownPosts::editsDocumentOf('page', 10));
+    }
+
+    #[Test]
+    public function reads_the_stored_language_and_tells_a_translation_apart(): void
+    {
+        WordPressSpy::$postMetaValues[9][InternalMetaRegistrar::LANG] = 'de';
+        WordPressSpy::$postMetaValues[10][InternalMetaRegistrar::LANG] = 'fr';
+        WordPressSpy::$postMetaValues[11][InternalMetaRegistrar::LANG] = 'xx';
+
+        self::assertSame(Language::De, MarkdownPosts::storedLanguage(9));
+        self::assertTrue(MarkdownPosts::isTranslation(9));
+        self::assertSame(Language::Fr, MarkdownPosts::storedLanguage(10));
+        self::assertFalse(MarkdownPosts::isTranslation(10));
+        self::assertNull(MarkdownPosts::storedLanguage(11), 'a value the plugin never wrote is no language');
+        self::assertNull(MarkdownPosts::storedLanguage(12), 'a post made by hand stores no language');
+        self::assertFalse(MarkdownPosts::isTranslation(12));
     }
 }

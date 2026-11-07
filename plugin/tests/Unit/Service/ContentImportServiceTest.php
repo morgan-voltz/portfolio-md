@@ -705,4 +705,31 @@ final class ContentImportServiceTest extends TestCase
         self::assertSame(ImportOutcome::Unchanged, $result->outcome);
         self::assertSame(Language::De, $this->languages->languages[42], 'placed even though nothing was written');
     }
+
+    #[Test]
+    public function a_translation_is_written_by_git_only(): void
+    {
+        foreach ([ContentSource::Admin, ContentSource::Paste] as $source) {
+            foreach ([false, true] as $dryRun) {
+                try {
+                    $this->service->import(self::german(), new ImportOptions(source: $source, dryRun: $dryRun));
+                    self::fail("a German document from {$source->value} must be refused");
+                } catch (ImportException $exception) {
+                    self::assertStringContainsString('Git is the only writer of translations', $exception->getMessage());
+                    self::assertStringContainsString('content/de/', $exception->getMessage());
+                }
+            }
+        }
+        self::assertSame([], $this->repository->saved, 'nothing written');
+        self::assertSame([], $this->languages->calls, 'nothing placed');
+
+        self::assertSame(ImportOutcome::Created, $this->service->import(self::german(), new ImportOptions(source: ContentSource::Git))->outcome);
+    }
+
+    #[Test]
+    public function a_french_document_may_still_come_from_the_admin_or_a_paste(): void
+    {
+        self::assertSame(ImportOutcome::Created, $this->service->import(self::project(), new ImportOptions(source: ContentSource::Paste))->outcome);
+        self::assertSame(ImportOutcome::Unchanged, $this->service->import(self::project(), new ImportOptions(source: ContentSource::Admin), null, 100)->outcome);
+    }
 }

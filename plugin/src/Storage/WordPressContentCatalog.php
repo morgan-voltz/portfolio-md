@@ -155,6 +155,10 @@ final class WordPressContentCatalog implements ContentCatalog
             'post_status' => 'publish',
             'has_password' => false,
             'ignore_sticky_posts' => true,
+            // Every language, until ADR-021 gives the routes a language parameter (lot 3): 'lang' => ''
+            // tells Polylang the query is already filtered, so a request made in one language of the
+            // site still serves every document.
+            'lang' => '',
             'meta_query' => [[
                 'key' => InternalMetaRegistrar::MD_HASH,
                 'value' => '',

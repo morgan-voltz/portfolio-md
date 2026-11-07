@@ -10,6 +10,7 @@ use Voltz\PortfolioMd\Admin\EditorMetaBox;
 use Voltz\PortfolioMd\Admin\ImportPage;
 use Voltz\PortfolioMd\Cli\ImportCommand;
 use Voltz\PortfolioMd\Cli\SkillsCommand;
+use Voltz\PortfolioMd\Cli\TranslationsCommand;
 use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Meta\CommonMetaRegistrar;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
@@ -28,11 +29,13 @@ use Voltz\PortfolioMd\Rest\DocumentPresenter;
 use Voltz\PortfolioMd\Rest\RouteRegistrar;
 use Voltz\PortfolioMd\Service\ConflictResolver;
 use Voltz\PortfolioMd\Service\ContentImportService;
-use Voltz\PortfolioMd\Service\NullLanguageGateway;
 use Voltz\PortfolioMd\Service\ContentSyncService;
 use Voltz\PortfolioMd\Service\PreviewService;
 use Voltz\PortfolioMd\Service\SkillTermSynchronizer;
 use Voltz\PortfolioMd\Service\SystemClock;
+use Voltz\PortfolioMd\Service\TranslationReconciler;
+use Voltz\PortfolioMd\Storage\PolylangLanguageGateway;
+use Voltz\PortfolioMd\Storage\PolylangPostTypes;
 use Voltz\PortfolioMd\Storage\WordPressContentCatalog;
 use Voltz\PortfolioMd\Storage\WordPressContentRepository;
 use Voltz\PortfolioMd\Storage\WordPressSkillTermGateway;
@@ -97,6 +100,9 @@ final class Plugin
     /** The post store of the import, shared with the Git synchronization, which retires posts through it. */
     private ?WordPressContentRepository $repository = null;
 
+    /** The bridge to Polylang (ADR-020), shared by the import and the reconciliation command. */
+    private ?PolylangLanguageGateway $languageGateway = null;
+
     public function __construct(string $pluginFile)
     {
         $this->pluginFile = $pluginFile;
@@ -116,6 +122,10 @@ final class Plugin
      */
     public function boot(): void
     {
+        // Polylang reads this filter early (it caches the list after `after_setup_theme`):
+        // hooked at load, harmless when Polylang is absent (ADR-020, lot 2).
+        (new PolylangPostTypes())->register();
+
         // Hook 'init' : on enregistre les post types, les taxonomies ET les
         // metas à ce moment, dans l'ordre sûr recommandé par WordPress :
         // les post types d'abord, puis les taxonomies qui s'y attachent,
@@ -207,8 +217,18 @@ final class Plugin
             new WordPressSkillTermGateway(),
             new ConflictResolver(),
             new SystemClock(),
-            new NullLanguageGateway(), // the Polylang adapter takes this seat at lot 2 of ADR-020
+            $this->languageGateway(),
         );
+    }
+
+    /**
+     * The language bridge (ADR-020): Polylang when it answers, nothing
+     * otherwise, decided at each call by the adapter itself, since Polylang's
+     * API does not exist yet when the plugin loads.
+     */
+    private function languageGateway(): PolylangLanguageGateway
+    {
+        return $this->languageGateway ??= new PolylangLanguageGateway();
     }
 
     private function repository(): WordPressContentRepository
@@ -238,6 +258,14 @@ final class Plugin
         ));
 
         \WP_CLI::add_command('portfolio import', new ImportCommand($this->importService()));
+
+        // The guarantee of ADR-020 against Polylang's own screens: the stored language is pushed back.
+        \WP_CLI::add_command('portfolio translations', new TranslationsCommand(new TranslationReconciler(
+            $this->repository(),
+            $this->repository(),
+            $this->languageGateway(),
+            $this->languageGateway(),
+        )));
     }
 
     /**
