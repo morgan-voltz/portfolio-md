@@ -47,10 +47,11 @@ services:
     #     (Fedora), a short name such as `wordpress:latest` makes `podman` ask which
     #     registry to use; without a terminal (scripts, CI, an agent) it fails or
     #     hangs on that question, and nothing is pulled.
-    #   - a version tag rather than `latest` : the stack's minimum WordPress
+    #   - a version tag rather than `latest`, aligned on the WordPress that o2switch
+    #     runs (7.1.4 on 7 November 2026) : the stack's minimum WordPress
     #     version is set by Polylang (6.8) and Yoast SEO (7.0); a surprise major
     #     upgrade must be a decision, not a side effect of `up -d`.
-    image: docker.io/library/wordpress:7.1.2-php8.3-apache
+    image: docker.io/library/wordpress:7.1.4-php8.3-apache
     restart: unless-stopped
     depends_on:
       db:
