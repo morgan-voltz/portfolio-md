@@ -312,6 +312,17 @@ class Main(unittest.TestCase):
         self.assertNotIn("::warning::", out)
         self.assertIn("Nothing to synchronize: no document of content/ changed.", out)
 
+    def test_a_full_sync_of_a_tree_with_only_a_stray_file_warns_and_succeeds(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stray = Path(tmp) / "content" / "projects" / "stray.md"
+            stray.parent.mkdir(parents=True)
+            stray.write_text("x", encoding="utf-8")
+            code, out = self.run_main("--url", "http://x", "--user", "u", "--password-env", "PW", "--all", "--repo", tmp, env={"PW": "secret"})
+
+        self.assertEqual(0, code)
+        self.assertIn("::warning::content/projects/stray.md is not a document path: documents live in content/<lang>/<folder>/<slug>.md", out)
+        self.assertIn("only paths outside content/<lang>/<folder>/ changed", out)
+
     def test_a_problem_without_documents_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             diff = Path(tmp) / "changes.nul"
