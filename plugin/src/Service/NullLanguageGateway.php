@@ -7,8 +7,10 @@ namespace Voltz\PortfolioMd\Service;
 use Voltz\PortfolioMd\Domain\Language;
 
 /**
- * The language gateway of a site without a multilingual plugin: the language
- * lives in the plugin's metas only. Wired until the Polylang adapter of lot 2.
+ * The language gateway that does nothing: the language lives in the plugin's
+ * metas only. The default of the import service when no adapter is injected
+ * (the tests, the smoke scripts); the composition root wires the Polylang
+ * adapter, which behaves the same while Polylang is absent.
  */
 final class NullLanguageGateway implements LanguageGateway
 {
