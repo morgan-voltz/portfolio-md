@@ -212,7 +212,20 @@ class Answers(unittest.TestCase):
         self.assertEqual("2 created, 1 unchanged", sync.summary_line(counts, 1))
 
 
+class WorkflowCommands(unittest.TestCase):
+    def test_a_path_cannot_end_a_command_and_start_another(self) -> None:
+        self.assertEqual("content/projects/x%0A::add-mask::y.md", sync.escape_data("content/projects/x\n::add-mask::y.md"))
+        self.assertEqual("100%25%0D", sync.escape_data("100%\r"))
+
+    def test_a_control_character_never_reaches_a_line_of_the_log(self) -> None:
+        self.assertEqual("a?b?c", sync.one_line("a\nb\x1bc"))
+
+
 class StepSummary(unittest.TestCase):
+    def test_cells_keep_a_row_on_one_line(self) -> None:
+        self.assertEqual("a?b", sync.text_cell("a\nb"))
+        self.assertEqual("`fr/projects/a??b.md`", sync.code_cell("fr/projects/a\r\nb.md"))
+
     def test_cells_escape_what_would_break_the_table(self) -> None:
         self.assertEqual("a \\| b", sync.text_cell("a | b"))
         self.assertEqual("`projects/a\\|b.md`", sync.code_cell("projects/a|b.md"))  # GFM: a pipe is escaped even inside a code span
@@ -275,6 +288,17 @@ class Main(unittest.TestCase):
 
         self.assertEqual(0, code)
         self.assertIn("Nothing to synchronize", out)
+
+    def test_a_push_that_only_touches_the_former_layout_warns_and_succeeds(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            diff = Path(tmp) / "changes.nul"
+            diff.write_bytes(b"M\0content/projects/old.md\0D\0content/pages/cv.md\0")
+            code, out = self.run_main("--url", "http://x", "--user", "u", "--password-env", "PW", "--name-status", str(diff), "--repo", tmp, env={"PW": "secret"})
+
+        self.assertEqual(0, code)
+        self.assertIn("::warning::content/projects/old.md is still laid out", out)
+        self.assertIn("::warning::content/pages/cv.md", out)
+        self.assertIn("only documents of the former layout changed", out)
 
     def test_a_problem_without_documents_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

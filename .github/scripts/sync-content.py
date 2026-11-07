@@ -38,6 +38,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -284,10 +285,10 @@ def main() -> int:
         legacy = legacy_documents(path for _, path in entries)
 
     for problem in problems:
-        print(f"WARN   {problem}")
+        print(one_line(f"WARN   {problem}"))
     for path in legacy:
         # A GitHub Actions warning annotation: visible in the run, never a failure.
-        print(f"::warning::{path} is still laid out as content/<folder>/<slug>.md, the layout before the language folders (ADR-020): the plugin skips it until it moves to content/<lang>/<folder>/")
+        print(f"::warning::{escape_data(path)} is still laid out as content/<folder>/<slug>.md, the layout before the language folders (ADR-020): the plugin skips it until it moves to content/<lang>/<folder>/")
     if not files:
         print("Nothing to synchronize: only documents of the former layout changed; move them to content/<lang>/<folder>/." if legacy else "Nothing to synchronize: no document of content/ changed.")
         return 1 if problems else 0
@@ -308,7 +309,7 @@ def main() -> int:
                 target = "/".join(part for part in (row.get("type"), row.get("slug")) if part)
                 post_id = f" (post {row['post_id']})" if row.get("post_id") else ""
                 message = f": {row['message']}" if row.get("message") else ""
-                print(f"{str(row.get('status', '?')).upper():<10} {row.get('path')}  {target}{post_id}{message}")
+                print(one_line(f"{str(row.get('status', '?')).upper():<10} {row.get('path')}  {target}{post_id}{message}"))
             if status != 200:
                 failed_batches += 1
         else:
@@ -331,14 +332,27 @@ def main() -> int:
     return 0
 
 
+def escape_data(value: object) -> str:
+    """The data of a GitHub Actions workflow command, escaped as GitHub does (escapeData):
+    a path holding a newline cannot end the command and start another one."""
+    return str(value).replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def one_line(value: object) -> str:
+    """Text printed on one line of the log or of the summary: a control character in a path, or in
+    a message the site answered, is replaced, so that nothing can start another line, hence another
+    workflow command, nor break a row of the summary table."""
+    return re.sub(r"[\x00-\x1f\x7f]", "?", str(value))
+
+
 def text_cell(value: object) -> str:
     """A Markdown table cell: a pipe would start another column."""
-    return str(value).replace("|", "\\|")
+    return one_line(value).replace("|", "\\|")
 
 
 def code_cell(value: object) -> str:
     """A path in a code span; a path holding a backtick is written as plain, escaped text."""
-    text = str(value)
+    text = one_line(value)
     if "`" not in text:
         return f"`{text_cell(text)}`"
     for character in ("\\", "`", "*", "_", "[", "]", "<", "|"):
