@@ -28,6 +28,7 @@ use Voltz\PortfolioMd\Rest\DocumentPresenter;
 use Voltz\PortfolioMd\Rest\RouteRegistrar;
 use Voltz\PortfolioMd\Service\ConflictResolver;
 use Voltz\PortfolioMd\Service\ContentImportService;
+use Voltz\PortfolioMd\Service\NullLanguageGateway;
 use Voltz\PortfolioMd\Service\ContentSyncService;
 use Voltz\PortfolioMd\Service\PreviewService;
 use Voltz\PortfolioMd\Service\SkillTermSynchronizer;
@@ -206,6 +207,7 @@ final class Plugin
             new WordPressSkillTermGateway(),
             new ConflictResolver(),
             new SystemClock(),
+            new NullLanguageGateway(), // the Polylang adapter takes this seat at lot 2 of ADR-020
         );
     }
 

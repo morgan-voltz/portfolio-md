@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Voltz\PortfolioMd\Domain\ContentSource;
 use Voltz\PortfolioMd\Domain\ContentType;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Parsing\ContentRenderer;
 use Voltz\PortfolioMd\Parsing\FrontmatterParser;
 use Voltz\PortfolioMd\Parsing\GutenbergTransformer;
@@ -87,8 +88,8 @@ final class ContentSyncServiceTest extends TestCase
     public function creates_the_documents_of_a_push_as_git_writes(): void
     {
         $report = $this->service->synchronize([
-            new SyncFile('projects/projet.md', self::project()),
-            new SyncFile('pages/a-propos.md', self::page()),
+            new SyncFile('fr/projects/projet.md', self::project()),
+            new SyncFile('fr/pages/a-propos.md', self::page()),
         ]);
 
         self::assertSame(['created', 'created'], self::statuses($report));
@@ -104,7 +105,7 @@ final class ContentSyncServiceTest extends TestCase
     #[Test]
     public function a_replayed_push_changes_nothing(): void
     {
-        $files = [new SyncFile('projects/projet.md', self::project()), new SyncFile('pages/a-propos.md', self::page())];
+        $files = [new SyncFile('fr/projects/projet.md', self::project()), new SyncFile('fr/pages/a-propos.md', self::page())];
         $this->service->synchronize($files);
 
         $report = $this->service->synchronize($files);
@@ -116,9 +117,9 @@ final class ContentSyncServiceTest extends TestCase
     #[Test]
     public function a_changed_document_updates_its_post(): void
     {
-        $first = $this->service->synchronize([new SyncFile('projects/projet.md', self::project())]);
+        $first = $this->service->synchronize([new SyncFile('fr/projects/projet.md', self::project())]);
 
-        $report = $this->service->synchronize([new SyncFile('projects/projet.md', self::project(body: 'Un autre corps.'))]);
+        $report = $this->service->synchronize([new SyncFile('fr/projects/projet.md', self::project(body: 'Un autre corps.'))]);
 
         self::assertSame(['updated'], self::statuses($report));
         self::assertSame($first->lines[0]->postId, $report->lines[0]->postId);
@@ -129,7 +130,7 @@ final class ContentSyncServiceTest extends TestCase
     {
         $this->import->import(self::project(), new ImportOptions(source: ContentSource::Admin));
 
-        $report = $this->service->synchronize([new SyncFile('projects/projet.md', self::project(body: 'Depuis Git.'))]);
+        $report = $this->service->synchronize([new SyncFile('fr/projects/projet.md', self::project(body: 'Depuis Git.'))]);
 
         self::assertSame(['conflict'], self::statuses($report));
         self::assertStringContainsString('last written from admin', $report->lines[0]->message);
@@ -142,12 +143,12 @@ final class ContentSyncServiceTest extends TestCase
     public function every_file_is_handled_on_its_own_and_in_order(): void
     {
         $report = $this->service->synchronize([
-            new SyncFile('projects/casse.md', "No frontmatter.\n"),
-            new SyncFile('projects/projet.md', self::project()),
+            new SyncFile('fr/projects/casse.md', "No frontmatter.\n"),
+            new SyncFile('fr/projects/projet.md', self::project()),
         ]);
 
         self::assertSame(['failed', 'created'], self::statuses($report));
-        self::assertSame(['projects/casse.md', 'projects/projet.md'], array_map(static fn (ContentSyncLine $l) => $l->path, $report->lines));
+        self::assertSame(['fr/projects/casse.md', 'fr/projects/projet.md'], array_map(static fn (ContentSyncLine $l) => $l->path, $report->lines));
         self::assertSame(ContentType::Project, $report->lines[0]->type);
         self::assertSame('casse', $report->lines[0]->slug);
         self::assertNotSame('', $report->lines[0]->message);
@@ -158,7 +159,7 @@ final class ContentSyncServiceTest extends TestCase
     #[Test]
     public function a_document_in_the_folder_of_another_kind_is_refused(): void
     {
-        $report = $this->service->synchronize([new SyncFile('pages/projet.md', self::project())]);
+        $report = $this->service->synchronize([new SyncFile('fr/pages/projet.md', self::project())]);
 
         self::assertSame(['failed'], self::statuses($report));
         self::assertStringContainsString('"pages/" folder', $report->lines[0]->message);
@@ -172,7 +173,7 @@ final class ContentSyncServiceTest extends TestCase
             new SyncFile('README.md', "# Content\n"),
             new SyncFile('projects/projet/capture.png', 'binary'),
             new SyncFile('images/logo.md', '---'),
-            new SyncFile('projects/notes.txt', 'notes'),
+            new SyncFile('fr/projects/notes.txt', 'notes'),
             new SyncFile('../wp-config.php', 'x'),
             new SyncFile('/etc/passwd', 'x'),
         ]);
@@ -193,11 +194,11 @@ final class ContentSyncServiceTest extends TestCase
         $grid = str_replace("            description: \"Décrire.\"\n    YAML", '', self::GRID) . "\n      - code: \"4.0.2/E02\"\n        slug: e02\n        name: \"Compétence e02\"\n        description: \"Décrire.\"\n";
 
         $report = $this->service->synchronize([
-            new SyncFile('projects/projet.md', self::project(skills: ['4.0.2/E02'])),
+            new SyncFile('fr/projects/projet.md', self::project(skills: ['4.0.2/E02'])),
             new SyncFile('skills.yaml', $grid),
         ]);
 
-        self::assertSame(['skills.yaml', 'projects/projet.md'], array_map(static fn (ContentSyncLine $l) => $l->path, $report->lines));
+        self::assertSame(['skills.yaml', 'fr/projects/projet.md'], array_map(static fn (ContentSyncLine $l) => $l->path, $report->lines));
         self::assertSame(['updated', 'created'], self::statuses($report));
         self::assertStringContainsString('1 created', $report->lines[0]->message);
         self::assertNotNull($this->skills->findByCode('4.0.2/E02'));
@@ -206,7 +207,7 @@ final class ContentSyncServiceTest extends TestCase
     #[Test]
     public function a_document_citing_a_code_that_neither_the_taxonomy_nor_the_push_knows_fails(): void
     {
-        $report = $this->service->synchronize([new SyncFile('projects/projet.md', self::project(skills: ['4.0.2/Z99']))]);
+        $report = $this->service->synchronize([new SyncFile('fr/projects/projet.md', self::project(skills: ['4.0.2/Z99']))]);
 
         self::assertSame(['failed'], self::statuses($report));
         self::assertStringContainsString('Unknown competency code(s): 4.0.2/Z99', $report->lines[0]->message);
@@ -227,7 +228,7 @@ final class ContentSyncServiceTest extends TestCase
     public function an_invalid_grid_fails_without_stopping_the_documents(): void
     {
         $report = $this->service->synchronize([
-            new SyncFile('pages/a-propos.md', self::page()),
+            new SyncFile('fr/pages/a-propos.md', self::page()),
             new SyncFile('skills.yaml', "referentials: []\n"),
             new SyncFile('content/skills.yaml', "- not: [a mapping\n"),
         ]);
@@ -250,11 +251,11 @@ final class ContentSyncServiceTest extends TestCase
     #[Test]
     public function a_deleted_document_that_git_wrote_is_moved_to_the_trash_once(): void
     {
-        $created = $this->service->synchronize([new SyncFile('projects/projet.md', self::project())]);
+        $created = $this->service->synchronize([new SyncFile('fr/projects/projet.md', self::project())]);
         $postId = $created->lines[0]->postId;
 
-        $report = $this->service->synchronize([new SyncFile('projects/projet.md', null, deleted: true)]);
-        $again = $this->service->synchronize([new SyncFile('projects/projet.md', null, deleted: true)]);
+        $report = $this->service->synchronize([new SyncFile('fr/projects/projet.md', null, deleted: true)]);
+        $again = $this->service->synchronize([new SyncFile('fr/projects/projet.md', null, deleted: true)]);
 
         self::assertSame(['deleted'], self::statuses($report));
         self::assertSame($postId, $report->lines[0]->postId);
@@ -270,7 +271,7 @@ final class ContentSyncServiceTest extends TestCase
     {
         $this->import->import(self::project(), new ImportOptions(source: ContentSource::Git, postStatus: 'draft'));
 
-        $report = $this->service->synchronize([new SyncFile('projects/projet.md', null, deleted: true)]);
+        $report = $this->service->synchronize([new SyncFile('fr/projects/projet.md', null, deleted: true)]);
 
         self::assertSame(['deleted'], self::statuses($report));
         self::assertSame([100], $this->repository->trashed);
@@ -279,7 +280,7 @@ final class ContentSyncServiceTest extends TestCase
     #[Test]
     public function a_deletion_that_the_store_refuses_is_a_failure_with_its_reason(): void
     {
-        $this->service->synchronize([new SyncFile('projects/projet.md', self::project())]);
+        $this->service->synchronize([new SyncFile('fr/projects/projet.md', self::project())]);
         $refusing = new class($this->repository) implements ContentRepository {
             public function __construct(private readonly InMemoryContentRepository $inner)
             {
@@ -295,6 +296,11 @@ final class ContentSyncServiceTest extends TestCase
                 return $this->inner->findById($type, $postId);
             }
 
+            public function findByKey(ContentType $type, string $translationKey): array
+            {
+                return $this->inner->findByKey($type, $translationKey);
+            }
+
             public function save(ContentRecord $record): int
             {
                 return $this->inner->save($record);
@@ -307,7 +313,7 @@ final class ContentSyncServiceTest extends TestCase
         };
         $service = new ContentSyncService($this->import, $refusing, new SkillTermSynchronizer($this->skills), new SkillsGridLoader());
 
-        $report = $service->synchronize([new SyncFile('projects/projet.md', null, deleted: true)]);
+        $report = $service->synchronize([new SyncFile('fr/projects/projet.md', null, deleted: true)]);
 
         self::assertSame(['failed'], self::statuses($report));
         self::assertSame('Cannot move post 100 to the trash: WordPress refused.', $report->lines[0]->message);
@@ -318,9 +324,9 @@ final class ContentSyncServiceTest extends TestCase
     #[Test]
     public function a_file_both_deleted_and_carrying_content_is_a_deletion(): void
     {
-        $this->service->synchronize([new SyncFile('projects/projet.md', self::project())]);
+        $this->service->synchronize([new SyncFile('fr/projects/projet.md', self::project())]);
 
-        $report = $this->service->synchronize([new SyncFile('projects/projet.md', self::project(body: 'Never written.'), deleted: true)]);
+        $report = $this->service->synchronize([new SyncFile('fr/projects/projet.md', self::project(body: 'Never written.'), deleted: true)]);
 
         self::assertSame(['deleted'], self::statuses($report));
         self::assertCount(1, $this->repository->saved);
@@ -332,11 +338,11 @@ final class ContentSyncServiceTest extends TestCase
     {
         // A diff never names a path twice; a hand-built batch may. The second entry finds the post the first
         // one just trashed, and the trash rule (§4.4) holds: a human restores or removes the post first.
-        $this->service->synchronize([new SyncFile('projects/projet.md', self::project())]);
+        $this->service->synchronize([new SyncFile('fr/projects/projet.md', self::project())]);
 
         $report = $this->service->synchronize([
-            new SyncFile('projects/projet.md', null, deleted: true),
-            new SyncFile('projects/projet.md', self::project(body: 'Back again.')),
+            new SyncFile('fr/projects/projet.md', null, deleted: true),
+            new SyncFile('fr/projects/projet.md', self::project(body: 'Back again.')),
         ]);
 
         self::assertSame(['deleted', 'failed'], self::statuses($report));
@@ -351,8 +357,8 @@ final class ContentSyncServiceTest extends TestCase
         $this->repository->seed(ContentType::Page, 'contact', new StoredContent(900, '', null, ''));
 
         $report = $this->service->synchronize([
-            new SyncFile('projects/projet.md', null, deleted: true),
-            new SyncFile('pages/contact.md', null, deleted: true),
+            new SyncFile('fr/projects/projet.md', null, deleted: true),
+            new SyncFile('fr/pages/contact.md', null, deleted: true),
         ]);
 
         self::assertSame(['conflict', 'conflict'], self::statuses($report));
@@ -365,7 +371,7 @@ final class ContentSyncServiceTest extends TestCase
     #[Test]
     public function a_deleted_document_without_post_is_skipped(): void
     {
-        $report = $this->service->synchronize([new SyncFile('articles/jamais-ecrit.md', null, deleted: true)]);
+        $report = $this->service->synchronize([new SyncFile('fr/articles/jamais-ecrit.md', null, deleted: true)]);
 
         self::assertSame(['skipped'], self::statuses($report));
         self::assertStringContainsString('nothing to retire', $report->lines[0]->message);
@@ -376,12 +382,12 @@ final class ContentSyncServiceTest extends TestCase
     #[Test]
     public function a_dry_run_decides_everything_and_writes_nothing(): void
     {
-        $this->service->synchronize([new SyncFile('projects/projet.md', self::project())]);
+        $this->service->synchronize([new SyncFile('fr/projects/projet.md', self::project())]);
         $saved = count($this->repository->saved);
 
         $report = $this->service->synchronize([
-            new SyncFile('pages/a-propos.md', self::page()),
-            new SyncFile('projects/projet.md', null, deleted: true),
+            new SyncFile('fr/pages/a-propos.md', self::page()),
+            new SyncFile('fr/projects/projet.md', null, deleted: true),
         ], dryRun: true);
 
         self::assertTrue($report->dryRun);
@@ -394,7 +400,7 @@ final class ContentSyncServiceTest extends TestCase
     #[Test]
     public function a_file_without_content_that_is_not_deleted_fails(): void
     {
-        $report = $this->service->synchronize([new SyncFile('projects/projet.md', null), new SyncFile('skills.yaml', null)]);
+        $report = $this->service->synchronize([new SyncFile('fr/projects/projet.md', null), new SyncFile('skills.yaml', null)]);
 
         self::assertSame(['failed', 'failed'], self::statuses($report));
         self::assertStringContainsString('no content', $report->lines[1]->message);
@@ -404,18 +410,18 @@ final class ContentSyncServiceTest extends TestCase
     public function a_leading_content_prefix_or_dot_slash_is_tolerated(): void
     {
         $report = $this->service->synchronize([
-            new SyncFile('content/projects/projet.md', self::project()),
-            new SyncFile('./pages/a-propos.md', self::page()),
+            new SyncFile('content/fr/projects/projet.md', self::project()),
+            new SyncFile('./fr/pages/a-propos.md', self::page()),
         ]);
 
         self::assertSame(['created', 'created'], self::statuses($report));
-        self::assertSame('content/projects/projet.md', $report->lines[0]->path);
+        self::assertSame('content/fr/projects/projet.md', $report->lines[0]->path);
     }
 
     #[Test]
     public function a_file_whose_name_is_not_a_slug_fails(): void
     {
-        $report = $this->service->synchronize([new SyncFile('projects/Mon Projet.md', self::project())]);
+        $report = $this->service->synchronize([new SyncFile('fr/projects/Mon Projet.md', self::project())]);
 
         self::assertSame(['failed'], self::statuses($report));
         self::assertStringContainsString('is not a slug', $report->lines[0]->message);
@@ -447,15 +453,143 @@ final class ContentSyncServiceTest extends TestCase
     /**
      * @param list<string> $skills
      */
-    private static function project(string $slug = 'projet', array $skills = ['4.0.2/E00'], string $body = 'Corps du projet.'): string
+    private static function project(string $slug = 'projet', array $skills = ['4.0.2/E00'], string $body = 'Corps du projet.', ?string $lang = null, ?string $key = null): string
     {
         $codes = implode(', ', array_map(static fn (string $code): string => "\"{$code}\"", $skills));
+        $language = ($lang === null ? '' : "lang: \"{$lang}\"\n") . ($key === null ? '' : "translation_key: \"{$key}\"\n");
 
-        return "---\ntitle: \"Projet\"\nslug: \"{$slug}\"\ntype: \"project\"\nstatus: \"en-cours\"\ntags: [php]\nskills: [{$codes}]\n---\n\n{$body}\n";
+        return "---\ntitle: \"Projet\"\nslug: \"{$slug}\"\ntype: \"project\"\n{$language}status: \"en-cours\"\ntags: [php]\nskills: [{$codes}]\n---\n\n{$body}\n";
     }
 
     private static function page(string $slug = 'a-propos'): string
     {
         return "---\ntitle: \"À propos\"\nslug: \"{$slug}\"\ntype: \"page\"\n---\n\nLe parcours.\n";
+    }
+
+    // ------------------------------------------------------------ languages (ADR-020, lot 1b)
+
+    #[Test]
+    public function a_path_of_the_former_layout_is_skipped_deletion_included(): void
+    {
+        $this->service->synchronize([new SyncFile('fr/projects/projet.md', self::project())]);
+
+        $report = $this->service->synchronize([
+            new SyncFile('projects/projet.md', self::project()),
+            new SyncFile('projects/projet.md', null, deleted: true),
+        ]);
+
+        self::assertSame(['skipped', 'skipped'], self::statuses($report));
+        self::assertStringContainsString('layout before the language folders', $report->lines[0]->message);
+        self::assertSame([], $this->repository->trashed, 'the post of the moved document stays');
+        self::assertCount(1, $this->repository->saved);
+    }
+
+    #[Test]
+    public function an_unknown_language_folder_is_skipped_and_a_wrong_one_fails(): void
+    {
+        $report = $this->service->synchronize([
+            new SyncFile('xx/projects/projet.md', self::project()),
+            new SyncFile('fr/projects/projet-de.md', self::project('projet-de', lang: 'de', key: 'projet')),
+            new SyncFile('fr/pages/projet.md', self::project()),
+        ]);
+
+        self::assertSame(['skipped', 'failed', 'failed'], self::statuses($report));
+        self::assertStringContainsString('"xx/" is not a language folder (fr, de, en)', $report->lines[0]->message);
+        self::assertStringContainsString('language folder', $report->lines[1]->message);
+        self::assertStringContainsString('"pages/" folder', $report->lines[2]->message);
+    }
+
+    #[Test]
+    public function a_german_document_is_imported_from_its_folder_and_only_its_post_is_retired(): void
+    {
+        $report = $this->service->synchronize([
+            new SyncFile('fr/projects/projet.md', self::project()),
+            new SyncFile('de/projects/projet-de.md', self::project('projet-de', lang: 'de', key: 'projet')),
+        ]);
+        self::assertSame(['created', 'created'], self::statuses($report));
+        self::assertSame(Language::De, $this->repository->findBySlug(ContentType::Project, 'projet-de')?->lang);
+
+        $report = $this->service->synchronize([
+            new SyncFile('fr/projects/projet-de.md', null, deleted: true),
+            new SyncFile('de/projects/projet-de.md', null, deleted: true),
+        ]);
+
+        self::assertSame(['skipped', 'deleted'], self::statuses($report));
+        self::assertStringContainsString('does not belong to a document in "fr"', $report->lines[0]->message);
+        self::assertSame([101], $this->repository->trashed);
+    }
+
+    #[Test]
+    public function the_migration_of_the_content_updates_the_post_and_never_trashes_it_whatever_the_order(): void
+    {
+        $this->service->synchronize([new SyncFile('fr/projects/projet.md', self::project())]);
+        $post = $this->repository->findBySlug(ContentType::Project, 'projet');
+        self::assertNotNull($post);
+
+        // A `git mv` reaches the door as a deletion of the old path and a creation of the new one, in either
+        // order, on a post rendered by the previous renderer (hence updated, with the same hash).
+        foreach ([['old', 'new'], ['new', 'old']] as $order) {
+            $this->repository->seed(ContentType::Project, 'projet', new StoredContent($post->id, $post->hash, ContentSource::Git, '1.1.0', lang: Language::Fr, translationKey: 'projet'));
+            $files = ['old' => new SyncFile('projects/projet.md', null, deleted: true), 'new' => new SyncFile('fr/projects/projet.md', self::project())];
+
+            $report = $this->service->synchronize([$files[$order[0]], $files[$order[1]]]);
+
+            self::assertSame($order[0] === 'old' ? ['skipped', 'updated'] : ['updated', 'skipped'], self::statuses($report), implode(' then ', $order));
+            self::assertSame([], $this->repository->trashed);
+            self::assertSame(ContentRenderer::VERSION, $this->repository->findBySlug(ContentType::Project, 'projet')?->renderVersion);
+        }
+    }
+
+    #[Test]
+    public function deleting_a_page_from_another_language_folder_retires_nothing(): void
+    {
+        $this->service->synchronize([new SyncFile('fr/pages/cv.md', self::page('cv'))]);
+
+        $report = $this->service->synchronize([new SyncFile('en/pages/cv.md', null, deleted: true)]);
+
+        self::assertSame(['skipped'], self::statuses($report));
+        self::assertStringContainsString('is in "fr", not in "en"', $report->lines[0]->message);
+        self::assertSame([], $this->repository->trashed, 'the French CV stays');
+
+        $report = $this->service->synchronize([new SyncFile('fr/pages/cv.md', null, deleted: true)]);
+        self::assertSame(['deleted'], self::statuses($report));
+    }
+
+    #[Test]
+    public function a_page_slug_that_looks_suffixed_is_retired_from_its_own_folder(): void
+    {
+        $this->service->synchronize([new SyncFile('fr/pages/ressources-de.md', self::page('ressources-de'))]);
+
+        $report = $this->service->synchronize([new SyncFile('fr/pages/ressources-de.md', null, deleted: true)]);
+
+        self::assertSame(['deleted'], self::statuses($report), 'pages carry no suffix: the slug rule does not apply to them');
+    }
+
+    #[Test]
+    public function a_post_without_stored_language_is_retired_on_the_strength_of_the_folder(): void
+    {
+        $this->repository->seed(ContentType::Project, 'ancien', new StoredContent(77, str_repeat('0', 64), ContentSource::Git, '1.1.0'));
+
+        $report = $this->service->synchronize([
+            new SyncFile('fr/projects/projet-en.md', null, deleted: true),
+            new SyncFile('fr/projects/ancien.md', null, deleted: true),
+        ]);
+
+        self::assertSame(['skipped', 'deleted'], self::statuses($report));
+        self::assertStringContainsString('does not belong to a document in "fr"', $report->lines[0]->message);
+        self::assertSame([77], $this->repository->trashed);
+    }
+
+    #[Test]
+    public function a_file_directly_under_a_language_folder_and_a_file_below_a_document_are_skipped_with_the_reason(): void
+    {
+        $report = $this->service->synchronize([
+            new SyncFile('fr/README.md', '# notes'),
+            new SyncFile('fr/projects/projet/capture.png', 'binary'),
+        ]);
+
+        self::assertSame(['skipped', 'skipped'], self::statuses($report));
+        self::assertStringContainsString('directly under the "fr/" language folder', $report->lines[0]->message);
+        self::assertStringContainsString('nested below a document folder', $report->lines[1]->message);
     }
 }

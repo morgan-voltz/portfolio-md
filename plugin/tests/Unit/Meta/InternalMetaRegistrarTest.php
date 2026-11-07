@@ -21,6 +21,8 @@ final class InternalMetaRegistrarTest extends TestCase
         InternalMetaRegistrar::SOURCE_TYPE,
         InternalMetaRegistrar::LAST_SYNC_AT,
         InternalMetaRegistrar::RENDER_VERSION,
+        InternalMetaRegistrar::LANG,
+        InternalMetaRegistrar::TRANSLATION_KEY,
     ];
 
     protected function setUp(): void
@@ -30,7 +32,7 @@ final class InternalMetaRegistrarTest extends TestCase
     }
 
     #[Test]
-    public function registers_the_five_internal_metas_on_articles_projects_and_pages(): void
+    public function registers_the_seven_internal_metas_on_articles_projects_and_pages(): void
     {
         self::assertSame(self::EXPECTED_KEYS, WordPressSpy::postMetaKeys('article'));
         self::assertSame(self::EXPECTED_KEYS, WordPressSpy::postMetaKeys('project'));
@@ -65,6 +67,26 @@ final class InternalMetaRegistrarTest extends TestCase
         yield 'source type' => [InternalMetaRegistrar::SOURCE_TYPE, 'sanitizeSourceType'];
         yield 'last sync at' => [InternalMetaRegistrar::LAST_SYNC_AT, 'sanitizeLastSyncAt'];
         yield 'render version' => [InternalMetaRegistrar::RENDER_VERSION, 'sanitizeRenderVersion'];
+        yield 'language' => [InternalMetaRegistrar::LANG, 'sanitizeLang'];
+        yield 'translation key' => [InternalMetaRegistrar::TRANSLATION_KEY, 'sanitizeTranslationKey'];
+    }
+
+    #[Test]
+    public function lang_accepts_exactly_the_three_languages(): void
+    {
+        self::assertSame('de', InternalMetaRegistrar::sanitizeLang('de'));
+        self::assertSame('fr', InternalMetaRegistrar::sanitizeLang(' fr '));
+        self::assertSame('', InternalMetaRegistrar::sanitizeLang('xx'));
+        self::assertSame('', InternalMetaRegistrar::sanitizeLang(42));
+    }
+
+    #[Test]
+    public function translation_key_is_a_slug_or_nothing(): void
+    {
+        self::assertSame('mon-projet', InternalMetaRegistrar::sanitizeTranslationKey('mon-projet'));
+        self::assertSame('', InternalMetaRegistrar::sanitizeTranslationKey('Mon Projet'));
+        self::assertSame('', InternalMetaRegistrar::sanitizeTranslationKey(str_repeat('a', 201)));
+        self::assertSame('', InternalMetaRegistrar::sanitizeTranslationKey(null));
     }
 
     #[Test]

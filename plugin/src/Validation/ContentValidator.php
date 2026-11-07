@@ -463,7 +463,7 @@ final class ContentValidator
                     continue; // absolute or external: not a document link
                 }
                 if (!str_starts_with($target, '../')) {
-                    $found[] = "lien relatif non réécrit par le rendu : {$target} (écrire ../<dossier>/<slug>.md)";
+                    $found[] = "lien relatif non réécrit par le rendu : {$target} (écrire ../<dossier>/<slug>.md ou ../../<lang>/<dossier>/<slug>.md)";
                     continue;
                 }
                 $resolved = realpath(dirname($file) . '/' . $target);

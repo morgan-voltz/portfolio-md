@@ -112,7 +112,7 @@ Les **projets**, en revanche, n'ont pas d'équivalent natif et nécessitent obli
 
 ### 3.4. Pages standards
 
-Les pages `À propos` et `CV` (`content/pages/`) utilisent le type natif `page` de WordPress et passent par le pipeline Markdown comme les articles et les projets (ADR-017, 27 octobre 2026) : `wp portfolio import /srv/portfolio-content/pages`, la page de collage ou la boîte « Document Markdown ». Une page importée porte la description SEO (section 5.1) et les cinq champs internes (section 5.3), aucun terme (les taxonomies du plugin ne sont pas rattachées au type `page`) et aucun autre champ. Sur le site, elle vit à la racine (`/a-propos/`, `/cv/`), sans parent ni modèle choisis dans l'admin (la boîte d'attributs est retirée de son écran, et le dépôt remet `post_parent` à zéro à chaque écriture), et les liens qu'elle fait vers des fiches (`../projects/<slug>.md`) sont réécrits en liens du site au rendu (`/projets/<slug>/`, `01-plugin-php.md` §4.2).
+Les pages `À propos` et `CV` (`content/<lang>/pages/`) utilisent le type natif `page` de WordPress et passent par le pipeline Markdown comme les articles et les projets (ADR-017, 27 octobre 2026) : `wp portfolio import /srv/portfolio-content/fr/pages`, la page de collage ou la boîte « Document Markdown ». Une page importée porte la description SEO (section 5.1) et les sept champs internes (section 5.3), aucun terme (les taxonomies du plugin ne sont pas rattachées au type `page`) et aucun autre champ. Sur le site, elle vit à la racine (`/a-propos/`, `/cv/`), sans parent ni modèle choisis dans l'admin (la boîte d'attributs est retirée de son écran, et le dépôt remet `post_parent` à zéro à chaque écriture), et les liens qu'elle fait vers des fiches (`../projects/<slug>.md`) sont réécrits en liens du site au rendu (`/fr/projets/<slug>/`, `01-plugin-php.md` §4.2).
 
 La boîte « Document Markdown » et l'écran épuré ne s'appliquent qu'à une page qui porte un document (sa marque : le hash interne écrit par le pipeline). Une page faite à la main dans l'éditeur de blocs, Contact par exemple, reste une page ordinaire, et « Ajouter une page » ouvre toujours l'éditeur de blocs : une page nouvelle en Markdown entre par le collage ou la commande. Dans la liste des pages, les deux sortes cohabitent ; seules les pages documentées perdent Quick Edit, et Bulk Edit reste à toutes. Une page documentée est aussi servie par l'API du plugin (`/wp-json/portfolio/v1/pages/<slug>`, `01-plugin-php.md` §7.1) ; une page faite à la main ne l'est pas, elle n'a pas de Markdown à servir (ADR-018).
 
@@ -215,7 +215,7 @@ Enfin, **expressivité du nom**. `tech_tag` dit clairement de quoi on parle, ce 
 
 WordPress permet d'attacher à n'importe quel post des paires clé-valeur arbitraires (les *post meta*). On les utilise pour stocker tout ce qui ne rentre dans aucun champ natif.
 
-> **État de l'implémentation** : les dix-sept champs décrits ci-dessous sont enregistrés par trois classes du dossier `plugin/src/Meta/` : `CommonMetaRegistrar` (§5.1), `ProjectMetaRegistrar` (§5.2) et `InternalMetaRegistrar` (§5.3), accrochées au hook `init` par la composition root. Les règles de sanitization sont des fonctions pures regroupées dans `Meta\Sanitizer` (§5.6). Le remplissage de ces champs depuis le frontmatter YAML sera le rôle du pipeline de conversion Markdown (voir `01-plugin-php.md` section 4), pas encore implémenté. Décision associée : ADR-013.
+> **État de l'implémentation** : les dix-neuf champs décrits ci-dessous sont enregistrés par trois classes du dossier `plugin/src/Meta/` : `CommonMetaRegistrar` (§5.1), `ProjectMetaRegistrar` (§5.2) et `InternalMetaRegistrar` (§5.3), accrochées au hook `init` par la composition root. Les règles de sanitization sont des fonctions pures regroupées dans `Meta\Sanitizer` (§5.6). Le remplissage de ces champs depuis le frontmatter YAML sera le rôle du pipeline de conversion Markdown (voir `01-plugin-php.md` section 4), pas encore implémenté. Décision associée : ADR-013.
 
 **Convention commune (ADR-013).** Toutes les clés sont préfixées `_portfolio_`. Pour WordPress, une clé qui commence par un underscore est *protégée* : elle est cachée de la boîte « Champs personnalisés » de l'admin et, par défaut, **interdite en écriture via l'API REST et Gutenberg pour tout le monde** (`auth_callback` vaut `__return_false`). Les champs publics déclarent donc explicitement `auth_callback => [MetaRegistration::class, 'authorizeEditPost']` : quiconque peut éditer le post peut éditer ses champs. Les champs internes gardent le verrou par défaut et ne sont pas exposés en REST.
 
@@ -262,6 +262,8 @@ Enregistrés sur `article`, `project` et le type natif `page` (`MetaRegistration
 | `_portfolio_source_type` | string | `admin` / `git` / `paste`, provenance de la dernière édition (valeurs de l'enum `Domain\ContentSource`, ADR-005) |
 | `_portfolio_last_sync_at` | string | Dernière synchro réussie, ISO 8601 **normalisé en UTC** (`2026-10-26T07:00:00Z`) |
 | `_portfolio_render_version` | string | Version du renderer (`MAJEUR.MINEUR.CORRECTIF`), pour invalider le HTML dérivé |
+| `_portfolio_lang` | string | `fr` / `de` / `en`, langue du document (valeurs de l'enum `Domain\Language`, ADR-020) ; le plugin la pousse chez Polylang, ne la lit jamais chez lui |
+| `_portfolio_translation_key` | string | Slug du document français du groupe de traductions (un slug, 200 caractères au plus) ; `ContentRepository::findByKey()` retrouve les posts d'une clé |
 
 ### 5.4. Champs explicitement écartés et pourquoi
 
@@ -297,12 +299,13 @@ WordPress confie au plugin le nettoyage des valeurs avant stockage (`sanitize_ca
 | `rawString` | md_source | Verbatim : aucune transformation |
 | `boolean` | featured, is_fil_rouge | `true`/`false`, `1`/`0` (nombre ou texte), `yes`/`no`, `on`/`off` ; tout le reste, `2` compris, → `false` |
 | `boundedInt` | reading_time (0 à 240) | Entier dans l'intervalle, sinon `0` |
-| `oneOf` | project_status (slugs de `project_status`), source_type (`ContentSource`) | Valeur exacte après trim, sinon `''` |
+| `oneOf` | project_status (slugs de `project_status`), source_type (`ContentSource`), lang (`Language`) | Valeur exacte après trim, sinon `''` |
 | `url` | repo_url, demo_url | `esc_url_raw` restreint à `http`/`https`, puis vérification du schéma du résultat (WordPress laisse passer tel quel ce qui commence par `/`) : `javascript:`, `ftp:`, `mailto:`, `//hote`, `/chemin` → `''` ; un hôte nu reçoit `http://` |
 | `isoDate` | period_start, period_end | `YYYY-MM-DD` et jour calendaire réel (`2026-02-30` → `''`) |
 | `isoDateTimeUtc` | last_sync_at | Date-heure ISO 8601 avec fuseau (`Z`, `-00:00` ou décalage), renvoyée normalisée en UTC `…Z` |
 | `sha256Hex` | md_hash | 64 caractères hexadécimaux, minuscules |
 | `semver` | render_version | `MAJEUR.MINEUR.CORRECTIF` strict |
+| *(registrar)* | translation_key | Slug du plugin (`Patterns::SLUG`, 200 caractères au plus) après trim, sinon `''` |
 
 Ces règles sont vérifiées par la suite PHPUnit (sans WordPress) et par un test de fumée joué dans le vrai WordPress via WP-CLI (`plugin/tests/Integration/wp-cli/meta-smoke.php`).
 
@@ -351,7 +354,7 @@ WordPress
 ├── Types de contenu
 │   ├── article (custom post type) ......... PostTypeRegistrar::registerArticle
 │   ├── project (custom post type) ......... PostTypeRegistrar::registerProject
-│   └── page (natif : À propos et CV importées de content/pages, Contact à la main)
+│   └── page (natif : À propos et CV importées de content/<lang>/pages, Contact à la main)
 │
 ├── Taxonomies
 │   ├── tech_tag (sur article + project) ... TaxonomyRegistrar::registerTechTag
@@ -366,8 +369,8 @@ WordPress
 │   │   └── seo_description, featured, reading_time, subtitle
 │   ├── projet (8, project) ................ Meta/ProjectMetaRegistrar
 │   │   └── project_status, role, period_start/end, repo_url, demo_url, client, is_fil_rouge
-│   └── internes (5, article + project + page) ... Meta/InternalMetaRegistrar
-│       └── md_source, md_hash, source_type, last_sync_at, render_version
+│   └── internes (7, article + project + page) ... Meta/InternalMetaRegistrar
+│       └── md_source, md_hash, source_type, last_sync_at, render_version, lang, translation_key
 │
 ├── Rôles
 │   └── administrator (Morgan) + visiteur anonyme
@@ -440,5 +443,11 @@ WordPress
 **2026-10-27 (pages)**
 
 - Les pages `À propos` et `CV` entrent dans le pipeline (section 3.4, ADR-017) : les cinq champs internes et `seo_description` sont enregistrés aussi sur le type natif `page` ; la boîte « Document Markdown » et l'écran épuré s'appliquent à une page seulement quand elle porte un document. Les liens entre documents (`../projects/<slug>.md`) sont réécrits en liens du site au rendu (`ContentRenderer` 1.1.0).
+
+**2026-11-07 (langue, ADR-020 lots 1a et 1b)**
+
+- Deux champs internes de plus, `_portfolio_lang` et `_portfolio_translation_key` (section 5.3) : dix-neuf champs au total. Le plugin reste maître de la langue ; Polylang la recevra par la passerelle de langue au lot 2.
+- Les liens entre documents sont préfixés de la langue du document (`/fr/projets/<slug>/`, `ContentRenderer` 1.2.0).
+- Le modèle de contenu ne change pas autrement : un post par langue, slugs suffixés `-de` / `-en` pour les fiches et les articles, slugs naturels pour les pages (ADR-020).
 
 ---

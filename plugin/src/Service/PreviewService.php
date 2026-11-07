@@ -52,7 +52,7 @@ final class PreviewService
 
         $html = null;
         try {
-            $html = $this->renderer->render($document->body);
+            $html = $this->renderer->render($document->body, $frontmatter->lang);
         } catch (RuntimeException $failure) {
             $problems[] = 'The body could not be rendered: ' . $failure->getMessage();
         }

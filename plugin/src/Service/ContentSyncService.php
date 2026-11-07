@@ -9,6 +9,7 @@ use Voltz\PortfolioMd\Domain\ContentSource;
 use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
 use Voltz\PortfolioMd\Domain\InvalidSkillsGridException;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Domain\Patterns;
 use Voltz\PortfolioMd\Parsing\MalformedDocumentException;
 use Voltz\PortfolioMd\Parsing\SkillsGridLoader;
@@ -29,9 +30,15 @@ use Voltz\PortfolioMd\Parsing\SkillsGridLoader;
  * restore it). Anything else in the batch (the README, an image, a file in
  * an unknown folder) is not a document and is skipped, not refused.
  *
- * Paths are relative to `content/` (`projects/<slug>.md`, `skills.yaml`);
- * a leading `content/` is tolerated, since a diff taken at the root of the
- * repository prints it.
+ * Paths are relative to `content/` and laid out by language (ADR-020):
+ * `<lang>/<folder>/<slug>.md`, `skills.yaml` at the root; a leading
+ * `content/` is tolerated, since a diff taken at the root of the repository
+ * prints it. The language folder says the language the document must
+ * declare. A path of the former two-level layout, `<folder>/<slug>.md`, is
+ * skipped, deletion included: when the content moves to its language
+ * folders, the push shows sixteen deletions of the old paths and sixteen
+ * creations of the new ones, and the deletions must not trash the posts
+ * the creations are about to update.
  */
 final class ContentSyncService
 {
@@ -104,13 +111,31 @@ final class ContentSyncService
         if ($segments === null) {
             return ContentSyncLine::skipped($file->path, 'the path leaves the content repository');
         }
-        if (count($segments) !== 2) {
-            return ContentSyncLine::skipped($file->path, count($segments) < 2
-                ? 'a file at the root of content/ is not a document'
-                : 'a file nested below a document folder is not a document (an image, for instance)');
+        $depth = count($segments);
+        if ($depth === 1) {
+            return ContentSyncLine::skipped($file->path, 'a file at the root of content/ is not a document');
+        }
+        if ($depth === 2) {
+            [$folder] = $segments;
+            if (ContentType::fromFolder($folder) !== null) {
+                return ContentSyncLine::skipped($file->path, "the file sits in the layout before the language folders (ADR-020): it is left alone until it moves to content/<lang>/{$folder}/");
+            }
+
+            return ContentSyncLine::skipped($file->path, Language::tryFrom($folder) !== null
+                ? "a file directly under the \"{$folder}/\" language folder is not a document: documents live in {$folder}/articles, {$folder}/projects or {$folder}/pages"
+                : "\"{$folder}/\" is not a folder of documents (articles, projects, pages)");
+        }
+        if ($depth > 3) {
+            return ContentSyncLine::skipped($file->path, 'a file nested below a document folder is not a document (an image, for instance)');
         }
 
-        [$folder, $name] = $segments;
+        [$languageFolder, $folder, $name] = $segments;
+        $lang = Language::tryFrom($languageFolder);
+        if ($lang === null) {
+            return ContentSyncLine::skipped($file->path, ContentType::fromFolder($languageFolder) !== null
+                ? 'a file nested below a document folder is not a document (an image, for instance)'
+                : "\"{$languageFolder}/\" is not a language folder (" . implode(', ', Language::values()) . ')');
+        }
         $type = ContentType::fromFolder($folder);
         if ($type === null) {
             return ContentSyncLine::skipped($file->path, "\"{$folder}/\" is not a folder of documents (articles, projects, pages)");
@@ -125,14 +150,14 @@ final class ContentSyncService
         }
 
         if ($file->deleted) {
-            return $this->retire($file->path, $type, $slug, $dryRun);
+            return $this->retire($file->path, $type, $slug, $lang, $dryRun);
         }
         if ($file->content === null) {
             return ContentSyncLine::failed($file->path, 'no content was given for a file that is not deleted', $type, $slug);
         }
 
         try {
-            $result = $this->import->import($file->content, new ImportOptions(source: ContentSource::Git, dryRun: $dryRun), $slug, null, $type);
+            $result = $this->import->import($file->content, new ImportOptions(source: ContentSource::Git, dryRun: $dryRun), $slug, null, $type, $lang);
         } catch (MalformedDocumentException | InvalidFrontmatterException | ImportException | RuntimeException $exception) {
             return ContentSyncLine::failed($file->path, $exception->getMessage(), $type, $slug);
         }
@@ -146,12 +171,30 @@ final class ContentSyncService
      * admin or a paste, or made by hand, is a human's and is left alone,
      * which the line says. Idempotent: a post already in the trash is
      * unchanged, and a slug without post has nothing to retire.
+     *
+     * The language folder of the deleted path must own the post, twice over.
+     * A slug whose suffix says another language is skipped before any
+     * lookup: deleting `fr/projects/momocad-de.md` must not retire the
+     * German post (the only place where the import side applies the suffix
+     * rule; the validator applies it to the files). A post that stores
+     * another language is skipped too, which covers the pages, whose slugs
+     * carry no suffix: a stray `en/pages/cv.md` must not retire the French
+     * `cv`. A post written before languages stores none and is retired on
+     * the strength of the folder alone. Retiring does not untie the group:
+     * the Polylang bridge of lot 2 reconciles the translations.
      */
-    private function retire(string $path, ContentType $type, string $slug, bool $dryRun): ContentSyncLine
+    private function retire(string $path, ContentType $type, string $slug, Language $lang, bool $dryRun): ContentSyncLine
     {
+        if ($type->suffixesSlugs() && !$lang->acceptsSlug($slug)) {
+            return ContentSyncLine::skipped($path, "the slug does not belong to a document in \"{$lang->value}\": nothing to retire", $type, $slug);
+        }
+
         $existing = $this->repository->findBySlug($type, $slug);
         if ($existing === null) {
             return ContentSyncLine::skipped($path, 'no post carries this slug: nothing to retire', $type, $slug);
+        }
+        if ($existing->lang !== null && $existing->lang !== $lang) {
+            return ContentSyncLine::skipped($path, "the post carrying this slug is in \"{$existing->lang->value}\", not in \"{$lang->value}\": nothing to retire", $type, $slug);
         }
         if ($existing->inTrash) {
             return new ContentSyncLine($path, ContentSyncStatus::Unchanged, $type, $slug, $existing->id, 'already in the trash');

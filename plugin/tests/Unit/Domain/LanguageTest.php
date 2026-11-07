@@ -57,6 +57,8 @@ final class LanguageTest extends TestCase
         yield 'fr, hyphenated slug that is not a suffix' => [Language::Fr, 'carbon-fr', true];
         yield 'fr, german suffix' => [Language::Fr, 'atlas-de', false];
         yield 'fr, english suffix' => [Language::Fr, 'atlas-en', false];
+        yield 'fr, -den is not the german suffix' => [Language::Fr, 'atlas-den', true];
+        yield 'de, -den is not the german suffix' => [Language::De, 'atlas-den', false];
         yield 'de, german suffix' => [Language::De, 'atlas-de', true];
         yield 'de, bare slug' => [Language::De, 'atlas', false];
         yield 'de, english suffix' => [Language::De, 'atlas-en', false];

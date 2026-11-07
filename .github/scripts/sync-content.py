@@ -38,6 +38,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -46,6 +47,7 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 CONTENT_ROOT = Path("content")
+LANGUAGES = ("fr", "de", "en")  # the cases of the plugin's Domain\Language (ADR-020)
 DOCUMENT_FOLDERS = ("articles", "projects", "pages")
 GRID = "skills.yaml"
 ROUTE = "/wp-json/portfolio/v1/sync"
@@ -56,11 +58,28 @@ DEFAULT_BATCH_BYTES = 4_000_000  # half of PHP's default post_max_size (8M on th
 
 
 def is_document(relative: str) -> bool:
-    """Whether a path relative to content/ is one the plugin knows."""
+    """Whether a path relative to content/ is one the plugin knows: the grid, or <lang>/<folder>/<slug>.md (ADR-020)."""
     parts = relative.split("/")
     if parts == [GRID]:
         return True
-    return len(parts) == 2 and parts[0] in DOCUMENT_FOLDERS and parts[1].endswith(".md")
+    return len(parts) == 3 and parts[0] in LANGUAGES and parts[1] in DOCUMENT_FOLDERS and parts[2].endswith(".md")
+
+
+def legacy_documents(paths: Iterable[str]) -> list[str]:
+    """The paths, as given, that are Markdown documents of the former layout, content/<folder>/<slug>.md.
+
+    The plugin skips them since ADR-020 (a document lives in content/<lang>/<folder>/), so a push that
+    touches them synchronizes nothing: worth a warning, not a failure.
+    """
+    found: list[str] = []
+    for path in paths:
+        relative = relative_to_content(path)
+        if relative is None:
+            continue
+        parts = relative.split("/")
+        if len(parts) == 2 and parts[0] in DOCUMENT_FOLDERS and parts[1].endswith(".md"):
+            found.append(path)
+    return found
 
 
 def relative_to_content(path: str) -> str | None:
@@ -132,12 +151,20 @@ def files_from_tree(repo: Path) -> tuple[list[dict], list[str]]:
         entry = read_document(grid, GRID, problems)
         if entry is not None:
             files.append(entry)
-    for folder in DOCUMENT_FOLDERS:
-        for path in sorted((root / folder).glob("*.md")):
-            entry = read_document(path, f"{folder}/{path.name}", problems)
-            if entry is not None:
-                files.append(entry)
+    for lang in LANGUAGES:
+        for folder in DOCUMENT_FOLDERS:
+            for path in sorted((root / lang / folder).glob("*.md")):
+                entry = read_document(path, f"{lang}/{folder}/{path.name}", problems)
+                if entry is not None:
+                    files.append(entry)
     return files, problems
+
+
+def legacy_documents_of_tree(repo: Path) -> list[str]:
+    """Every Markdown document still at content/<folder>/<slug>.md, as repository paths."""
+    root = repo / CONTENT_ROOT
+    paths = (str(path.relative_to(repo)) for folder in DOCUMENT_FOLDERS for path in sorted((root / folder).glob("*.md")))
+    return legacy_documents(paths)
 
 
 def read_document(path: Path, relative: str, problems: list[str]) -> dict | None:
@@ -249,16 +276,21 @@ def main() -> int:
     repo = Path(args.repo)
     if args.all:
         files, problems = files_from_tree(repo)
+        legacy = legacy_documents_of_tree(repo)
     else:
         data = sys.stdin.buffer.read() if args.name_status == "-" else Path(args.name_status).read_bytes()
         entries, problems = parse_name_status(data)
         files, more = files_from_name_status(entries, repo)
         problems += more
+        legacy = legacy_documents(path for _, path in entries)
 
     for problem in problems:
-        print(f"WARN   {problem}")
+        print(one_line(f"WARN   {problem}"))
+    for path in legacy:
+        # A GitHub Actions warning annotation: visible in the run, never a failure.
+        print(f"::warning::{escape_data(path)} is still laid out as content/<folder>/<slug>.md, the layout before the language folders (ADR-020): the plugin skips it until it moves to content/<lang>/<folder>/")
     if not files:
-        print("Nothing to synchronize: no document of content/ changed.")
+        print("Nothing to synchronize: only documents of the former layout changed; move them to content/<lang>/<folder>/." if legacy else "Nothing to synchronize: no document of content/ changed.")
         return 1 if problems else 0
 
     url = args.url.rstrip("/") + ROUTE
@@ -277,7 +309,7 @@ def main() -> int:
                 target = "/".join(part for part in (row.get("type"), row.get("slug")) if part)
                 post_id = f" (post {row['post_id']})" if row.get("post_id") else ""
                 message = f": {row['message']}" if row.get("message") else ""
-                print(f"{str(row.get('status', '?')).upper():<10} {row.get('path')}  {target}{post_id}{message}")
+                print(one_line(f"{str(row.get('status', '?')).upper():<10} {row.get('path')}  {target}{post_id}{message}"))
             if status != 200:
                 failed_batches += 1
         else:
@@ -300,14 +332,27 @@ def main() -> int:
     return 0
 
 
+def escape_data(value: object) -> str:
+    """The data of a GitHub Actions workflow command, escaped as GitHub does (escapeData):
+    a path holding a newline cannot end the command and start another one."""
+    return str(value).replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def one_line(value: object) -> str:
+    """Text printed on one line of the log or of the summary: a control character in a path, or in
+    a message the site answered, is replaced, so that nothing can start another line, hence another
+    workflow command, nor break a row of the summary table."""
+    return re.sub(r"[\x00-\x1f\x7f]", "?", str(value))
+
+
 def text_cell(value: object) -> str:
     """A Markdown table cell: a pipe would start another column."""
-    return str(value).replace("|", "\\|")
+    return one_line(value).replace("|", "\\|")
 
 
 def code_cell(value: object) -> str:
     """A path in a code span; a path holding a backtick is written as plain, escaped text."""
-    text = str(value)
+    text = one_line(value)
     if "`" not in text:
         return f"`{text_cell(text)}`"
     for character in ("\\", "`", "*", "_", "[", "]", "<", "|"):

@@ -148,4 +148,14 @@ MD;
         self::assertNull($result->html);
         self::assertCount(1, $result->problems);
     }
+
+    #[Test]
+    public function the_preview_renders_the_links_in_the_language_of_the_document(): void
+    {
+        $german = "---\ntitle: \"Projekt\"\nslug: \"projet-de\"\ntype: \"project\"\nlang: \"de\"\ntranslation_key: \"projet\"\nstatus: \"en-cours\"\n---\n\nSiehe [Vefta](../projects/vefta-de.md).\n";
+
+        $result = $this->service->preview($german);
+
+        self::assertStringContainsString('href="/de/projets/vefta-de/"', (string) $result->html);
+    }
 }

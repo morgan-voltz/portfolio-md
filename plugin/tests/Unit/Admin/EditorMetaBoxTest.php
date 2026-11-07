@@ -347,6 +347,11 @@ final class EditorMetaBoxTest extends TestCase
                 return new StoredContent($postId, '', null, '');
             }
 
+            public function findByKey(ContentType $type, string $translationKey): array
+            {
+                return [];
+            }
+
             public function save(ContentRecord $record): int
             {
                 $this->saves++;
