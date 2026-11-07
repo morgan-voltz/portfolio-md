@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Voltz\PortfolioMd\Admin;
 
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
 use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
 use WP_Post;
@@ -29,6 +30,29 @@ final class MarkdownPosts
         $hash = get_post_meta($postId, InternalMetaRegistrar::MD_HASH, true);
 
         return is_string($hash) && $hash !== '';
+    }
+
+    /**
+     * The language the plugin stored for this post (ADR-020), or null for a
+     * post made by hand or not imported since the plugin stores languages.
+     */
+    public static function storedLanguage(int $postId): ?Language
+    {
+        $lang = get_post_meta($postId, InternalMetaRegistrar::LANG, true);
+
+        return is_string($lang) ? Language::tryFrom($lang) : null;
+    }
+
+    /**
+     * Whether this post is a translation: a stored language that is not the
+     * site's. Git is the only writer of translations (ADR-020), so the box
+     * shows such a document without letting anyone save it.
+     */
+    public static function isTranslation(int $postId): bool
+    {
+        $lang = self::storedLanguage($postId);
+
+        return $lang !== null && !$lang->isDefault();
     }
 
     /** Whether the Markdown box, and not the block editor, edits this post. */

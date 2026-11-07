@@ -118,6 +118,48 @@ final class EditorMetaBoxTest extends TestCase
     }
 
     #[Test]
+    public function shows_a_translation_read_only_without_nonce_and_says_why(): void
+    {
+        WordPressSpy::$postMetaValues[self::POST_ID][InternalMetaRegistrar::MD_SOURCE] = self::DOCUMENT;
+        WordPressSpy::$postMetaValues[self::POST_ID][InternalMetaRegistrar::LANG] = 'de';
+
+        $html = $this->render(self::post());
+
+        self::assertStringContainsString(' readonly data-portfolio-md-editor="1">', $html);
+        self::assertStringNotContainsString('portfolio_md_nonce', $html);
+        self::assertStringContainsString('notice-info', $html);
+        self::assertStringContainsString('traduction (allemand)', $html);
+        self::assertStringContainsString('content/de/', $html);
+        self::assertStringContainsString(">\n" . htmlspecialchars(self::DOCUMENT, ENT_QUOTES, 'UTF-8') . '</textarea>', $html, 'the document is still shown');
+    }
+
+    #[Test]
+    public function a_french_document_and_a_post_without_stored_language_stay_editable(): void
+    {
+        WordPressSpy::$postMetaValues[self::POST_ID][InternalMetaRegistrar::LANG] = 'fr';
+        $french = $this->render(self::post());
+        unset(WordPressSpy::$postMetaValues[self::POST_ID][InternalMetaRegistrar::LANG]);
+        $none = $this->render(self::post());
+
+        foreach ([$french, $none] as $html) {
+            self::assertStringNotContainsString(' readonly', $html);
+            self::assertStringContainsString('portfolio_md_nonce', $html);
+            self::assertStringNotContainsString('notice-info', $html);
+        }
+    }
+
+    #[Test]
+    public function a_save_on_a_translation_writes_nothing(): void
+    {
+        WordPressSpy::$postMetaValues[self::POST_ID][InternalMetaRegistrar::LANG] = 'en';
+        $this->submit(self::DOCUMENT);
+
+        $this->box->save(self::POST_ID, self::post());
+
+        self::assertSame([], $this->repository->saved);
+    }
+
+    #[Test]
     public function offers_a_template_of_the_right_type_to_a_post_without_document(): void
     {
         $project = $this->render(self::post(type: 'project'));

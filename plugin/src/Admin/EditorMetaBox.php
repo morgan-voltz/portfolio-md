@@ -8,6 +8,7 @@ use RuntimeException;
 use Throwable;
 use Voltz\PortfolioMd\Domain\ContentSource;
 use Voltz\PortfolioMd\Domain\ContentType;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
 use Voltz\PortfolioMd\Meta\MetaRegistration;
@@ -87,8 +88,20 @@ final class EditorMetaBox
         $feedback = $this->takeFeedback($post->ID);
         $stored = get_post_meta($post->ID, InternalMetaRegistrar::MD_SOURCE, true);
         $text = $feedback['markdown'] ?? (is_string($stored) && $stored !== '' ? $stored : self::template($post));
+        $translation = MarkdownPosts::storedLanguage($post->ID);
+        $readOnly = $translation !== null && !$translation->isDefault();
 
-        wp_nonce_field(self::NONCE_ACTION . $post->ID, self::NONCE_FIELD);
+        if ($readOnly) {
+            // Git is the only writer of translations (ADR-020): no nonce, so a submitted form carries nothing we accept.
+            echo '<div class="notice notice-info inline"><p>' . esc_html(sprintf(
+                /* translators: 1: the language in French (allemand, anglais), 2: the language code (de, en) */
+                __('Ce document est une traduction (%1$s) : Git est le seul à écrire les traductions. Modifiez le fichier dans content/%2$s/ du dépôt, puis synchronisez ; ici il est en lecture seule.', 'portfolio-md'),
+                self::languageName($translation),
+                $translation->value,
+            )) . '</p></div>';
+        } else {
+            wp_nonce_field(self::NONCE_ACTION . $post->ID, self::NONCE_FIELD);
+        }
 
         if ($feedback !== null) {
             echo '<div class="notice notice-error inline"><p>' . esc_html($feedback['message']) . '</p><p>'
@@ -99,7 +112,7 @@ final class EditorMetaBox
         echo '<p class="description">'
             . esc_html__('Le document entier, frontmatter compris. À l’enregistrement, il réécrit le titre, le slug, la date, le contenu, les tags, le statut, les compétences et les champs du post : rien de tout cela ne se modifie ailleurs.', 'portfolio-md')
             . '</p>';
-        echo '<textarea name="' . esc_attr(self::FIELD) . '" id="' . esc_attr(self::FIELD) . '" rows="28" class="large-text code" spellcheck="false" ' . EditorAssets::MARKER . '="1">'
+        echo '<textarea name="' . esc_attr(self::FIELD) . '" id="' . esc_attr(self::FIELD) . '" rows="28" class="large-text code" spellcheck="false"' . ($readOnly ? ' readonly' : '') . ' ' . EditorAssets::MARKER . '="1">'
             . "\n" . esc_textarea($text) . '</textarea>';
     }
 
@@ -118,6 +131,10 @@ final class EditorMetaBox
             return;
         }
         if (!current_user_can('edit_post', $postId)) {
+            return;
+        }
+        if (MarkdownPosts::isTranslation($postId)) {
+            // Defence in depth: the box of a translation carries no nonce, but a readonly field is still submitted.
             return;
         }
 
@@ -159,6 +176,16 @@ final class EditorMetaBox
         $lines[] = '';
 
         return implode("\n", $lines);
+    }
+
+    /** The French name of a language, for the notice of the box. */
+    private static function languageName(Language $lang): string
+    {
+        return match ($lang) {
+            Language::Fr => __('français', 'portfolio-md'),
+            Language::De => __('allemand', 'portfolio-md'),
+            Language::En => __('anglais', 'portfolio-md'),
+        };
     }
 
     private static function template(WP_Post $post): string
