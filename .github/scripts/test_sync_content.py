@@ -29,13 +29,20 @@ spec.loader.exec_module(sync)
 
 
 class IsDocument(unittest.TestCase):
-    def test_the_grid_and_the_markdown_files_of_the_three_folders_are_documents(self) -> None:
-        for path in ("skills.yaml", "articles/a.md", "projects/momocad.md", "pages/cv.md", "projects/fiche accentuée.md"):
+    def test_the_grid_and_the_markdown_files_of_a_language_folder_are_documents(self) -> None:
+        for path in ("skills.yaml", "fr/articles/a.md", "de/projects/momocad-de.md", "en/pages/resume.md", "fr/projects/fiche accentuée.md"):
             self.assertTrue(sync.is_document(path), path)
 
     def test_anything_else_is_not(self) -> None:
-        for path in ("README.md", "projects/notes.txt", "projects/momocad/capture.png", "images/logo.md", "projects/sub/x.md", "projects", ""):
+        for path in ("README.md", "fr/projects/notes.txt", "fr/projects/momocad/capture.png", "images/logo.md", "projects/momocad.md", "xx/projects/a.md", "fr/images/a.md", "projects/sub/x.md", "fr", ""):
             self.assertFalse(sync.is_document(path), path)
+
+
+class LegacyDocuments(unittest.TestCase):
+    def test_lists_the_markdown_files_of_the_former_layout_only(self) -> None:
+        paths = ["content/projects/x.md", "content/fr/projects/x.md", "content/skills.yaml", "docs/x.md", "content/projects/sub/x.md", "content/projects/notes.txt", "./content/pages/cv.md"]
+
+        self.assertEqual(["content/projects/x.md", "./content/pages/cv.md"], sync.legacy_documents(paths))
 
 
 class RelativeToContent(unittest.TestCase):
@@ -97,8 +104,9 @@ class FilesFromNameStatus(unittest.TestCase):
         self.repo = Path(self.tmp.name)
         for relative, text in {
             "content/skills.yaml": "referentials: []\n",
-            "content/projects/a.md": "---\ntitle: A\n---\n",
-            "content/pages/accentuée.md": "---\ntitle: É\n---\n",
+            "content/fr/projects/a.md": "---\ntitle: A\n---\n",
+            "content/fr/pages/accentuée.md": "---\ntitle: É\n---\n",
+            "content/projects/old.md": "---\ntitle: Old\n---\n",
             "content/README.md": "# Content\n",
         }.items():
             path = self.repo / relative
@@ -109,52 +117,55 @@ class FilesFromNameStatus(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_the_grid_comes_first_whatever_the_diff_order(self) -> None:
-        entries = [("A", "content/projects/a.md"), ("M", "content/pages/accentuée.md"), ("M", "content/skills.yaml")]
+        entries = [("A", "content/fr/projects/a.md"), ("M", "content/fr/pages/accentuée.md"), ("M", "content/skills.yaml")]
 
         files, problems = sync.files_from_name_status(entries, self.repo)
 
         self.assertEqual([], problems)
-        self.assertEqual(["skills.yaml", "projects/a.md", "pages/accentuée.md"], [f["path"] for f in files])
+        self.assertEqual(["skills.yaml", "fr/projects/a.md", "fr/pages/accentuée.md"], [f["path"] for f in files])
         self.assertEqual("---\ntitle: É\n---\n", files[2]["content"])
         self.assertFalse(files[1]["deleted"])
 
     def test_a_deletion_is_sent_without_reading_anything(self) -> None:
-        files, problems = sync.files_from_name_status([("D", "content/projects/gone.md")], self.repo)
+        files, problems = sync.files_from_name_status([("D", "content/de/projects/gone-de.md")], self.repo)
 
         self.assertEqual([], problems)
-        self.assertEqual([{"path": "projects/gone.md", "content": None, "deleted": True}], files)
+        self.assertEqual([{"path": "de/projects/gone-de.md", "content": None, "deleted": True}], files)
 
     def test_files_that_are_not_documents_are_left_out_silently(self) -> None:
-        entries = [("M", "content/README.md"), ("A", "docs/x.md"), ("A", "content/projects/a/capture.png")]
+        entries = [("M", "content/README.md"), ("A", "docs/x.md"), ("A", "content/fr/projects/a/capture.png"), ("M", "content/projects/old.md"), ("D", "content/projects/gone.md")]
 
         files, problems = sync.files_from_name_status(entries, self.repo)
 
-        self.assertEqual(([], []), (files, problems))
+        self.assertEqual(([], []), (files, problems), "a document of the former layout is not sent: the plugin would skip it")
+        self.assertEqual(["content/projects/old.md", "content/projects/gone.md"], sync.legacy_documents(path for _, path in entries))
 
     def test_an_unexpected_status_and_an_unreadable_file_are_problems(self) -> None:
-        entries = [("U", "content/projects/a.md"), ("A", "content/projects/missing.md")]
+        entries = [("U", "content/fr/projects/a.md"), ("A", "content/fr/projects/missing.md")]
 
         files, problems = sync.files_from_name_status(entries, self.repo)
 
         self.assertEqual([], files)
         self.assertEqual(2, len(problems))
         self.assertIn("unexpected diff status 'U'", problems[0])
-        self.assertIn("projects/missing.md", problems[1])
+        self.assertIn("fr/projects/missing.md", problems[1])
 
 
 class FilesFromTree(unittest.TestCase):
-    def test_walks_the_grid_then_the_three_folders_in_name_order(self) -> None:
+    def test_walks_the_grid_then_each_language_then_the_three_folders_in_name_order(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
-            for relative in ("content/skills.yaml", "content/projects/b.md", "content/projects/a.md", "content/pages/cv.md", "content/README.md", "content/projects/a/x.md"):
+            for relative in ("content/skills.yaml", "content/fr/projects/b.md", "content/fr/projects/a.md", "content/fr/pages/cv.md", "content/de/projects/c-de.md", "content/README.md", "content/fr/projects/a/x.md", "content/projects/legacy.md"):
                 path = repo / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("x", encoding="utf-8")
 
             files, problems = sync.files_from_tree(repo)
+            legacy = sync.legacy_documents_of_tree(repo)
 
         self.assertEqual([], problems)
-        self.assertEqual(["skills.yaml", "projects/a.md", "projects/b.md", "pages/cv.md"], [f["path"] for f in files])
+        self.assertEqual(["skills.yaml", "fr/projects/a.md", "fr/projects/b.md", "fr/pages/cv.md", "de/projects/c-de.md"], [f["path"] for f in files])
+        self.assertEqual(["content/projects/legacy.md"], legacy, "the former layout is reported, not sent")
 
 
 class Batches(unittest.TestCase):
