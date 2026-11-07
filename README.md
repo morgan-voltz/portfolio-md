@@ -55,7 +55,7 @@ podman-compose down -v
 
 WordPress is then reachable at `http://localhost:8000` (or the port set via `WP_PORT`). Substitute `docker compose` for `podman-compose` if you use Docker.
 
-The images are fully qualified and pinned in `docker-compose.yml` (WordPress 7.1.2, MariaDB 11.8.9, WP-CLI 2.12.0): Podman in `enforcing` short-name mode would otherwise wait for a registry choice that never comes without a terminal, and a WordPress major upgrade must be a decision (Polylang 3.9 needs 6.8, Yoast SEO 28.8 needs 7.0). `bootstrap.sh` also installs and activates Polylang 3.9.1, Yoast SEO 28.8 and the GeneratePress 3.6.1 theme.
+The images are fully qualified and pinned in `docker-compose.yml` (WordPress 7.1.2, MariaDB 11.8.9, WP-CLI 2.12.0): Podman in `enforcing` short-name mode would otherwise fail, or hang, on a registry choice it cannot ask for without a terminal, and a WordPress major upgrade must be a decision (Polylang 3.9 needs 6.8, Yoast SEO 28.8 needs 7.0). `bootstrap.sh` also installs and activates Polylang 3.9.1, Yoast SEO 28.8 and the GeneratePress 3.6.1 theme.
 
 If `up -d` fails with `container name "..." is already in use`, the stack is already running. Inspect it first, then choose whether to reuse or recreate:
 
