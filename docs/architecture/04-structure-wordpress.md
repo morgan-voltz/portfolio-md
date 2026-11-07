@@ -5,7 +5,7 @@
 **Lectorat** : Morgan à froid, contributeurs futurs, et toute personne qui veut comprendre comment WordPress est organisé pour ce projet.
 **Articulation** : ce document complète `01-plugin-php.md` (qui détaille le plugin de conversion Markdown ↔ WordPress) en se concentrant sur la modélisation côté CMS.
 **Temps de lecture** : environ 12 minutes
-**Dernière mise à jour** : 7 novembre 2026 (langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
+**Dernière mise à jour** : 7 novembre 2026 (pont Polylang, ADR-020 lot 2 : types déclarés à Polylang par le plugin, boîte en lecture seule pour les traductions, réconciliation ; langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
 
 ---
 
@@ -93,6 +93,7 @@ Les **projets**, en revanche, n'ont pas d'équivalent natif et nécessitent obli
 | Hiérarchique | Non |
 | Supports natifs | `title`, `editor` (corps Markdown rendu), `excerpt`, `revisions`, `author`, `custom-fields` |
 | Taxonomies attachées | `tech_tag` |
+| Polylang | Type géré par Polylang, déclaré par le plugin lui-même (filtre `pll_get_post_types`, `Storage\PolylangPostTypes`) : un post par langue, slugs suffixés `-de` / `-en` (ADR-020) |
 | Icône admin | `dashicons-edit-large` |
 | Implémentation | `PostTypeRegistrar::registerArticle()` |
 
@@ -107,12 +108,13 @@ Les **projets**, en revanche, n'ont pas d'équivalent natif et nécessitent obli
 | Hiérarchique | Non |
 | Supports natifs | `title`, `editor`, `excerpt`, `revisions`, `author`, `custom-fields`, `thumbnail` (pour image de couverture) |
 | Taxonomies attachées | `tech_tag`, `project_status` |
+| Polylang | Type géré par Polylang, déclaré par le plugin lui-même (filtre `pll_get_post_types`) : un post par langue, slugs suffixés `-de` / `-en` (ADR-020) |
 | Icône admin | `dashicons-portfolio` |
 | Implémentation | `PostTypeRegistrar::registerProject()` |
 
 ### 3.4. Pages standards
 
-Les pages `À propos` et `CV` (`content/<lang>/pages/`) utilisent le type natif `page` de WordPress et passent par le pipeline Markdown comme les articles et les projets (ADR-017, 27 octobre 2026) : `wp portfolio import /srv/portfolio-content/fr/pages`, la page de collage ou la boîte « Document Markdown ». Une page importée porte la description SEO (section 5.1) et les sept champs internes (section 5.3), aucun terme (les taxonomies du plugin ne sont pas rattachées au type `page`) et aucun autre champ. Sur le site, elle vit à la racine (`/a-propos/`, `/cv/`), sans parent ni modèle choisis dans l'admin (la boîte d'attributs est retirée de son écran, et le dépôt remet `post_parent` à zéro à chaque écriture), et les liens qu'elle fait vers des fiches (`../projects/<slug>.md`) sont réécrits en liens du site au rendu (`/fr/projets/<slug>/`, `01-plugin-php.md` §4.2).
+Les pages `À propos` et `CV` (`content/<lang>/pages/`) utilisent le type natif `page` de WordPress et passent par le pipeline Markdown comme les articles et les projets (ADR-017, 27 octobre 2026) : `wp portfolio import /srv/portfolio-content/fr/pages`, la page de collage ou la boîte « Document Markdown ». Une page importée porte la description SEO (section 5.1) et les sept champs internes (section 5.3), aucun terme (les taxonomies du plugin ne sont pas rattachées au type `page`) et aucun autre champ. Sur le site, elle vit à la racine (`/a-propos/`, `/cv/`), sans parent ni modèle choisis dans l'admin (la boîte d'attributs est retirée de son écran, et le dépôt remet `post_parent` à zéro à chaque écriture), et les liens qu'elle fait vers des fiches (`../projects/<slug>.md`) sont réécrits en liens du site au rendu (`/fr/projets/<slug>/`, `01-plugin-php.md` §4.2). Polylang traduit les pages par défaut ; une page allemande et une page française qui partageraient un slug recevraient le suffixe `-2` du cœur, d'où les slugs naturels distincts par langue (`cv`, `lebenslauf`, `resume` ; ADR-020).
 
 La boîte « Document Markdown » et l'écran épuré ne s'appliquent qu'à une page qui porte un document (sa marque : le hash interne écrit par le pipeline). Une page faite à la main dans l'éditeur de blocs, Contact par exemple, reste une page ordinaire, et « Ajouter une page » ouvre toujours l'éditeur de blocs : une page nouvelle en Markdown entre par le collage ou la commande. Dans la liste des pages, les deux sortes cohabitent ; seules les pages documentées perdent Quick Edit, et Bulk Edit reste à toutes. Une page documentée est aussi servie par l'API du plugin (`/wp-json/portfolio/v1/pages/<slug>`, `01-plugin-php.md` §7.1) ; une page faite à la main ne l'est pas, elle n'a pas de Markdown à servir (ADR-018).
 
@@ -262,7 +264,7 @@ Enregistrés sur `article`, `project` et le type natif `page` (`MetaRegistration
 | `_portfolio_source_type` | string | `admin` / `git` / `paste`, provenance de la dernière édition (valeurs de l'enum `Domain\ContentSource`, ADR-005) |
 | `_portfolio_last_sync_at` | string | Dernière synchro réussie, ISO 8601 **normalisé en UTC** (`2026-10-26T07:00:00Z`) |
 | `_portfolio_render_version` | string | Version du renderer (`MAJEUR.MINEUR.CORRECTIF`), pour invalider le HTML dérivé |
-| `_portfolio_lang` | string | `fr` / `de` / `en`, langue du document (valeurs de l'enum `Domain\Language`, ADR-020) ; le plugin la pousse chez Polylang, ne la lit jamais chez lui |
+| `_portfolio_lang` | string | `fr` / `de` / `en`, langue du document (valeurs de l'enum `Domain\Language`, ADR-020) ; le plugin la pousse chez Polylang (`Storage\PolylangLanguageGateway`) et ne la lit chez lui que pour constater et corriger une dérive (`wp portfolio translations reconcile`) |
 | `_portfolio_translation_key` | string | Slug du document français du groupe de traductions (un slug, 200 caractères au plus) ; `ContentRepository::findByKey()` retrouve les posts d'une clé |
 
 ### 5.4. Champs explicitement écartés et pourquoi
@@ -446,12 +448,18 @@ WordPress
 
 **2026-11-07 (langue, ADR-020 lots 1a et 1b)**
 
-- Deux champs internes de plus, `_portfolio_lang` et `_portfolio_translation_key` (section 5.3) : dix-neuf champs au total. Le plugin reste maître de la langue ; Polylang la recevra par la passerelle de langue au lot 2.
+- Deux champs internes de plus, `_portfolio_lang` et `_portfolio_translation_key` (section 5.3) : dix-neuf champs au total. Le plugin reste maître de la langue ; Polylang la reçoit par la passerelle de langue (lot 2).
 - Les liens entre documents sont préfixés de la langue du document (`/fr/projets/<slug>/`, `ContentRenderer` 1.2.0).
 - Le modèle de contenu ne change pas autrement : un post par langue, slugs suffixés `-de` / `-en` pour les fiches et les articles, slugs naturels pour les pages (ADR-020).
 
 **2026-11-07 (migration du contenu, ADR-020 lot 1c)**
 
 - Les fiches et les pages vivent dans `content/fr/projects/` et `content/fr/pages/`, chaque document avec sa ligne `lang` (obligatoire). L'entrée du 26 octobre ci-dessus nomme les anciens chemins à dessein : c'était vrai quand elle a été écrite.
+
+**2026-11-07 (pont Polylang, ADR-020 lot 2)**
+
+- Les types `article` et `project` sont déclarés à Polylang par le plugin (filtre `pll_get_post_types`, sections 3.2 et 3.3) ; les pages le sont par défaut. La langue stockée est poussée chez Polylang à chaque écriture et les traductions d'une clé sont liées ; `wp portfolio translations reconcile` remet ce que les écrans de Polylang auraient changé.
+- Toutes les requêtes du plugin passent `lang => ''` : elles voient toutes les langues, quel que soit le filtre de langue de l'admin ou de la requête.
+- La boîte « Document Markdown » est en lecture seule pour une traduction et la page de collage refuse un document non français : Git est le seul écrivain des traductions.
 
 ---
