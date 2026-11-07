@@ -142,7 +142,8 @@ install_plugin() {
         wp plugin install "$slug" --version="$version"
         log_success "Extension ${slug} ${version} installée."
     fi
-    wp plugin activate "$slug" >/dev/null 2>&1 || true
+    # Activer seulement si nécessaire ; une activation qui échoue arrête le script (set -e).
+    wp plugin is-active "$slug" 2>/dev/null || wp plugin activate "$slug"
 }
 install_plugin polylang 3.9.1
 install_plugin wordpress-seo 28.8
@@ -152,7 +153,9 @@ else
     wp theme install generatepress --version=3.6.1
     log_success "Thème GeneratePress 3.6.1 installé."
 fi
-wp theme activate generatepress >/dev/null 2>&1 || true
+wp theme is-active generatepress 2>/dev/null || wp theme activate generatepress
+# On n'annonce actif que ce qui l'est : un échec ici arrête le script.
+wp plugin is-active polylang && wp plugin is-active wordpress-seo && wp theme is-active generatepress
 log_success "Polylang, Yoast SEO et GeneratePress actifs."
 
 # ─── Récapitulatif final ──────────────────────────────

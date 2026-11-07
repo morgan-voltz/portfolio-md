@@ -45,10 +45,10 @@ services:
     # Fully qualified and pinned on purpose:
     #   - `docker.io/library/…` : with Podman's default `short-name-mode = "enforcing"`
     #     (Fedora), a short name such as `wordpress:latest` makes `podman` ask which
-    #     registry to use; without a terminal (scripts, CI, an agent) the prompt
-    #     hangs forever and nothing is pulled.
-    #   - a version tag rather than `latest` : the plugin's minimum WordPress
-    #     version is tied to Polylang (6.8) and Yoast SEO (7.0); a surprise major
+    #     registry to use; without a terminal (scripts, CI, an agent) it fails or
+    #     hangs on that question, and nothing is pulled.
+    #   - a version tag rather than `latest` : the stack's minimum WordPress
+    #     version is set by Polylang (6.8) and Yoast SEO (7.0); a surprise major
     #     upgrade must be a decision, not a side effect of `up -d`.
     image: docker.io/library/wordpress:7.1.2-php8.3-apache
     restart: unless-stopped
