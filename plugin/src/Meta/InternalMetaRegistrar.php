@@ -5,15 +5,18 @@ declare(strict_types=1);
 namespace Voltz\PortfolioMd\Meta;
 
 use Voltz\PortfolioMd\Domain\ContentSource;
+use Voltz\PortfolioMd\Domain\Language;
+use Voltz\PortfolioMd\Domain\Patterns;
 
 /**
  * Registers the metas the plugin keeps for its own bookkeeping.
  *
- * Five fields, present on the three post types that hold a document
+ * Seven fields, present on the three post types that hold a document
  * (articles, projects, native pages), written exclusively by the plugin
- * (the Markdown pipeline, later the Git sync): the canonical Markdown source,
- * its hash, the origin of the last write, the last sync time and the version
- * of the renderer that produced the stored HTML.
+ * (the Markdown pipeline and the Git door): the canonical Markdown source,
+ * its hash, the origin of the last write, the last sync time, the version
+ * of the renderer that produced the stored HTML, and since ADR-020 the
+ * language of the document and the key it shares with its translations.
  *
  * Two differences with the public metas:
  *   - `show_in_rest` is false: they never appear in the REST API;
@@ -31,6 +34,8 @@ final class InternalMetaRegistrar
     public const SOURCE_TYPE = '_portfolio_source_type';
     public const LAST_SYNC_AT = '_portfolio_last_sync_at';
     public const RENDER_VERSION = '_portfolio_render_version';
+    public const LANG = '_portfolio_lang';
+    public const TRANSLATION_KEY = '_portfolio_translation_key';
 
     /**
      * Registers all internal metas on every post type that holds a document.
@@ -65,6 +70,18 @@ final class InternalMetaRegistrar
             self::RENDER_VERSION,
             'Version of the renderer that produced the stored Gutenberg HTML (semver).',
             [self::class, 'sanitizeRenderVersion'],
+        );
+
+        $this->registerMeta(
+            self::LANG,
+            'Language of the document: fr, de or en (ADR-020).',
+            [self::class, 'sanitizeLang'],
+        );
+
+        $this->registerMeta(
+            self::TRANSLATION_KEY,
+            'Key shared by the translations of one document: the slug of its French version (ADR-020).',
+            [self::class, 'sanitizeTranslationKey'],
         );
     }
 
@@ -118,6 +135,22 @@ final class InternalMetaRegistrar
     public static function sanitizeRenderVersion(mixed $value): string
     {
         return Sanitizer::semver($value);
+    }
+
+    public static function sanitizeLang(mixed $value): string
+    {
+        return Sanitizer::oneOf($value, Language::values());
+    }
+
+    /** A slug, like the key it mirrors (the slug of the French document); anything else is dropped. */
+    public static function sanitizeTranslationKey(mixed $value): string
+    {
+        if (!is_string($value)) {
+            return '';
+        }
+        $value = trim($value);
+
+        return preg_match(Patterns::SLUG, $value) === 1 && strlen($value) <= Patterns::SLUG_MAX_LENGTH ? $value : '';
     }
 
     // endregion

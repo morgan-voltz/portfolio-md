@@ -10,6 +10,7 @@ use Voltz\PortfolioMd\Domain\ContentSource;
 use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Domain\Frontmatter;
 use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Meta\CommonMetaRegistrar;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
 use Voltz\PortfolioMd\Meta\MetaWriter;
@@ -94,6 +95,29 @@ final class WordPressContentRepository implements ContentRepository
         }
 
         return self::stored($post, $post->post_status === 'trash', $this->documentSlug((int) $post->ID));
+    }
+
+    public function findByKey(ContentType $type, string $translationKey): array
+    {
+        // 'any' leaves the trash out on purpose: a retired translation is not tied to the group.
+        $posts = get_posts([
+            'post_type' => self::postType($type),
+            'post_status' => 'any',
+            'meta_key' => InternalMetaRegistrar::TRANSLATION_KEY,
+            'meta_value' => $translationKey,
+            'numberposts' => -1,
+            'orderby' => 'ID',
+            'order' => 'ASC',
+        ]);
+
+        $found = [];
+        foreach ($posts as $post) {
+            if ($post instanceof WP_Post) {
+                $found[] = self::stored($post, false);
+            }
+        }
+
+        return $found;
     }
 
     /**
@@ -334,11 +358,15 @@ final class WordPressContentRepository implements ContentRepository
         MetaWriter::update($postId, InternalMetaRegistrar::SOURCE_TYPE, $record->source->value);
         MetaWriter::update($postId, InternalMetaRegistrar::LAST_SYNC_AT, $record->syncedAt->setTimezone(new \DateTimeZone('UTC'))->format(self::LAST_SYNC_FORMAT));
         MetaWriter::update($postId, InternalMetaRegistrar::RENDER_VERSION, $record->renderVersion);
+        MetaWriter::update($postId, InternalMetaRegistrar::LANG, $frontmatter->lang->value);
+        MetaWriter::update($postId, InternalMetaRegistrar::TRANSLATION_KEY, $frontmatter->translationKey);
     }
 
     private static function stored(WP_Post $post, bool $inTrash, ?string $documentSlug = null): StoredContent
     {
         $id = (int) $post->ID;
+
+        $translationKey = self::meta($id, InternalMetaRegistrar::TRANSLATION_KEY);
 
         return new StoredContent(
             $id,
@@ -347,6 +375,8 @@ final class WordPressContentRepository implements ContentRepository
             self::meta($id, InternalMetaRegistrar::RENDER_VERSION),
             $inTrash,
             $documentSlug,
+            Language::tryFrom(self::meta($id, InternalMetaRegistrar::LANG)),
+            $translationKey === '' ? null : $translationKey,
         );
     }
 

@@ -32,6 +32,16 @@ interface ContentRepository
     public function findById(ContentType $type, int $postId): ?StoredContent;
 
     /**
+     * Every post of this content type that carries this translation key
+     * (ADR-020), oldest first, the trash left out: the posts of one group,
+     * to be tied together as translations. A post made by hand carries no
+     * key and is never found here.
+     *
+     * @return list<StoredContent>
+     */
+    public function findByKey(ContentType $type, string $translationKey): array;
+
+    /**
      * Creates the post when $record->id is null, updates it otherwise, and
      * returns the post id.
      *

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Voltz\PortfolioMd\Service;
 
 use Voltz\PortfolioMd\Domain\ContentSource;
+use Voltz\PortfolioMd\Domain\Language;
 
 /**
  * What the import service needs to know about a post that already exists:
@@ -20,6 +21,10 @@ final readonly class StoredContent
      *                              store read it (findById); null when the post holds none.
      *                              It may differ from the post's own URL slug if that one was
      *                              changed behind the document's back: the document wins.
+     * @param ?Language $lang         the language the plugin stored for the post (ADR-020); null
+     *                              when the post was written before the plugin stored languages,
+     *                              or made by hand
+     * @param ?string   $translationKey the key the post shares with its translations; null likewise
      */
     public function __construct(
         public int $id,
@@ -28,6 +33,8 @@ final readonly class StoredContent
         public string $renderVersion,
         public bool $inTrash = false,
         public ?string $documentSlug = null,
+        public ?Language $lang = null,
+        public ?string $translationKey = null,
     ) {
     }
 

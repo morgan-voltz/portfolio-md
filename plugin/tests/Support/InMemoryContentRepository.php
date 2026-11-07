@@ -67,6 +67,8 @@ final class InMemoryContentRepository implements ContentRepository
             $record->source,
             $record->renderVersion,
             documentSlug: $record->frontmatter->slug,
+            lang: $record->frontmatter->lang,
+            translationKey: $record->frontmatter->translationKey,
         ));
 
         return $id;
@@ -76,8 +78,21 @@ final class InMemoryContentRepository implements ContentRepository
     {
         $key = $this->keysById[$postId] ?? throw new \RuntimeException("Cannot move post {$postId} to the trash: there is no such post.");
         $content = $this->bySlug[$key];
-        $this->bySlug[$key] = new StoredContent($content->id, $content->hash, $content->source, $content->renderVersion, true, $content->documentSlug);
+        $this->bySlug[$key] = new StoredContent($content->id, $content->hash, $content->source, $content->renderVersion, true, $content->documentSlug, $content->lang, $content->translationKey);
         $this->trashed[] = $postId;
+    }
+
+    public function findByKey(ContentType $type, string $translationKey): array
+    {
+        $found = [];
+        foreach ($this->bySlug as $key => $content) {
+            if (str_starts_with($key, $type->value . '/') && !$content->inTrash && $content->translationKey === $translationKey) {
+                $found[] = $content;
+            }
+        }
+        usort($found, static fn (StoredContent $a, StoredContent $b): int => $a->id <=> $b->id);
+
+        return $found;
     }
 
     public function lastSaved(): ContentRecord
