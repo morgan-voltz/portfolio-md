@@ -91,6 +91,12 @@ final class TranslationReconcilerTest extends TestCase
         $this->seedGroup();
         $this->polylang->polylangGroups[41] = []; // the German post lost its group
 
+        $dry = $this->reconciler->reconcile(true);
+        self::assertSame('group', $dry->differences[0]['kind']);
+        self::assertFalse($dry->differences[0]['fixed']);
+        self::assertSame(0, $dry->groupFixes);
+        self::assertSame([], $this->polylang->links, 'a dry run links nothing');
+
         $report = $this->reconciler->reconcile(false);
 
         self::assertCount(1, $report->differences);
@@ -99,6 +105,19 @@ final class TranslationReconcilerTest extends TestCase
         self::assertSame('expected {fr: 40, de: 41}, Polylang shows no group from this post', $report->differences[0]['detail']);
         self::assertSame([['fr' => 40, 'de' => 41]], $this->polylang->links);
         self::assertSame(1, $report->groupFixes);
+        self::assertFalse($this->reconciler->reconcile(false)->hasDifferences(), 'a third run finds nothing');
+    }
+
+    #[Test]
+    public function a_group_seen_in_another_order_is_not_a_difference(): void
+    {
+        $this->seedGroup();
+        $this->polylang->polylangGroups[41] = ['de' => 41, 'fr' => 40]; // Polylang lists the group from the viewer's side
+
+        $report = $this->reconciler->reconcile(false);
+
+        self::assertFalse($report->hasDifferences());
+        self::assertSame([], $this->polylang->links);
     }
 
     #[Test]
@@ -108,12 +127,17 @@ final class TranslationReconcilerTest extends TestCase
         $this->repository->trash(41); // the German translation was retired by Git
         $this->polylang->polylangGroups[40] = ['fr' => 40, 'de' => 41]; // Polylang still shows the group
 
+        $dry = $this->reconciler->reconcile(true);
+        self::assertSame('stale-group', $dry->differences[0]['kind']);
+        self::assertSame([], $this->polylang->links, 'a dry run dissolves nothing');
+
         $report = $this->reconciler->reconcile(false);
 
         self::assertSame('stale-group', $report->differences[0]['kind']);
         self::assertSame('alone under the key "projet" but still grouped with {fr: 40, de: 41}', $report->differences[0]['detail']);
         self::assertSame([['fr' => 40]], $this->polylang->links, 'a group of one dissolves what remains');
         self::assertSame(1, $report->checked, 'the trashed post is out of scope');
+        self::assertFalse($this->reconciler->reconcile(false)->hasDifferences(), 'a third run finds nothing');
     }
 
     #[Test]

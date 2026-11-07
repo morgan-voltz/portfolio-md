@@ -157,6 +157,7 @@ final class EditorMetaBoxTest extends TestCase
         $this->box->save(self::POST_ID, self::post());
 
         self::assertSame([], $this->repository->saved);
+        self::assertSame([], WordPressSpy::$transients, 'the guard returns before the service: no refusal is remembered either');
     }
 
     #[Test]

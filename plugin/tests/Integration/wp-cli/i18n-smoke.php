@@ -153,6 +153,7 @@ try {
     $check('an unchanged import of the survivor does not untie the stale group', $unchanged->outcome === ImportOutcome::Unchanged && $gateway->translationsOf($frId) !== [], $describe($view($frId)));
     $real = $reconciler->reconcile(false);
     $check('the reconciliation dissolves the stale group of the survivor', in_array('stale-group', array_column($mine($real), 'kind'), true) && $gateway->translationsOf($frId) === [], $describe($mine($real)) . ' view ' . $describe($view($frId)));
+    $check('the retired member is detached and sees only itself', count(pll_get_post_translations($deId)) <= 1, $describe($view($deId)));
 
     // 6. Every query of the plugin sees every language -------------------------------------------------
     wp_untrash_post($deId);

@@ -824,7 +824,9 @@ if (!function_exists('esc_url_raw')) {
 // the language and answers true; a saved group drops a member whose language is
 // not its key, needs a language on its first member and writes a term for two
 // members or more only; a post sees its own language plus the description of
-// its term, so a member taken out of a group still sees the group from its side.
+// its term; a member taken out of a group leaves its description and is
+// detached from the term, so it sees only itself, while the survivor of a
+// group of one keeps a one-member term.
 
 if (!function_exists('PLL')) {
     function PLL(): ?object
@@ -915,7 +917,12 @@ if (!function_exists('pll_save_post_translations')) {
         foreach (array_diff_assoc($old, $valid) as $removed) {
             $term = WordPressSpy::$pllTermOf[$removed] ?? null;
             if ($term !== null) {
+                // PLL_Translated_Post::delete_translation(): out of the description, detached from the term.
                 WordPressSpy::$pllTerms[$term] = array_filter(WordPressSpy::$pllTerms[$term], static fn (int $id): bool => $id !== $removed);
+                unset(WordPressSpy::$pllTermOf[$removed]);
+                if (WordPressSpy::$pllTerms[$term] === []) {
+                    unset(WordPressSpy::$pllTerms[$term]);
+                }
             }
         }
         if (count($valid) <= 1) {
@@ -927,7 +934,7 @@ if (!function_exists('pll_save_post_translations')) {
             $term ??= WordPressSpy::$pllTermOf[$member] ?? null;
         }
         if ($term === null) {
-            $term = count(WordPressSpy::$pllTerms);
+            $term = WordPressSpy::$pllTerms === [] ? 0 : max(array_keys(WordPressSpy::$pllTerms)) + 1;
             WordPressSpy::$pllTerms[$term] = $valid;
         } else {
             WordPressSpy::$pllTerms[$term] = array_merge(array_diff_key(WordPressSpy::$pllTerms[$term], $old), $valid);

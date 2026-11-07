@@ -135,11 +135,58 @@ final class PolylangLanguageGatewayTest extends TestCase
 
         self::assertSame([['save', ['fr' => 40]]], WordPressSpy::$pllCalls);
         self::assertSame([], $this->gateway->translationsOf(40), 'a view of one post is no group');
-        self::assertSame(['de' => 41, 'fr' => 40], $this->gateway->translationsOf(41), 'the removed member still sees the old group from its side, as Polylang leaves it');
+        self::assertSame([], $this->gateway->translationsOf(41), 'the removed member is detached by Polylang and sees only itself');
 
         WordPressSpy::$pllCalls = [];
         $this->gateway->linkTranslations(['fr' => 40]);
         self::assertSame([], WordPressSpy::$pllCalls, 'already alone: nothing to dissolve');
+    }
+
+    #[Test]
+    public function a_member_that_lost_its_view_makes_the_group_be_saved_again(): void
+    {
+        $this->gateway->linkTranslations(['fr' => 40, 'de' => 41]);
+        unset(WordPressSpy::$pllTermOf[41]); // the German post was detached; the French one still sees the group
+        WordPressSpy::$pllCalls = [];
+
+        $this->gateway->linkTranslations(['fr' => 40, 'de' => 41]);
+
+        self::assertSame([['save', ['fr' => 40, 'de' => 41]]], WordPressSpy::$pllCalls, 'one member seeing the group is not enough: every member must');
+        self::assertSame(['de' => 41, 'fr' => 40], $this->gateway->translationsOf(41));
+    }
+
+    #[Test]
+    public function a_dissolve_polylang_did_not_keep_is_reported(): void
+    {
+        $this->gateway->linkTranslations(['fr' => 40, 'de' => 41]);
+        WordPressSpy::$pllRefuseGroups = true;
+
+        $this->expectException(LanguageGatewayException::class);
+        $this->expectExceptionMessage('The translation group {fr: 40} was not applied');
+
+        $this->gateway->linkTranslations(['fr' => 40]);
+    }
+
+    #[Test]
+    public function a_configured_slug_the_plugin_does_not_know_is_refused_in_a_group(): void
+    {
+        WordPressSpy::$pllLanguages = ['fr', 'de', 'en', 'es'];
+
+        $this->expectException(LanguageGatewayException::class);
+        $this->expectExceptionMessage('"es" is not configured');
+
+        $this->gateway->linkTranslations(['fr' => 40, 'es' => 43]);
+    }
+
+    #[Test]
+    public function the_default_probe_finds_no_polylang_in_the_unit_suite(): void
+    {
+        $gateway = new PolylangLanguageGateway();
+
+        $gateway->setLanguage(41, Language::De);
+
+        self::assertNull($gateway->configuredLanguages(), 'the PLL() stub answers null: no model, no Polylang');
+        self::assertSame([], WordPressSpy::$pllCalls);
     }
 
     #[Test]
