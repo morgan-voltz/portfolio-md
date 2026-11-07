@@ -14,7 +14,7 @@ L'environnement de développement local repose sur trois services définis dans 
 
 ### 1.1. Le service `db`
 
-Image : `mariadb:11`. C'est la base de données de WordPress. On utilise MariaDB plutôt que MySQL parce que MySQL 5.7 est en fin de vie depuis 2023, et que MariaDB est devenue le défaut chez la plupart des hébergeurs WordPress modernes. La compatibilité avec WordPress est totale : du point de vue du PHP, c'est exactement le même protocole.
+Image : `docker.io/library/mariadb:11.8.9` (voir §1.2 pour le nommage). C'est la base de données de WordPress. On utilise MariaDB plutôt que MySQL parce que MySQL 5.7 est en fin de vie depuis 2023, et que MariaDB est devenue le défaut chez la plupart des hébergeurs WordPress modernes. La compatibilité avec WordPress est totale : du point de vue du PHP, c'est exactement le même protocole.
 
 Les données sont persistées sur l'hôte par un **bind mount** (voir §1.4) : `./BDD_data:/var/lib/mysql:z`. Cela veut dire que tu peux arrêter, supprimer, recréer le container `db` autant de fois que tu veux : tant que tu ne touches pas au dossier `BDD_data/` sur ton disque, tes tables restent.
 
@@ -22,7 +22,7 @@ Un *healthcheck* est configuré : `healthcheck.sh --connect --innodb_initialized
 
 ### 1.2. Le service `wordpress`
 
-Image : `wordpress:latest`. C'est le WordPress lui-même : Apache, PHP 8.3, et WordPress core préinstallé. Le port 80 du container est exposé sur le port `${WP_PORT:-8000}` de l'hôte — par défaut 8000.
+Image : `docker.io/library/wordpress:7.1.2-php8.3-apache`. C'est le WordPress lui-même : Apache, PHP 8.3, et WordPress core préinstallé. Le port 80 du container est exposé sur le port `${WP_PORT:-8000}` de l'hôte — par défaut 8000.
 
 Deux bind mounts importants :
 
@@ -33,9 +33,11 @@ Deux bind mounts importants :
 
 Les variables d'environnement (`WORDPRESS_DB_HOST`, `WORDPRESS_DB_USER`, etc.) sont injectées par WordPress dans le `wp-config.php` au premier démarrage, en remplaçant les placeholders de l'image officielle. Une variable fait exception : `WORDPRESS_CONFIG_EXTRA` contient du code PHP que le `wp-config.php` généré **évalue à chaque requête** (`eval(getenv_docker('WORDPRESS_CONFIG_EXTRA'))`), ce qui permet d'ajouter des constantes sans toucher au fichier, qui appartient à l'utilisateur du conteneur. Le projet y déclare `WP_ENVIRONMENT_TYPE` à `local` : c'est ce que ce poste est, et WordPress n'accepte les mots de passe d'application sans HTTPS que dans cet environnement, ce dont la porte Git du plugin (`POST /wp-json/portfolio/v1/sync`) a besoin pour être testée en local. Le service `wpcli` porte la même variable, puisqu'il relit le même `wp-config.php`. Après un changement de cette variable, `podman-compose up -d` recrée le conteneur.
 
+Depuis le 7 novembre 2026, les trois images sont **nommées en entier et épinglées** (`docker.io/library/wordpress:7.1.2-php8.3-apache`, `docker.io/library/mariadb:11.8.9`, `docker.io/library/wordpress:cli-2.12.0-php8.3`). Le nom complet évite le piège du §4.5 ; la version épinglée fait d'une montée de version majeure de WordPress une décision, pas un effet de bord d'un `up -d` : Polylang 3.9 exige WordPress 6.8 et Yoast SEO 28.8 exige 7.0, et le plugin du projet doit être testé avant chaque saut.
+
 ### 1.3. Le service `wpcli`
 
-Image : `wordpress:cli`. C'est un container **éphémère** dédié à l'exécution de commandes WP-CLI. Il est sous le profil `tools` (cf. §1.5), ce qui veut dire qu'il ne démarre **pas** automatiquement avec `up -d`. On l'invoque à la demande.
+Image : `docker.io/library/wordpress:cli-2.12.0-php8.3`. C'est un container **éphémère** dédié à l'exécution de commandes WP-CLI. Il est sous le profil `tools` (cf. §1.5), ce qui veut dire qu'il ne démarre **pas** automatiquement avec `up -d`. On l'invoque à la demande.
 
 Il partage les mêmes bind mounts que `wordpress` (`wordpress_data` et `plugin`), donc il agit sur la même installation. Il dépend aussi de `db` pour les commandes qui touchent à la base.
 
@@ -192,7 +194,7 @@ Dans une stack containerisée, on ne l'installe **pas** sur l'hôte : on l'utili
 
 ### 3.1. Pourquoi un service séparé
 
-L'image `wordpress:latest` contient WordPress, Apache, PHP. Mais **pas WP-CLI**. C'est intentionnel : l'image `wordpress:latest` est conçue pour servir WordPress, pas pour l'administrer. WP-CLI est livré dans une image séparée, `wordpress:cli`, qui contient PHP + WP-CLI mais pas Apache.
+L'image `wordpress` (variante Apache) contient WordPress, Apache, PHP. Mais **pas WP-CLI**. C'est intentionnel : cette image est conçue pour servir WordPress, pas pour l'administrer. WP-CLI est livré dans une image séparée, `wordpress:cli-…`, qui contient PHP + WP-CLI mais pas Apache.
 
 Conséquence : si tu fais `podman exec wordpress wp <commande>`, tu obtiens :
 ```
@@ -382,6 +384,14 @@ ls -la plugin/portfolio-md.php
 
 - Tu as lancé une stack alternative (cf. §2) qui n'a pas le même bind mount. Le `wpcli` de la « bonne » stack ne voit pas ton dossier `plugin/`.
 - Le fichier `plugin/portfolio-md.php` (ou son équivalent) n'a pas l'en-tête WordPress requis (`Plugin Name:`, etc.). Sans cet en-tête, WordPress n'identifie pas le dossier comme un plugin valide.
+
+### 4.5. `podman-compose up -d` ne télécharge rien, et échoue ou ne rend jamais la main
+
+**Symptôme** : la commande reste suspendue, `podman images` ne montre aucune image `wordpress` ni `mariadb`, aucun conteneur n'apparaît, et `pgrep -a podman-compose` montre le processus toujours vivant.
+
+**Cause** : un nom d'image court. Sur Fedora, `/etc/containers/registries.conf` déclare `short-name-mode = "enforcing"` et trois registres de recherche (`registry.fedoraproject.org`, `registry.access.redhat.com`, `docker.io`). Pour un nom comme `wordpress:latest`, Podman demande *interactivement* quel registre utiliser. Sans terminal, `podman` échoue (« short-name resolution enforced but cannot prompt without a TTY ») ; avec un pseudo-terminal sans personne derrière, dans un script, une CI ou une session d'agent, la question ne s'affiche nulle part et la commande attend une réponse qui ne viendra jamais (vécu le 7 novembre 2026). Docker n'a pas ce comportement, il sous-entend toujours Docker Hub : c'est une différence de plus entre les deux moteurs.
+
+**Correctif** : nommer les images en entier dans `docker-compose.yml`, `docker.io/library/wordpress:…`, ce qui est fait depuis le 7 novembre 2026. Pour vérifier qu'un nom passe sans question : `podman pull docker.io/library/wordpress:7.1.2-php8.3-apache` doit télécharger sans rien demander. Un processus suspendu se tue avec `kill <pid>`, puis on relance `podman-compose up -d`.
 
 ---
 

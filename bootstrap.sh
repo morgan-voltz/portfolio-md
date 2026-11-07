@@ -123,6 +123,41 @@ log_info "Désactivation des emojis et de wp-embed..."
 wp option update use_smilies 0
 log_success "Emojis désactivés."
 
+# ─── Étape 8 : extensions et thème du site (versions épinglées) ───
+# Polylang porte les langues du site (ADR-020), Yoast SEO le référencement,
+# GeneratePress est le thème parent (phase 10). Les versions sont épinglées :
+# une mise à jour est une décision, pas un effet de bord d'un bootstrap.
+# Idempotent : une extension déjà installée n'est pas réinstallée (sa version
+# n'est pas forcée non plus : `wp plugin update` reste un geste volontaire).
+# Les langues et les réglages de Polylang ne sont pas posés ici : le lot 2
+# d'ADR-020 les mettra dans le plugin ; en attendant, le spike
+# plugin/tests/Integration/wp-cli/polylang-spike.php les crée.
+log_info "Installation des extensions et du thème (versions épinglées)..."
+install_plugin() {
+    local slug="$1" version="$2"
+    if wp plugin is-installed "$slug" 2>/dev/null; then
+        # `tail -1` : podman-compose imprime les identifiants des conteneurs avant la réponse de WP-CLI.
+        log_success "Extension ${slug} déjà installée ($(wp plugin get "$slug" --field=version 2>/dev/null | tail -1))."
+    else
+        wp plugin install "$slug" --version="$version"
+        log_success "Extension ${slug} ${version} installée."
+    fi
+    # Activer seulement si nécessaire ; une activation qui échoue arrête le script (set -e).
+    wp plugin is-active "$slug" 2>/dev/null || wp plugin activate "$slug"
+}
+install_plugin polylang 3.9.1
+install_plugin wordpress-seo 28.8
+if wp theme is-installed generatepress 2>/dev/null; then
+    log_success "Thème GeneratePress déjà installé ($(wp theme get generatepress --field=version 2>/dev/null | tail -1))."
+else
+    wp theme install generatepress --version=3.6.1
+    log_success "Thème GeneratePress 3.6.1 installé."
+fi
+wp theme is-active generatepress 2>/dev/null || wp theme activate generatepress
+# On n'annonce actif que ce qui l'est : un échec ici arrête le script.
+wp plugin is-active polylang && wp plugin is-active wordpress-seo && wp theme is-active generatepress
+log_success "Polylang, Yoast SEO et GeneratePress actifs."
+
 # ─── Récapitulatif final ──────────────────────────────
 echo ""
 log_success "🎉 WordPress est prêt à l'emploi."
