@@ -52,7 +52,9 @@ portfolio-md/
 │   ├── Domain/                        # Objets métier purs, zéro WordPress
 │   │   ├── ContentSource.php          # Enum : Admin, Git, Paste                         ✅
 │   │   ├── Frontmatter.php            # Métadonnées typées et validées du YAML           ✅
-│   │   ├── ContentType.php            # Enum : Article, Project, Page ; dossier, base d'URL, collection REST ✅
+│   │   ├── ContentType.php            # Enum : Article, Project, Page ; dossier, base d'URL (par langue), collection REST ✅
+│   │   ├── Language.php               # Enum : Fr, De, En ; suffixe de slug par langue (ADR-020, lot 1a) ✅
+│   │   ├── ContentPath.php            # Chemin content/<lang>/<dossier>/<slug>.md (ADR-020, lot 1a) ✅
 │   │   ├── ProjectStatus.php          # Enum des statuts de projet (= taxonomie)         ✅
 │   │   ├── Skill.php, Referential.php, SkillsGrid.php   # Grille de compétences (ADR-014)  ✅
 │   │   └── Patterns.php               # Formes partagées : slug, codes de compétence       ✅
@@ -70,6 +72,10 @@ portfolio-md/
 │   │   ├── CommonMetaRegistrar.php    # 4 metas publiques, article + project             ✅
 │   │   ├── ProjectMetaRegistrar.php   # 8 metas publiques, project                       ✅
 │   │   └── InternalMetaRegistrar.php  # 5 metas internes, verrouillées, hors REST        ✅
+│   │
+│   ├── Validation/                    # Validateur de l'arbre content/, appelé par tools/validate-content.php (lot 1a)
+│   │   ├── ContentValidator.php       # Règles par fichier puis sur l'arbre ; lit ses listes dans le plugin, puis le parseur  ✅
+│   │   └── ValidationReport.php       # Disposition reconnue, erreurs par fichier, notes                 ✅
 │   │
 │   ├── Parsing/                       # Transformations de contenu
 │   │   ├── FrontmatterParser.php      # Markdown → ParsedDocument (Frontmatter + corps)   ✅
@@ -268,9 +274,11 @@ Le principe de distribution a été posé dans l'overview : chaque fois qu'il ex
 | Champ frontmatter | Destination WordPress | Notes |
 |---|---|---|
 | `title` | `wp_posts.post_title` | Obligatoire |
-| `slug` | `wp_posts.post_name` | Obligatoire, unique |
+| `slug` | `wp_posts.post_name` | Obligatoire, unique par type ; une fiche ou un article en allemand finit par `-de`, en anglais par `-en`, et un slug français ne finit par aucun des deux (ADR-020) ; les pages ont un slug naturel par langue |
 | `date` | `wp_posts.post_date` | Jour calendaire du frontmatter, à minuit dans le fuseau du site (`post_date` et `post_date_gmt` écrits ensemble) ; si absent, date de création, conservée ensuite ; une date dans le futur est refusée pour un post publié, parce que WordPress en ferait un post programmé, invisible (`--draft` l'accepte). `post_modified` n'a pas de champ : WordPress le gère seul |
 | `type` | post type `article` ou `project` | Guide le choix du CPT |
+| `lang` | lot 1a : `Domain\Frontmatter` et le validateur ; lot 2 : meta `_portfolio_lang` et langue Polylang | `fr`, `de` ou `en` (ADR-020), égal au dossier de langue du fichier ; facultatif jusqu'à la migration du contenu, où il devient obligatoire : absent vaut `fr` |
+| `translation_key` | lot 1a : `Domain\Frontmatter` et le validateur ; lot 2 : meta `_portfolio_translation_key` et liaison des traductions Polylang | Slug du document français du groupe ; obligatoire pour `de` et `en`, facultatif pour `fr` où il vaut le slug |
 | `tags` | taxonomie `tech_tag` | Liste de slugs, partagée article + projet ; un tag inconnu est créé avec son slug pour nom, à renommer dans l'admin |
 | `skills` (projets) | taxonomie `skill` | Liste de codes (`4.0.1/FR-13`) ; chaque code retrouve son terme via le term meta `_portfolio_skill_code` ; un code absent de la taxonomie fait **échouer** l'import, la grille `content/skills.yaml` étant la source des intitulés (ADR-014, note d'implémentation) |
 | `status` (projets) | taxonomie `project_status` **et** meta `_portfolio_project_status` | Résolu en terme par son slug ; la taxonomie est la source de vérité côté UI, la meta un miroir plat |

@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Voltz\PortfolioMd\Domain\ContentType;
+use Voltz\PortfolioMd\Domain\Language;
 
 #[CoversClass(ContentType::class)]
 final class ContentTypeTest extends TestCase
@@ -39,5 +40,21 @@ final class ContentTypeTest extends TestCase
         self::assertSame('/projets/momocad/', ContentType::Project->path('momocad'));
         self::assertSame('/a-propos/', ContentType::Page->path('a-propos'));
         self::assertSame('', ContentType::Page->urlBase());
+    }
+
+    #[Test]
+    public function path_with_a_language_prefixes_the_language(): void
+    {
+        self::assertSame('/fr/projets/momocad/', ContentType::Project->path('momocad', Language::Fr));
+        self::assertSame('/de/articles/rust-de/', ContentType::Article->path('rust-de', Language::De));
+        self::assertSame('/en/about/', ContentType::Page->path('about', Language::En));
+    }
+
+    #[Test]
+    public function only_articles_and_projects_say_their_language_in_their_slug(): void
+    {
+        self::assertTrue(ContentType::Article->suffixesSlugs());
+        self::assertTrue(ContentType::Project->suffixesSlugs());
+        self::assertFalse(ContentType::Page->suffixesSlugs());
     }
 }

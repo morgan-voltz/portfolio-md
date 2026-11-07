@@ -10,6 +10,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Voltz\PortfolioMd\Domain\ContentType;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Domain\Frontmatter;
 use Voltz\PortfolioMd\Domain\InvalidFrontmatterException;
 use Voltz\PortfolioMd\Domain\ProjectStatus;
@@ -176,5 +177,101 @@ final class FrontmatterTest extends TestCase
 
         self::assertSame('2026-10-26 00:00:00 UTC', $fm->periodEnd?->format('Y-m-d H:i:s e'));
         self::assertSame('UTC', $fm->periodStart?->getTimezone()->getName(), 'the string branch uses the same timezone');
+    }
+
+    #[Test]
+    public function lang_is_optional_during_the_transition_and_means_french(): void
+    {
+        $fm = Frontmatter::fromArray(self::project());
+
+        self::assertSame(Language::Fr, $fm->lang);
+        self::assertSame('momocad', $fm->translationKey, 'a French document is its own translation key');
+    }
+
+    #[Test]
+    public function lang_accepts_each_language_with_the_matching_slug(): void
+    {
+        $de = Frontmatter::fromArray(self::project(['lang' => 'de', 'slug' => 'momocad-de', 'translation_key' => 'momocad']));
+        $en = Frontmatter::fromArray(self::project(['lang' => 'en', 'slug' => 'momocad-en', 'translation_key' => 'momocad']));
+
+        self::assertSame([Language::De, 'momocad-de', 'momocad'], [$de->lang, $de->slug, $de->translationKey]);
+        self::assertSame([Language::En, 'momocad-en', 'momocad'], [$en->lang, $en->slug, $en->translationKey]);
+    }
+
+    #[Test]
+    #[DataProvider('languageRejectedProvider')]
+    public function rejects_invalid_language_metadata(array $overrides, string $expectedMessagePart): void
+    {
+        $this->expectException(InvalidFrontmatterException::class);
+        $this->expectExceptionMessage($expectedMessagePart);
+
+        Frontmatter::fromArray(self::project($overrides));
+    }
+
+    /** @return iterable<string, array{array<string, mixed>, string}> */
+    public static function languageRejectedProvider(): iterable
+    {
+        yield 'lang outside the list' => [['lang' => 'es'], 'expected one of fr, de, en'];
+        yield 'lang that is not a string' => [['lang' => 42], 'invalid value for "lang"'];
+        yield 'translation key without lang (transition)' => [['translation_key' => 'momocad'], 'requires the "lang" key'];
+        yield 'french translation key different from the slug' => [['lang' => 'fr', 'translation_key' => 'other'], 'must use its own slug as key'];
+        yield 'translation key that is not a slug' => [['lang' => 'de', 'slug' => 'momocad-de', 'translation_key' => 'Momo Cad'], 'invalid value for "translation_key"'];
+        yield 'german project without the suffix' => [['lang' => 'de', 'slug' => 'momocad', 'translation_key' => 'momocad'], 'must end with "-de"'];
+        yield 'english project without the suffix' => [['lang' => 'en', 'slug' => 'momocad', 'translation_key' => 'momocad'], 'must end with "-en"'];
+        yield 'atlas-de in a french document' => [['lang' => 'fr', 'slug' => 'atlas-de'], 'must not end with "-de" or "-en"'];
+        yield 'atlas-en in a document without lang' => [['slug' => 'atlas-en'], 'must not end with "-de" or "-en"'];
+        yield 'german project with the english suffix' => [['lang' => 'de', 'slug' => 'momocad-en', 'translation_key' => 'momocad'], 'must end with "-de"'];
+    }
+
+    #[Test]
+    public function translation_key_is_required_outside_french(): void
+    {
+        $this->expectException(InvalidFrontmatterException::class);
+        $this->expectExceptionMessage('missing required key "translation_key"');
+
+        Frontmatter::fromArray(self::project(['lang' => 'de', 'slug' => 'momocad-de']));
+    }
+
+    #[Test]
+    public function a_french_document_may_write_its_own_slug_as_translation_key(): void
+    {
+        $fm = Frontmatter::fromArray(self::project(['lang' => 'fr', 'translation_key' => 'momocad']));
+
+        self::assertSame('momocad', $fm->translationKey);
+    }
+
+    #[Test]
+    public function an_english_article_says_its_language_in_its_slug(): void
+    {
+        $fm = Frontmatter::fromArray(['title' => 'Rust', 'slug' => 'rust-ownership-en', 'type' => 'article', 'lang' => 'en', 'translation_key' => 'rust-ownership']);
+
+        self::assertSame(Language::En, $fm->lang);
+        self::assertSame('rust-ownership', $fm->translationKey);
+
+        $this->expectException(InvalidFrontmatterException::class);
+        $this->expectExceptionMessage('must end with "-en"');
+        Frontmatter::fromArray(['title' => 'Rust', 'slug' => 'rust-ownership', 'type' => 'article', 'lang' => 'en', 'translation_key' => 'rust-ownership']);
+    }
+
+    #[Test]
+    public function pages_are_exempt_from_the_suffix_rule(): void
+    {
+        $german = Frontmatter::fromArray(['title' => 'Lebenslauf', 'slug' => 'lebenslauf', 'type' => 'page', 'lang' => 'de', 'translation_key' => 'cv']);
+        $frenchWithASuffixLookingSlug = Frontmatter::fromArray(['title' => 'About', 'slug' => 'about-en', 'type' => 'page', 'lang' => 'fr']);
+
+        self::assertSame(['lebenslauf', 'cv'], [$german->slug, $german->translationKey]);
+        self::assertSame(['about-en', 'about-en'], [$frenchWithASuffixLookingSlug->slug, $frenchWithASuffixLookingSlug->translationKey]);
+    }
+
+    #[Test]
+    public function allowed_keys_always_contain_the_language_keys(): void
+    {
+        foreach (ContentType::cases() as $type) {
+            self::assertContains('lang', Frontmatter::allowedKeys($type), $type->value);
+            self::assertContains('translation_key', Frontmatter::allowedKeys($type), $type->value);
+        }
+        self::assertSame(['title', 'slug', 'type', 'date', 'seo_description', 'lang', 'translation_key'], Frontmatter::allowedKeys(ContentType::Page));
+        self::assertContains('reading_time', Frontmatter::allowedKeys(ContentType::Article));
+        self::assertNotContains('reading_time', Frontmatter::allowedKeys(ContentType::Project));
     }
 }

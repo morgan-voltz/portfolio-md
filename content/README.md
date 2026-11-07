@@ -1,7 +1,9 @@
 # content/ — la source Markdown du portfolio
 
 **Rôle** : ce dossier est la source canonique du contenu du site (ADR-001, ADR-002). Tout ce que WordPress affiche en est une projection : le plugin `portfolio-md` stockera chaque fichier tel quel dans `_portfolio_md_source` et en dérivera le HTML Gutenberg. Les fichiers entrent dans WordPress par la commande `wp portfolio import` (voir « Import dans WordPress ») et, depuis le 29 octobre 2026, par la porte Git : chaque push sur `main` qui touche ce dossier est envoyé au site par le workflow `.github/workflows/sync-content.yml`, une fois les trois secrets du dépôt posés (`PORTFOLIO_SYNC_URL`, `PORTFOLIO_SYNC_USER`, `PORTFOLIO_SYNC_PASSWORD` ; ADR-019). La forme des fichiers est définitive.
-**Langue** : le contenu est en français, c'est la langue du site. Les identifiants (slugs, codes, clés de frontmatter) restent en anglais.
+**Langues** : le site est trilingue, français, allemand, anglais (ADR-020), et le contenu est une arborescence par langue. Les identifiants (slugs, codes, clés de frontmatter, noms de dossiers) restent en anglais.
+
+> **Transition (novembre 2026).** Tant que la migration du contenu n'a pas eu lieu, les fichiers sont encore à `content/<dossier>/<slug>.md` et sont lus comme du français ; pendant cette période, on omet `lang` et `translation_key`. Le validateur annonce cette disposition par la ligne « disposition : avant migration » ; il tolère `lang: "fr"` (qui change le hash du fichier, donc le réimporte) et refuse `lang` `de` ou `en`, que l'import refuse lui aussi tant que le lot 1b d'ADR-020 n'a pas appris la langue aux portes du plugin. Dès que `content/fr/`, `content/de/` ou `content/en/` existe, la disposition par langue est la seule admise : les dossiers de type restés à la racine sont signalés « arbre mixte ».
 **Décision associée** : contenu versionné dans le monorepo, ADR-015 du 26 octobre 2026.
 
 ## Arborescence
@@ -9,15 +11,23 @@
 ```
 content/
 ├── README.md            # ce document
-├── skills.yaml          # grille de compétences UHA 4.0 → taxonomie skill (ADR-014)
-├── projects/            # une fiche par projet → post type project
-│   └── <slug>.md
-└── pages/               # pages statiques → type page natif
-    ├── a-propos.md
-    └── cv.md
+├── skills.yaml          # grille de compétences UHA 4.0 → taxonomie skill (ADR-014), hors langue
+├── fr/                  # une arborescence par langue : fr, de, en
+│   ├── projects/        # une fiche par projet → post type project
+│   │   └── <slug>.md
+│   └── pages/           # pages statiques → type page natif
+│       ├── a-propos.md
+│       └── cv.md
+├── de/
+│   ├── projects/
+│   │   └── <slug>-de.md
+│   └── pages/
+│       └── lebenslauf.md
+└── en/
+    └── …
 ```
 
-Les articles de blog (`type: "article"`) auront leur dossier `articles/` quand le premier sera écrit.
+Le dossier de langue dit la langue, le dossier de type dit le type, le nom du fichier est le slug (`Domain\ContentPath`). Les articles de blog (`type: "article"`) auront leur dossier `articles/` dans chaque langue quand le premier sera écrit.
 
 ## Frontmatter d'une fiche projet
 
@@ -26,8 +36,10 @@ Le mapping complet frontmatter → WordPress est dans [`../docs/architecture/01-
 ```markdown
 ---
 title: "Nom du projet"
-slug: "nom-du-projet"
+slug: "nom-du-projet"               # en allemand « nom-du-projet-de », en anglais « nom-du-projet-en »
 type: "project"
+lang: "fr"                          # fr | de | en, égal au dossier de langue
+translation_key: "nom-du-projet"    # slug du document français ; facultatif en français, obligatoire en de et en
 date: 2026-09-06                    # date de publication ; si absente, date d'import
 subtitle: "Une ligne qui dit ce que c'est"
 seo_description: "160 caractères maximum, phrase complète pour les moteurs de recherche."
@@ -47,7 +59,7 @@ skills: ["4.0.1/FR-13", "4.0.2/E07"] # codes de content/skills.yaml
 
 Les codes de compétences viennent de `skills.yaml` : pour 4.0.1, les intitulés officiels de la feuille de suivi (`FR-nn` techniques, `PM-nn` métier, `TR-nn` transverses) ; pour 4.0.2, les étapes de la consigne du fil rouge (`Enn`, `Onn`) en attendant la feuille de suivi de l'année. Une fiche ne cite que les compétences que le projet démontre concrètement.
 
-Seules `title`, `slug` et `type` sont obligatoires, plus `status` pour un projet ; les autres clés peuvent être omises et valent alors vide ou `false`. Une fiche complète les renseigne toutes, comme ci-dessus. Les booléens s'écrivent `true` ou `false` (pas `yes`), les dates `AAAA-MM-JJ`, et le parseur refuse toute clé qu'il ne connaît pas.
+Le plugin n'exige que `title`, `slug` et `type`, plus `status` pour un projet et `translation_key` hors du français, et il refuse `translation_key` sans `lang` ; les autres clés peuvent être omises et valent alors vide ou `false`. Le validateur, lui, exige une fiche complète, comme ci-dessus (`reading_time` excepté). `lang` est facultatif jusqu'à la migration du contenu, et vaut alors `fr`. Les booléens s'écrivent `true` ou `false` (pas `yes`), les dates `AAAA-MM-JJ`, et le parseur refuse toute clé qu'il ne connaît pas.
 
 Pas de champ `category` : la taxonomie native n'est pas utilisée (`04-structure-wordpress.md` §4.4), les tags techniques suffisent. Les flags `needs_mermaid` / `needs_katex` viendront avec le pipeline (ADR-013).
 
@@ -70,14 +82,38 @@ Les pages `À propos` et `CV` utilisent le type natif `page` de WordPress ; le p
 ```markdown
 ---
 title: "À propos"
-slug: "a-propos"
+slug: "a-propos"                    # un slug naturel par langue : a-propos, ueber-mich, about
 type: "page"
+lang: "fr"
+translation_key: "a-propos"         # slug de la page française ; facultatif en français
 date: 2026-10-26
 seo_description: "Une phrase complète de 160 caractères au plus."
 ---
 ```
 
 Corps en GFM, sans `# Titre` en tête (même règle que les fiches), à la première personne, sans donnée de contact : l'adresse e-mail n'apparaît que sur la page Contact. La page CV est une version web lisible, pas une copie de la mise en page du PDF ; elle renvoie aux fiches projet par des liens relatifs (`../projects/<slug>.md`), que le pipeline réécrit en liens du site (`/projets/<slug>/`) au rendu.
+
+## Traductions
+
+Chaque document existe dans les trois langues à terme (ADR-020). Les règles :
+
+- **Un fichier traduit est autosuffisant** : il porte tout son frontmatter, rien n'est copié depuis l'original à l'import.
+- **La clé de traduction est le slug du document français.** `momocad-de` et `momocad-en` portent `translation_key: "momocad"` ; `lebenslauf` et `resume` portent `cv`. Un groupe de traductions est identifié par son type et sa clé : un projet et une page de même clé ne forment pas un groupe. Une traduction dont l'original français n'existe pas est une orpheline, refusée.
+- **Les slugs disent la langue pour les fiches et les articles** : suffixe `-de` ou `-en`, et un slug français ne finit jamais par l'un des deux. Les pages ont un slug naturel par langue (`cv`, `lebenslauf`, `resume` ; `a-propos`, `ueber-mich`, `about`), jamais le même dans deux langues : WordPress suffixerait le second en `-2`.
+- **Les liens relatifs** gardent la forme `../projects/<slug>.md`, et l'auteur écrit la vraie cible : un CV allemand renvoie à `../projects/momocad-de.md`. Le validateur vérifie que la cible existe, y compris sous la forme `../../<lang>/projects/<slug>.md`, que le rendu ne réécrira qu'à partir du lot 1b.
+- **`seo_description` se réécrit par langue**, 160 caractères au plus ; l'allemand est plus long, on ne traduit pas mot à mot.
+- **Git est le seul écrivain des traductions** : une traduction ne se modifie pas depuis l'admin.
+- Les pages d'accueil et de contact sont créées à la main dans WordPress, sans fichier : elles sont hors du périmètre du validateur.
+
+Les cinq sections d'une fiche se reconnaissent par un mot entier de leur titre, dans la langue du document (plus la section du fil rouge quand `is_fil_rouge` vaut `true`) :
+
+| Langue | Problème | Décisions | Appris | Chiffres | Liens | Fil rouge |
+|---|---|---|---|---|---|---|
+| `fr` | problème | décisions | appris | chiffres | liens | étapes du fil rouge |
+| `de` | Problem | Entscheidungen | gelernt | Zahlen | Links | Etappen des roten Fadens |
+| `en` | problem | decisions | learned | figures | links | storyline steps |
+
+Les articles n'ont pas de section obligatoire.
 
 ## Import dans WordPress
 
@@ -111,9 +147,24 @@ Une fiche se modifie aussi depuis l'admin WordPress, dans la boîte « Document 
 
 ## Validation
 
-Avant de proposer une fiche, la passer au validateur, qui vérifie le frontmatter, les codes de compétences, les sections obligatoires, l'absence de HTML ou de données de contact, et qu'aucun corps ne répète son titre en h1 (sans PHP sur la machine, via un conteneur) :
+Avant de proposer une fiche, passer tout le dossier au validateur (sans PHP sur la machine, via un conteneur) :
 
 ```bash
 podman run --rm -v "$PWD:/repo:z" -w /repo docker.io/library/php:8.3-cli \
-  php plugin/tools/validate-content.php content/skills.yaml content/projects/*.md content/pages/*.md
+  php plugin/tools/validate-content.php content/skills.yaml content
 ```
+
+Il lit ses listes dans le plugin lui-même (`Validation\ContentValidator` : clés autorisées, types, langues, statuts, forme des slugs, plafond SEO) et vérifie, fichier par fichier puis sur l'arbre entier :
+
+1. les clés du frontmatter et leurs valeurs, dont les codes de compétences de `skills.yaml` ;
+2. que le nom du fichier est le slug ;
+3. que `lang` est la langue du dossier, et `type` le type du dossier ;
+4. le suffixe `-de` ou `-en` des fiches et des articles, et son absence en français ;
+5. `translation_key` : présente hors du français, égale au slug en français ;
+6. `seo_description` de 160 caractères au plus ;
+7. les sections de la langue du document, l'absence de HTML et de h1 dans le corps, de données de contact sur une page ;
+8. qu'aucune traduction n'est orpheline et qu'une clé n'est portée qu'une fois par langue ;
+9. qu'un slug n'est pas repris dans une autre langue du même type ;
+10. que chaque lien de la forme `../<dossier>/<slug>.md` pointe vers un fichier de `content/` qui existe, et qu'aucun lien vers un `.md` n'a une autre forme : le rendu ne réécrit que celle-là.
+
+La première ligne du rapport dit la disposition reconnue, « avant migration » ou « par langue » ; le code de retour vaut 1 dès qu'un fichier ou l'arbre échoue.

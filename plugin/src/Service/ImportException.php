@@ -6,6 +6,7 @@ namespace Voltz\PortfolioMd\Service;
 
 use RuntimeException;
 use Voltz\PortfolioMd\Domain\ContentType;
+use Voltz\PortfolioMd\Domain\Language;
 
 /**
  * A document that is well formed but cannot be imported as it stands.
@@ -43,6 +44,19 @@ final class ImportException extends RuntimeException
             "Post {$postId} ({$type->value}/{$slug}) is in the trash: restore it or delete it permanently before importing this document,"
             . ' otherwise a second post would be created next to it.',
             $postId,
+        );
+    }
+
+    /**
+     * TRANSITION (lot 1a of ADR-020): the stores and the doors know nothing
+     * of languages yet, so a document in another language would be filed as
+     * French and lose its language. Lot 1b lifts this refusal.
+     */
+    public static function languageNotYetSupported(Language $lang): self
+    {
+        return new self(
+            "The document is in \"{$lang->value}\", which the import does not support yet: until the content is laid out by language"
+            . ' (ADR-020, lot 1b), only French documents are imported.',
         );
     }
 
