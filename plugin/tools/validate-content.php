@@ -22,7 +22,6 @@ require __DIR__ . '/../vendor/autoload.php';
 
 use Symfony\Component\Yaml\Yaml;
 use Voltz\PortfolioMd\Validation\ContentValidator;
-use Voltz\PortfolioMd\Validation\ValidationReport;
 
 if ($argc !== 3) {
     fwrite(STDERR, "usage: validate-content.php <skills.yaml> <content-dir>\n");
@@ -40,10 +39,6 @@ if (!is_dir($argv[2])) {
 
 $grid = Yaml::parseFile($argv[1]);
 $report = (new ContentValidator(ContentValidator::skillCodes(is_array($grid) ? $grid : [])))->validate($argv[2]);
-
-echo $report->layout === ValidationReport::LANGUAGES
-    ? "disposition : par langue (content/<lang>/<dossier>/)\n"
-    : "disposition : avant migration (content/<dossier>/)\n";
 
 $files = 0;
 $failed = 0;

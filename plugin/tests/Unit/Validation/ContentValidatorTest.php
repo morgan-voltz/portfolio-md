@@ -61,45 +61,47 @@ final class ContentValidatorTest extends TestCase
         $report = (new ContentValidator(ContentValidator::skillCodes(is_array($grid) ? $grid : [])))->validate(self::CONTENT);
 
         self::assertClean($report);
-        self::assertGreaterThanOrEqual(16, count($report->notes));
+        self::assertCount(16, $report->notes, 'the fourteen sheets and the two pages of content/fr/');
     }
 
     #[Test]
-    public function the_legacy_layout_is_detected_and_read_as_french(): void
-    {
-        $this->tree->put('projects/momocad.md', ContentTree::projectFrontmatter(['lang' => null]), ContentTree::projectBody());
-        $this->tree->put('pages/cv.md', ContentTree::pageFrontmatter(['lang' => null]), 'Mon parcours.');
-        $this->tree->putRaw('README.md', '# content');
-
-        $report = $this->validate();
-
-        self::assertSame(ValidationReport::LEGACY, $report->layout);
-        self::assertClean($report);
-        self::assertSame(['pages/cv.md', 'projects/momocad.md'], $report->paths());
-    }
-
-    #[Test]
-    public function the_languages_layout_is_detected(): void
+    public function the_language_layout_is_read(): void
     {
         $this->tree->put('fr/projects/momocad.md', ContentTree::projectFrontmatter(), ContentTree::projectBody());
 
         $report = $this->validate();
 
-        self::assertSame(ValidationReport::LANGUAGES, $report->layout);
         self::assertClean($report);
         self::assertSame('fr/projects/momocad.md', $report->paths()[0]);
     }
 
     #[Test]
-    public function a_mixed_layout_is_refused(): void
+    public function a_type_folder_at_the_root_is_refused(): void
     {
         $this->tree->put('fr/projects/momocad.md', ContentTree::projectFrontmatter(), ContentTree::projectBody());
         $this->tree->put('projects/atlas.md', ContentTree::projectFrontmatter(['slug' => 'atlas', 'title' => 'Atlas']), ContentTree::projectBody());
 
         $report = $this->validate();
 
-        self::assertError($report, ContentValidator::TREE, 'arbre mixte : projects/ à côté des dossiers de langue');
+        self::assertError($report, ContentValidator::TREE, 'dossier de type à la racine : projects/ ; les documents vivent dans content/<lang>/projects/');
         self::assertSame(ContentValidator::TREE, $report->paths()[0]);
+        self::assertArrayNotHasKey('fr/projects/momocad.md', $report->errors);
+    }
+
+    #[Test]
+    public function a_tree_of_the_former_layout_is_refused_outright(): void
+    {
+        $this->tree->put('projects/momocad.md', ContentTree::projectFrontmatter(), ContentTree::projectBody());
+        $this->tree->put('pages/cv.md', ContentTree::pageFrontmatter(), 'Mon parcours.');
+        $this->tree->putRaw('articles/rust.md', "---\ntitle: Rust\n---\n");
+
+        $report = $this->validate();
+
+        self::assertError($report, ContentValidator::TREE, 'dossier de type à la racine : projects/');
+        self::assertError($report, ContentValidator::TREE, 'dossier de type à la racine : pages/');
+        self::assertError($report, ContentValidator::TREE, 'dossier de type à la racine : articles/ ; les documents vivent dans content/<lang>/articles/');
+        self::assertError($report, ContentValidator::TREE, 'aucun document trouvé');
+        self::assertSame([ContentValidator::TREE], $report->paths(), 'no file is read where no language folder exists');
     }
 
     #[Test]
@@ -116,30 +118,6 @@ final class ContentValidatorTest extends TestCase
         self::assertError($report, 'fr/posts/note.md', 'emplacement non reconnu');
         self::assertError($report, 'fr/stray.md', 'emplacement non reconnu');
         self::assertArrayNotHasKey('fr/projects/momocad.md', $report->errors);
-    }
-
-    #[Test]
-    public function an_unexpected_top_level_folder_is_refused_in_the_legacy_layout(): void
-    {
-        $this->tree->put('projects/momocad.md', ContentTree::projectFrontmatter(), ContentTree::projectBody());
-        $this->tree->putRaw('es/projects/x.md', "---\ntitle: x\n---\n");
-
-        $report = $this->validate();
-
-        self::assertSame(ValidationReport::LEGACY, $report->layout);
-        self::assertError($report, ContentValidator::TREE, 'dossier inattendu à la racine : es/');
-    }
-
-    #[Test]
-    public function the_legacy_layout_accepts_lang_fr_and_refuses_the_other_languages(): void
-    {
-        $this->tree->put('projects/momocad.md', ContentTree::projectFrontmatter(['lang' => 'fr']), ContentTree::projectBody());
-        $this->tree->put('projects/momocad-de.md', ContentTree::projectFrontmatter(['slug' => 'momocad-de', 'lang' => 'de', 'translation_key' => 'momocad']), ContentTree::projectBody('de'));
-
-        $report = $this->validate();
-
-        self::assertArrayNotHasKey('projects/momocad.md', $report->errors);
-        self::assertError($report, 'projects/momocad-de.md', 'lang (de) impossible avant migration');
     }
 
     // ------------------------------------------------------------ one file at a time
@@ -159,7 +137,7 @@ final class ContentValidatorTest extends TestCase
     }
 
     #[Test]
-    public function lang_is_required_in_the_languages_layout(): void
+    public function lang_is_required(): void
     {
         $this->tree->put('fr/projects/momocad.md', ContentTree::projectFrontmatter(['lang' => null]), ContentTree::projectBody());
 
@@ -432,14 +410,6 @@ final class ContentValidatorTest extends TestCase
         self::assertError($report, 'fr/projects/momocad.md', 'h1 dans le corps');
         self::assertError($report, 'fr/pages/cv.md', 'donnée de contact détectée');
         self::assertError($report, 'fr/articles/rust.md', 'refusé par le parseur du plugin');
-    }
-
-    #[Test]
-    public function a_translation_key_without_lang_is_refused_before_the_migration(): void
-    {
-        $this->tree->put('projects/momocad.md', ContentTree::projectFrontmatter(['lang' => null, 'translation_key' => 'momocad']), ContentTree::projectBody());
-
-        self::assertError($this->validate(), 'projects/momocad.md', 'translation_key sans lang : impossible avant migration');
     }
 
     #[Test]
