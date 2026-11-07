@@ -129,9 +129,9 @@ log_success "Emojis désactivés."
 # une mise à jour est une décision, pas un effet de bord d'un bootstrap.
 # Idempotent : une extension déjà installée n'est pas réinstallée (sa version
 # n'est pas forcée non plus : `wp plugin update` reste un geste volontaire).
-# Les langues et les réglages de Polylang ne sont pas posés ici : le lot 2
-# d'ADR-020 les mettra dans le plugin ; en attendant, le spike
-# plugin/tests/Integration/wp-cli/polylang-spike.php les crée.
+# Les langues et les réglages de Polylang sont posés à l'étape 8 bis par le
+# script plugin/tools/polylang-setup-languages.php (lot 2 d'ADR-020) ; les
+# types de contenu du plugin, eux, sont déclarés à Polylang par le plugin.
 log_info "Installation des extensions et du thème (versions épinglées)..."
 install_plugin() {
     local slug="$1" version="$2"
@@ -157,6 +157,14 @@ wp theme is-active generatepress 2>/dev/null || wp theme activate generatepress
 # On n'annonce actif que ce qui l'est : un échec ici arrête le script.
 wp plugin is-active polylang && wp plugin is-active wordpress-seo && wp theme is-active generatepress
 log_success "Polylang, Yoast SEO et GeneratePress actifs."
+
+# ─── Étape 8 bis : langues du site dans Polylang (ADR-020) ───
+# Français, allemand, anglais, le français par défaut, les URL préfixées de
+# leur langue. Idempotent : une langue existante est laissée en place. Sans
+# ces langues, chaque import de document échouerait sur la passerelle de langue.
+log_info "Langues du site dans Polylang (fr, de, en)..."
+wp eval-file wp-content/plugins/portfolio-md/tools/polylang-setup-languages.php
+log_success "Langues fr, de, en en place dans Polylang."
 
 # ─── Récapitulatif final ──────────────────────────────
 echo ""
