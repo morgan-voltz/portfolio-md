@@ -20,7 +20,8 @@ services:
   # et activement maintenu. C'est aussi le choix par défaut de la plupart des
   # hébergeurs WordPress modernes.
   db:
-    image: mariadb:11
+    # Image fully qualified and pinned (see the note on `wordpress` below).
+    image: docker.io/library/mariadb:11.8.9
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
@@ -41,7 +42,15 @@ services:
 
   # ─── WordPress ────────────────────────────────────────
   wordpress:
-    image: wordpress:latest
+    # Fully qualified and pinned on purpose:
+    #   - `docker.io/library/…` : with Podman's default `short-name-mode = "enforcing"`
+    #     (Fedora), a short name such as `wordpress:latest` makes `podman` ask which
+    #     registry to use; without a terminal (scripts, CI, an agent) the prompt
+    #     hangs forever and nothing is pulled.
+    #   - a version tag rather than `latest` : the plugin's minimum WordPress
+    #     version is tied to Polylang (6.8) and Yoast SEO (7.0); a surprise major
+    #     upgrade must be a decision, not a side effect of `up -d`.
+    image: docker.io/library/wordpress:7.1.2-php8.3-apache
     restart: unless-stopped
     depends_on:
       db:
@@ -88,7 +97,7 @@ services:
   # même installation. Il dépend aussi de `db` pour les commandes qui
   # touchent à la base.
   wpcli:
-    image: wordpress:cli
+    image: docker.io/library/wordpress:cli-2.12.0-php8.3
     depends_on:
       db:
         condition: service_healthy

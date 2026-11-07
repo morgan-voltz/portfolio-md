@@ -87,6 +87,9 @@ frontend/*.local
 **/.nyc_output/
 **/junit.xml
 
+# ─── Python (.github/scripts) ────────────────────────────
+__pycache__/
+
 # ─── Builds temporaires ──────────────────────────────────
 *.tmp
 *.temp
