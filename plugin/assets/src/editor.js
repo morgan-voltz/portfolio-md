@@ -28,10 +28,11 @@ import { yamlFrontmatter } from '@codemirror/lang-yaml'
 /**
  * @param {HTMLElement} parent        where the editor is appended
  * @param {string} initialValue
- * @param {object} callbacks
- * @param {(value: string) => void} callbacks.onChange  called with the whole document after each change
+ * @param {object} options
+ * @param {(value: string) => void} options.onChange  called with the whole document after each change
+ * @param {boolean} [options.readOnly]  a document shown but not editable (a translation: Git writes it)
  */
-export function createEditor(parent, initialValue, { onChange }) {
+export function createEditor(parent, initialValue, { onChange, readOnly = false }) {
   const view = new EditorView({
     parent,
     state: EditorState.create({
@@ -50,6 +51,8 @@ export function createEditor(parent, initialValue, { onChange }) {
         yamlFrontmatter({ content: markdown({ base: markdownLanguage }) }),
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         EditorView.lineWrapping,
+        EditorState.readOnly.of(readOnly),
+        EditorView.editable.of(!readOnly),
         // Tab indents (lists, code blocks); Escape then Tab leaves the editor.
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
         EditorView.updateListener.of((update) => {

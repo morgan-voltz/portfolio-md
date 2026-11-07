@@ -21,10 +21,11 @@ const config = { previewPath: '/portfolio/v1/preview', stylesheets: ['http://sit
 /** An editor double: a value, and a way to "type" that fires onChange like CodeMirror would. */
 function fakeEditorFactory() {
   const created = []
-  const factory = (parent, value, { onChange }) => {
+  const factory = (parent, value, { onChange, readOnly = false }) => {
     const editor = {
       parent,
       value,
+      readOnly,
       type(text) {
         editor.value = text
         onChange(text)
@@ -217,5 +218,14 @@ describe('mountAll', () => {
     assert.equal(mounted.length, 2)
     assert.deepEqual(createEditor.created.map((e) => e.value), ['a', 'c'])
     assert.equal(dom.window.document.querySelector('textarea[name="other"]').hidden, false)
+  })
+
+  it('mounts a read-only editor on a readonly textarea', () => {
+    const dom = new JSDOM(`<textarea ${MARKER}="1" readonly>a</textarea><textarea ${MARKER}="1">b</textarea>`)
+    const createEditor = fakeEditorFactory()
+
+    mountAll(dom.window.document, { createEditor, request: fakeRequest(), config, timers: fakeTimers() })
+
+    assert.deepEqual(createEditor.created.map((e) => e.readOnly), [true, false])
   })
 })
