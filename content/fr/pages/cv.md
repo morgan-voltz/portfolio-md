@@ -11,7 +11,7 @@ Je m'appelle Morgan Voltz. Développeur full-stack, je prépare la Licence profe
 
 ## Formation
 
-- **Licence professionnelle Métiers de l'informatique (conception, développement et test de logiciels), parcours UHA 4.0** — Université de Haute-Alsace, Mulhouse, 2025-2028. Le parcours se compose de trois diplômes universitaires : DU 4.0.1, DU 4.0.2 (en cours, pour la seconde fois : une première session 2025-2026 avait pour fil rouge GeoForge, le jeu ; fil rouge en cours : MomoCad, depuis septembre 2026) et DU 4.0.3, à l'issue duquel la Licence est délivrée, visée en 2028. Fil rouge de première année (4.0.1) : UHA Learn. Projet client de première année : AUTOFIN Control, pour m2A (Mulhouse Alsace Agglomération), en équipe de sept à huit.
+- **Licence professionnelle Métiers de l'informatique (conception, développement et test de logiciels), parcours UHA 4.0** — Université de Haute-Alsace, Mulhouse, 2025-2028. Le parcours se compose de trois diplômes universitaires : DU 4.0.1, DU 4.0.2 (en cours, pour la seconde fois : une première session 2025-2026 avait pour fil rouge GeoForge, le jeu ; fil rouge en cours : MomoCad, depuis septembre 2026) et DU 4.0.3, à l'issue duquel la Licence est délivrée, visée en 2028. Fil rouge de première année (4.0.1) : UHA Learn. Projet client de première année : AUTOFIN Control, pour m2A (Mulhouse Alsace Agglomération), en équipe de cinq.
 - **Master Informatique et Mobilité, en alternance** — Université de Haute-Alsace, Mulhouse, visé pour 2028-2030.
 - **BTS Systèmes Électroniques** (1ʳᵉ année) — programmation embarquée en C/C++, robotique en Python.
 - **Bac professionnel SEN**, spécialité Réseaux & Sécurité Incendie — systèmes Siemens, centrales d'alarme.
@@ -48,7 +48,7 @@ Git, Docker / Podman, GitLab CI/CD, Postman / Bruno, Linux, WSL2, Jira, Confluen
 - **[Vefta](../projects/vefta.md)** — suite de productivité Rust de bout en bout pour Kovelt, pensée hors ligne d'abord. *En cours.*
 - **[Atlas](../projects/atlas.md)** — plateforme .NET qui unifie les données publiques françaises des entreprises et de la propriété industrielle, verrouillée par les tests. *En cours.*
 - **[carbon-fr](../projects/carbon-fr.md)** — API open source qui mesure l'intensité carbone de l'électricité française. *Stable.*
-- **[AUTOFIN Control](../projects/autofin-control.md)** — lecture de bilans PDF par analyse géométrique pour le contrôle financier de m2A, en équipe de sept à huit. *Stable.*
+- **[AUTOFIN Control](../projects/autofin-control.md)** — lecture de bilans PDF par analyse géométrique pour le contrôle financier de m2A, en équipe de cinq. *Stable.*
 
 ### Fil rouge et projets académiques UHA 4.0
 - **[MomoCad](../projects/momocad.md)** — dessin 2D façon CAO dont l'état n'est qu'un journal d'événements rejoué ; fil rouge 4.0.2 en cours. *En cours.*
