@@ -108,6 +108,7 @@ final class WordPressContentRepository implements ContentRepository
             'numberposts' => -1,
             'orderby' => 'ID',
             'order' => 'ASC',
+            'lang' => '', // every language: a group is made of posts of different languages (see firstPost())
         ]);
 
         $found = [];
@@ -225,7 +226,10 @@ final class WordPressContentRepository implements ContentRepository
      */
     private static function firstPost(array $query): ?WP_Post
     {
-        $posts = get_posts($query + ['numberposts' => 1]);
+        // 'lang' => '' tells Polylang the query is already filtered (PLL_Query::is_already_filtered), so an
+        // admin request made under its language filter still finds a post of another language; the core
+        // ignores an empty tax query value, and Polylang drops the var for a type it does not translate.
+        $posts = get_posts($query + ['numberposts' => 1, 'lang' => '']);
         $post = $posts[0] ?? null;
 
         return $post instanceof WP_Post ? $post : null;
