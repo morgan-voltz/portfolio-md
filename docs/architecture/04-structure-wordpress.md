@@ -5,7 +5,7 @@
 **Lectorat** : Morgan à froid, contributeurs futurs, et toute personne qui veut comprendre comment WordPress est organisé pour ce projet.
 **Articulation** : ce document complète `01-plugin-php.md` (qui détaille le plugin de conversion Markdown ↔ WordPress) en se concentrant sur la modélisation côté CMS.
 **Temps de lecture** : environ 12 minutes
-**Dernière mise à jour** : 29 octobre 2026 (porte Git et routes REST publiques en lecture ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
+**Dernière mise à jour** : 7 novembre 2026 (langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
 
 ---
 
@@ -449,5 +449,9 @@ WordPress
 - Deux champs internes de plus, `_portfolio_lang` et `_portfolio_translation_key` (section 5.3) : dix-neuf champs au total. Le plugin reste maître de la langue ; Polylang la recevra par la passerelle de langue au lot 2.
 - Les liens entre documents sont préfixés de la langue du document (`/fr/projets/<slug>/`, `ContentRenderer` 1.2.0).
 - Le modèle de contenu ne change pas autrement : un post par langue, slugs suffixés `-de` / `-en` pour les fiches et les articles, slugs naturels pour les pages (ADR-020).
+
+**2026-11-07 (migration du contenu, ADR-020 lot 1c)**
+
+- Les fiches et les pages vivent dans `content/fr/projects/` et `content/fr/pages/`, chaque document avec sa ligne `lang` (obligatoire). L'entrée du 26 octobre ci-dessus nomme les anciens chemins à dessein : c'était vrai quand elle a été écrite.
 
 ---
