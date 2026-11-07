@@ -4,20 +4,21 @@ slug: "cv"
 type: "page"
 lang: "fr"
 date: 2026-10-26
-seo_description: "Morgan Voltz est développeur full-stack en Licence Informatique UHA 4.0 et fondateur de Kovelt : formation, expérience, compétences et projets."
+seo_description: "Morgan Voltz, développeur full-stack en formation à l'UHA (parcours UHA 4.0) et fondateur de Kovelt : formation, expérience, compétences et projets."
 ---
 
-Je m'appelle Morgan Voltz. Développeur full-stack, je termine ma Licence Informatique à l'Université de Haute-Alsace (parcours UHA 4.0) et je dirige en parallèle Kovelt, l'entreprise que j'ai fondée. Je recherche une alternance — un contrat de professionnalisation à 60 ou 80 % — pour la dernière année de Licence et pour le Master qui suivra. Cette page résume mon parcours ; chaque projet cité renvoie vers sa fiche complète du portfolio.
+Je m'appelle Morgan Voltz. Développeur full-stack, je prépare la Licence professionnelle Métiers de l'informatique à l'Université de Haute-Alsace (parcours UHA 4.0, en trois diplômes universitaires) et je dirige en parallèle Kovelt, l'entreprise que j'ai fondée. Je recherche un stage de six mois à partir de janvier 2027, avec l'objectif de poursuivre en alternance pour la suite du parcours et pour le Master visé ensuite. Cette page résume mon parcours ; chaque projet cité renvoie vers sa fiche complète du portfolio.
 
 ## Formation
 
-- **Licence Informatique, parcours UHA 4.0** — Université de Haute-Alsace, Mulhouse. En cours, actuellement en 4.0.2 pour la seconde fois (une première session 2025-2026 avait pour fil rouge GeoForge, le jeu) ; fil rouge en cours : MomoCad, depuis septembre 2026. Fil rouge de première année (4.0.1) : UHA Learn. Projet client de première année : AUTOFIN Control, pour m2A (Mulhouse Alsace Agglomération), en équipe de sept à huit.
+- **Licence professionnelle Métiers de l'informatique (conception, développement et test de logiciels), parcours UHA 4.0** — Université de Haute-Alsace, Mulhouse, 2025-2028. Le parcours se compose de trois diplômes universitaires : DU 4.0.1, DU 4.0.2 (en cours, pour la seconde fois : une première session 2025-2026 avait pour fil rouge GeoForge, le jeu ; fil rouge en cours : MomoCad, depuis septembre 2026) et DU 4.0.3, à l'issue duquel la Licence est délivrée, visée en 2028. Fil rouge de première année (4.0.1) : UHA Learn. Projet client de première année : AUTOFIN Control, pour m2A (Mulhouse Alsace Agglomération), en équipe de sept à huit.
+- **Master Informatique et Mobilité, en alternance** — Université de Haute-Alsace, Mulhouse, visé pour 2028-2030.
 - **BTS Systèmes Électroniques** (1ʳᵉ année) — programmation embarquée en C/C++, robotique en Python.
 - **Bac professionnel SEN**, spécialité Réseaux & Sécurité Incendie — systèmes Siemens, centrales d'alarme.
 
 ## Expérience professionnelle
 
-- **Fondateur et développeur — Kovelt** (depuis 2026). Je conçois et développe seul Vefta, une suite de productivité personnelle en Rust (Axum, Dioxus, PostgreSQL), pensée hors ligne d'abord et sans jamais monétiser les données de l'utilisateur. Voir [Vefta](../projects/vefta.md).
+- **Fondateur et développeur — Kovelt** (depuis septembre 2025). Je conçois, développe et exploite seul trois produits : [carbon-fr](../projects/carbon-fr.md), une API Rust en production ; [Atlas](../projects/atlas.md), en C# / .NET 10 ; et [Vefta](../projects/vefta.md), une suite de productivité personnelle en Rust (Axum, Dioxus, PostgreSQL), pensée hors ligne d'abord et sans jamais monétiser les données de l'utilisateur.
 - **Électricien industriel, puis automaticien** (avant la reconversion). Une quinzaine d'années comme électricien : centrales de contrôle d'accès, d'alarme et de détection incendie ; électricité industrielle et tertiaire ; supervision de chantiers. Puis automaticien, avec notamment la programmation d'automates Siemens sur des robots logistiques pour Stöcklin Logistik AG (Suisse).
 
 ## Compétences techniques
@@ -37,7 +38,9 @@ Git, Docker / Podman, GitLab CI/CD, Postman / Bruno, Linux, WSL2, Jira, Confluen
 ## Langues
 
 - **Français** — langue maternelle.
-- **Anglais** — usage technique à l'écrit : je documente certains projets en bilingue, par exemple GeoForge, l'addon Godot.
+- **Allemand** — courant, niveau B2 : usage professionnel quotidien pendant douze ans en Suisse alémanique.
+- **Suisse allemand** — parlé et compris.
+- **Anglais** — niveau B2, technique et professionnel : je documente certains projets en bilingue, par exemple GeoForge, l'addon Godot.
 
 ## Projets sélectionnés
 
