@@ -159,7 +159,7 @@ Il lit ses listes dans le plugin lui-même (`Validation\ContentValidator` : clé
 2. que le nom du fichier est le slug ;
 3. que `lang` est la langue du dossier, et `type` le type du dossier ;
 4. le suffixe `-de` ou `-en` des fiches et des articles, et son absence en français ;
-5. `translation_key` : présente hors du français, égale au slug en français ;
+5. `translation_key` : obligatoire en `de` et en `en`, facultative en français où, si elle est écrite, elle égale le slug ;
 6. `seo_description` de 160 caractères au plus ;
 7. les sections de la langue du document, l'absence de HTML et de h1 dans le corps, de données de contact sur une page ;
 8. qu'aucune traduction n'est orpheline et qu'une clé n'est portée qu'une fois par langue ;
