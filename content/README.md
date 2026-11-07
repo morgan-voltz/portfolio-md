@@ -3,7 +3,7 @@
 **Rôle** : ce dossier est la source canonique du contenu du site (ADR-001, ADR-002). Tout ce que WordPress affiche en est une projection : le plugin `portfolio-md` stockera chaque fichier tel quel dans `_portfolio_md_source` et en dérivera le HTML Gutenberg. Les fichiers entrent dans WordPress par la commande `wp portfolio import` (voir « Import dans WordPress ») et, depuis le 29 octobre 2026, par la porte Git : chaque push sur `main` qui touche ce dossier est envoyé au site par le workflow `.github/workflows/sync-content.yml`, une fois les trois secrets du dépôt posés (`PORTFOLIO_SYNC_URL`, `PORTFOLIO_SYNC_USER`, `PORTFOLIO_SYNC_PASSWORD` ; ADR-019). La forme des fichiers est définitive.
 **Langues** : le site est trilingue, français, allemand, anglais (ADR-020), et le contenu est une arborescence par langue. Les identifiants (slugs, codes, clés de frontmatter, noms de dossiers) restent en anglais.
 
-> **Transition (novembre 2026).** Tant que la migration du contenu n'a pas eu lieu, les fichiers sont encore à `content/<dossier>/<slug>.md` et sont lus comme du français. Le validateur l'annonce par la ligne « disposition : avant migration » et refuse alors tout `lang` différent de `fr`. Aucun fichier portant `lang` ne doit être poussé avant le lot 1b d'ADR-020 : l'import ne lit pas encore la langue. Dès que `content/fr/` existe, la disposition par langue est la seule admise, et un arbre qui mélange les deux est refusé.
+> **Transition (novembre 2026).** Tant que la migration du contenu n'a pas eu lieu, les fichiers sont encore à `content/<dossier>/<slug>.md` et sont lus comme du français ; pendant cette période, on omet `lang` et `translation_key`. Le validateur annonce cette disposition par la ligne « disposition : avant migration » ; il tolère `lang: "fr"` (qui change le hash du fichier, donc le réimporte) et refuse `lang` `de` ou `en`, que l'import refuse lui aussi tant que le lot 1b d'ADR-020 n'a pas appris la langue aux portes du plugin. Dès que `content/fr/`, `content/de/` ou `content/en/` existe, la disposition par langue est la seule admise : les dossiers de type restés à la racine sont signalés « arbre mixte ».
 **Décision associée** : contenu versionné dans le monorepo, ADR-015 du 26 octobre 2026.
 
 ## Arborescence
@@ -59,7 +59,7 @@ skills: ["4.0.1/FR-13", "4.0.2/E07"] # codes de content/skills.yaml
 
 Les codes de compétences viennent de `skills.yaml` : pour 4.0.1, les intitulés officiels de la feuille de suivi (`FR-nn` techniques, `PM-nn` métier, `TR-nn` transverses) ; pour 4.0.2, les étapes de la consigne du fil rouge (`Enn`, `Onn`) en attendant la feuille de suivi de l'année. Une fiche ne cite que les compétences que le projet démontre concrètement.
 
-Le plugin n'exige que `title`, `slug` et `type`, plus `status` pour un projet et `translation_key` hors du français ; les autres clés peuvent être omises et valent alors vide ou `false`. Le validateur, lui, exige une fiche complète, comme ci-dessus (`reading_time` excepté). `lang` est facultatif jusqu'à la migration du contenu, et vaut alors `fr`. Les booléens s'écrivent `true` ou `false` (pas `yes`), les dates `AAAA-MM-JJ`, et le parseur refuse toute clé qu'il ne connaît pas.
+Le plugin n'exige que `title`, `slug` et `type`, plus `status` pour un projet et `translation_key` hors du français, et il refuse `translation_key` sans `lang` ; les autres clés peuvent être omises et valent alors vide ou `false`. Le validateur, lui, exige une fiche complète, comme ci-dessus (`reading_time` excepté). `lang` est facultatif jusqu'à la migration du contenu, et vaut alors `fr`. Les booléens s'écrivent `true` ou `false` (pas `yes`), les dates `AAAA-MM-JJ`, et le parseur refuse toute clé qu'il ne connaît pas.
 
 Pas de champ `category` : la taxonomie native n'est pas utilisée (`04-structure-wordpress.md` §4.4), les tags techniques suffisent. Les flags `needs_mermaid` / `needs_katex` viendront avec le pipeline (ADR-013).
 
@@ -165,6 +165,6 @@ Il lit ses listes dans le plugin lui-même (`Validation\ContentValidator` : clé
 7. les sections de la langue du document, l'absence de HTML et de h1 dans le corps, de données de contact sur une page ;
 8. qu'aucune traduction n'est orpheline et qu'une clé n'est portée qu'une fois par langue ;
 9. qu'un slug n'est pas repris dans une autre langue du même type ;
-10. que chaque lien relatif pointe vers un fichier qui existe.
+10. que chaque lien de la forme `../<dossier>/<slug>.md` pointe vers un fichier de `content/` qui existe, et qu'aucun lien vers un `.md` n'a une autre forme : le rendu ne réécrit que celle-là.
 
 La première ligne du rapport dit la disposition reconnue, « avant migration » ou « par langue » ; le code de retour vaut 1 dès qu'un fichier ou l'arbre échoue.

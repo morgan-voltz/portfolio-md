@@ -52,7 +52,9 @@ portfolio-md/
 │   ├── Domain/                        # Objets métier purs, zéro WordPress
 │   │   ├── ContentSource.php          # Enum : Admin, Git, Paste                         ✅
 │   │   ├── Frontmatter.php            # Métadonnées typées et validées du YAML           ✅
-│   │   ├── ContentType.php            # Enum : Article, Project, Page ; dossier, base d'URL, collection REST ✅
+│   │   ├── ContentType.php            # Enum : Article, Project, Page ; dossier, base d'URL (par langue), collection REST ✅
+│   │   ├── Language.php               # Enum : Fr, De, En ; suffixe de slug par langue (ADR-020, lot 1a) ✅
+│   │   ├── ContentPath.php            # Chemin content/<lang>/<dossier>/<slug>.md (ADR-020, lot 1a) ✅
 │   │   ├── ProjectStatus.php          # Enum des statuts de projet (= taxonomie)         ✅
 │   │   ├── Skill.php, Referential.php, SkillsGrid.php   # Grille de compétences (ADR-014)  ✅
 │   │   └── Patterns.php               # Formes partagées : slug, codes de compétence       ✅
@@ -70,6 +72,10 @@ portfolio-md/
 │   │   ├── CommonMetaRegistrar.php    # 4 metas publiques, article + project             ✅
 │   │   ├── ProjectMetaRegistrar.php   # 8 metas publiques, project                       ✅
 │   │   └── InternalMetaRegistrar.php  # 5 metas internes, verrouillées, hors REST        ✅
+│   │
+│   ├── Validation/                    # Validateur de l'arbre content/, appelé par tools/validate-content.php (lot 1a)
+│   │   ├── ContentValidator.php       # Règles par fichier puis sur l'arbre ; lit ses listes dans le plugin, puis le parseur  ✅
+│   │   └── ValidationReport.php       # Disposition reconnue, erreurs par fichier, notes                 ✅
 │   │
 │   ├── Parsing/                       # Transformations de contenu
 │   │   ├── FrontmatterParser.php      # Markdown → ParsedDocument (Frontmatter + corps)   ✅
