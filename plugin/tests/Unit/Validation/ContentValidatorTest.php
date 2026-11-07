@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Voltz\PortfolioMd\Tests\Unit\Validation;
 
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use InvalidArgumentException;
 use Symfony\Component\Yaml\Yaml;
 use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Tests\Support\ContentTree;
@@ -376,5 +378,130 @@ final class ContentValidatorTest extends TestCase
 
         self::assertError($report, 'fr/projects/bare.md', 'pas de frontmatter');
         self::assertError($report, 'fr/projects/broken.md', 'frontmatter YAML invalide');
+    }
+
+    // ------------------------------------------------------------ after the review
+
+    #[Test]
+    public function a_missing_or_empty_content_directory_is_refused(): void
+    {
+        self::assertError($this->validate(), ContentValidator::TREE, 'aucun document trouvé');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->validator->validate($this->tree->root() . '/nowhere');
+    }
+
+    #[Test]
+    #[DataProvider('refusedByThePluginProvider')]
+    public function what_the_plugin_parser_refuses_is_refused_too(array $overrides, string $messagePart): void
+    {
+        $frontmatter = ContentTree::projectFrontmatter($overrides);
+        $slug = $frontmatter['slug'];
+        $this->tree->put("fr/projects/{$slug}.md", $frontmatter, ContentTree::projectBody());
+
+        self::assertError($this->validate(), "fr/projects/{$slug}.md", $messagePart);
+    }
+
+    /** @return iterable<string, array{array<string, mixed>, string}> */
+    public static function refusedByThePluginProvider(): iterable
+    {
+        yield 'an impossible quoted date' => [['date' => '2026-13-45'], 'refusé par le parseur du plugin'];
+        yield 'a slug longer than WordPress allows' => [['slug' => str_repeat('a', 201)], 'nom de fichier invalide'];
+        yield 'tags as a scalar' => [['tags' => 'abc'], 'tags doit être une liste YAML'];
+        yield 'duplicate tags' => [['tags' => ['rust', 'rust']], 'refusé par le parseur du plugin'];
+        yield 'an empty title' => [['title' => '   '], 'refusé par le parseur du plugin'];
+        yield 'reading_time on a project' => [['reading_time' => 8], 'clé inattendue : reading_time'];
+        yield 'a textual boolean' => [['featured' => 'yes'], 'featured doit être un booléen YAML'];
+        yield 'a date in the wrong format' => [['date' => '26/10/2026'], "date n'est pas une date ISO"];
+        yield 'a url without scheme' => [['repo_url' => 'github.com/x'], 'repo_url doit être http(s) ou vide'];
+        yield 'a tag that is not a slug' => [['tags' => ['C#']], 'tag non slug : C#'];
+        yield 'a status outside the list' => [['status' => 'finished'], 'status hors liste'];
+        yield 'a seo description that is not text' => [['seo_description' => ['a']], 'seo_description doit être une chaîne'];
+    }
+
+    #[Test]
+    public function the_content_rules_of_the_body_are_enforced(): void
+    {
+        $this->tree->put('fr/projects/momocad.md', ContentTree::projectFrontmatter(), "<div>Non</div>\n# Titre répété\n" . ContentTree::projectBody());
+        $this->tree->put('fr/pages/cv.md', ContentTree::pageFrontmatter(), "Appelez le +33 6 12 34 56 78.\n");
+        $this->tree->put('fr/articles/rust.md', ['title' => 'Rust', 'slug' => 'rust', 'type' => 'article', 'lang' => 'fr', 'date' => '2026-10-26', 'subtitle' => '', 'seo_description' => 'x', 'featured' => false, 'tags' => [], 'skills' => [], 'reading_time' => 999], "Texte.\n");
+
+        $report = $this->validate();
+
+        self::assertError($report, 'fr/projects/momocad.md', 'HTML inline interdit');
+        self::assertError($report, 'fr/projects/momocad.md', 'h1 dans le corps');
+        self::assertError($report, 'fr/pages/cv.md', 'donnée de contact détectée');
+        self::assertError($report, 'fr/articles/rust.md', 'refusé par le parseur du plugin');
+    }
+
+    #[Test]
+    public function a_translation_key_without_lang_is_refused_before_the_migration(): void
+    {
+        $this->tree->put('projects/momocad.md', ContentTree::projectFrontmatter(['lang' => null, 'translation_key' => 'momocad']), ContentTree::projectBody());
+
+        self::assertError($this->validate(), 'projects/momocad.md', 'translation_key sans lang : impossible avant migration');
+    }
+
+    #[Test]
+    public function headings_and_links_inside_code_fences_do_not_count(): void
+    {
+        $fenced = "```markdown\n" . ContentTree::projectBody() . "\n[Fantôme](../projects/ghost.md)\n```\n";
+        $this->tree->put('fr/projects/momocad.md', ContentTree::projectFrontmatter(), $fenced);
+        $this->tree->put('fr/projects/atlas.md', ContentTree::projectFrontmatter(['slug' => 'atlas', 'title' => 'Atlas']), "##\nproblème\n" . str_replace('## Le problème', '## Un sujet', ContentTree::projectBody()));
+
+        $report = $this->validate();
+
+        self::assertCount(5, array_filter($report->errors['fr/projects/momocad.md'], static fn (string $e): bool => str_starts_with($e, 'section manquante')));
+        self::assertStringNotContainsString('ghost', implode(' ', $report->errors['fr/projects/momocad.md']));
+        self::assertSame(['section manquante : problème'], $report->errors['fr/projects/atlas.md']);
+    }
+
+    #[Test]
+    public function a_markdown_link_that_the_renderer_would_not_rewrite_is_reported(): void
+    {
+        $this->tree->put('fr/projects/momocad.md', ContentTree::projectFrontmatter(), ContentTree::projectBody());
+        $this->tree->put('fr/pages/cv.md', ContentTree::pageFrontmatter(), "[Même dossier](momocad.md) et [Point](./momocad.md) et [Dehors](../../../README.md)\n");
+
+        $errors = $this->validate()->errors['fr/pages/cv.md'] ?? [];
+
+        self::assertStringContainsString('lien relatif non réécrit par le rendu : momocad.md', implode("\n", $errors));
+        self::assertStringContainsString('lien relatif non réécrit par le rendu : ./momocad.md', implode("\n", $errors));
+        self::assertStringContainsString('../../../README.md', implode("\n", $errors));
+    }
+
+    #[Test]
+    public function a_failing_french_original_does_not_orphan_its_translations(): void
+    {
+        $this->tree->put('fr/pages/cv.md', ContentTree::pageFrontmatter(['seo_description' => str_repeat('a', 161)]), 'Parcours.');
+        $this->tree->put('de/pages/lebenslauf.md', ContentTree::pageFrontmatter(['slug' => 'lebenslauf', 'lang' => 'de', 'translation_key' => 'cv', 'title' => 'Lebenslauf']), 'Werdegang.');
+
+        $report = $this->validate();
+
+        self::assertError($report, 'fr/pages/cv.md', 'seo_description > 160');
+        self::assertArrayNotHasKey('de/pages/lebenslauf.md', $report->errors);
+    }
+
+    #[Test]
+    public function documents_with_a_bom_or_crlf_line_endings_are_read_like_the_plugin_reads_them(): void
+    {
+        $frontmatter = Yaml::dump(ContentTree::projectFrontmatter(), 2);
+        $this->tree->putRaw('fr/projects/momocad.md', "\xEF\xBB\xBF---\r\n" . str_replace("\n", "\r\n", $frontmatter) . "---\r\n" . str_replace("\n", "\r\n", ContentTree::projectBody()));
+        $this->tree->putRaw('fr/pages/cv.md', "---\n" . Yaml::dump(ContentTree::pageFrontmatter(), 2) . '---');
+
+        self::assertClean($this->validate());
+    }
+
+    #[Test]
+    public function markdown_files_nested_under_a_type_folder_and_bad_file_names_are_reported(): void
+    {
+        $this->tree->put('fr/projects/momocad.md', ContentTree::projectFrontmatter(), ContentTree::projectBody());
+        $this->tree->putRaw('fr/projects/momocad/notes.md', "---\ntitle: x\n---\n");
+        $this->tree->putRaw('fr/projects/Foo.md', "---\ntitle: x\n---\n");
+
+        $report = $this->validate();
+
+        self::assertError($report, 'fr/projects/momocad/notes.md', 'emplacement non reconnu');
+        self::assertError($report, 'fr/projects/Foo.md', 'nom de fichier invalide');
+        self::assertArrayNotHasKey('fr/projects/momocad.md', $report->errors);
     }
 }

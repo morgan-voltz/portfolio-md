@@ -29,6 +29,15 @@ if ($argc !== 3) {
     exit(2);
 }
 
+if (!is_file($argv[1])) {
+    fwrite(STDERR, "grille introuvable : {$argv[1]}\n");
+    exit(2);
+}
+if (!is_dir($argv[2])) {
+    fwrite(STDERR, "dossier de contenu introuvable : {$argv[2]}\n");
+    exit(2);
+}
+
 $grid = Yaml::parseFile($argv[1]);
 $report = (new ContentValidator(ContentValidator::skillCodes(is_array($grid) ? $grid : [])))->validate($argv[2]);
 
@@ -39,19 +48,19 @@ echo $report->layout === ValidationReport::LANGUAGES
 $files = 0;
 $failed = 0;
 foreach ($report->paths() as $path) {
+    $isTree = $path === ContentValidator::TREE;
     if (isset($report->errors[$path])) {
-        $failed++;
-        echo "FAIL {$path}\n";
+        echo($isTree ? "FAIL (arbre)\n" : "FAIL {$path}\n");
         foreach ($report->errors[$path] as $error) {
             echo "     - {$error}\n";
         }
+        $failed += $isTree ? 0 : 1;
     } else {
         echo "OK   {$path} ({$report->notes[$path]})\n";
     }
-    if ($path !== ContentValidator::TREE) {
-        $files++;
-    }
+    $files += $isTree ? 0 : 1;
 }
-printf("%d fichier(s), %d en échec\n", $files, $failed);
+$tree = count($report->errors[ContentValidator::TREE] ?? []);
+printf("%d fichier(s), %d en échec%s\n", $files, $failed, $tree > 0 ? ", {$tree} erreur(s) d'arbre" : '');
 
 exit($report->hasErrors() ? 1 : 0);
