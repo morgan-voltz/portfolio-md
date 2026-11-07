@@ -4,14 +4,14 @@ slug: "a-propos"
 type: "page"
 lang: "fr"
 date: 2026-10-26
-seo_description: "Électricien puis automaticien pendant quinze ans, aujourd'hui développeur full-stack en Licence Informatique à l'UHA, en recherche d'alternance."
+seo_description: "Électricien puis automaticien pendant quinze ans, aujourd'hui développeur full-stack en formation à l'UHA, en recherche de stage puis d'alternance."
 ---
 
 Je m'appelle Morgan Voltz. Avant d'écrire la moindre ligne de code pour de bon, j'ai passé une quinzaine d'années sur le terrain, et c'est ce détour qui façonne la manière dont je travaille aujourd'hui.
 
 ## Un parcours qui ne commence pas par l'informatique
 
-J'ai suivi des études d'électronicien pendant cinq ans : mes premiers programmes, c'était du C pour microcontrôleurs, et mes premières portes logiques. J'ai ensuite travaillé en Suisse une quinzaine d'années comme électricien, sur des systèmes de contrôle d'accès, de sécurité et de détection incendie, jusqu'à superviser des chantiers. Je suis ensuite passé automaticien. La programmation, je l'ai réapprise seul, par frustration de ne pas trouver d'outils adaptés à ce dont j'avais besoin. Quand l'occasion s'est présentée, j'ai choisi de reprendre des études à l'université pour devenir développeur full-stack — un choix personnel, pas une orientation scolaire, et je le présente comme une force plutôt que comme un détour à justifier.
+J'ai suivi des études d'électronicien pendant cinq ans : mes premiers programmes, c'était du C pour microcontrôleurs, et mes premières portes logiques. J'ai ensuite passé une quinzaine d'années sur le terrain, surtout en Suisse alémanique et en allemand au quotidien, comme électricien sur des systèmes de contrôle d'accès, de sécurité et de détection incendie, jusqu'à superviser des chantiers. Je suis ensuite passé automaticien. La programmation, je l'ai réapprise seul, par frustration de ne pas trouver d'outils adaptés à ce dont j'avais besoin. Quand l'occasion s'est présentée, j'ai choisi de reprendre des études à l'université pour devenir développeur full-stack — un choix personnel, pas une orientation scolaire, et je le présente comme une force plutôt que comme un détour à justifier.
 
 ## Ce que j'aime construire
 
@@ -23,7 +23,7 @@ Je suis habitué à l'architecture clean et à l'architecture hexagonale, et je 
 
 ## Ce que je cherche
 
-Je termine ma Licence Informatique et je vise ensuite un Master : l'intelligence artificielle et l'architecture logicielle m'intéressent l'une comme l'autre. Je cherche une alternance — un contrat de professionnalisation à 60 ou 80 % — plutôt qu'un temps plein, pour garder du temps pour les cours et pour mes projets personnels.
+Je prépare la Licence professionnelle Métiers de l'informatique à l'UHA, parcours UHA 4.0 : trois diplômes universitaires, je suis en DU 4.0.2, et la Licence est délivrée à l'issue du DU 4.0.3, en 2028. Je vise ensuite le Master Informatique et Mobilité, en alternance : l'intelligence artificielle et l'architecture logicielle m'intéressent l'une comme l'autre. Je cherche un stage de six mois à partir de janvier 2027, puis une alternance pour la suite du parcours, un rythme qui laisse du temps pour les cours et pour mes projets personnels.
 
 ## À côté du code
 
