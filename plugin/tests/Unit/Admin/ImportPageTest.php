@@ -162,6 +162,21 @@ final class ImportPageTest extends TestCase
     }
 
     #[Test]
+    public function refuses_a_pasted_translation_and_keeps_the_text(): void
+    {
+        $german = "---\ntitle: \"Projekt\"\nslug: \"projet-de\"\ntype: \"project\"\nlang: \"de\"\ntranslation_key: \"projet\"\nstatus: \"en-cours\"\n---\n\nText.\n";
+        $this->post(['markdown' => wp_slash($german), 'mode' => 'import']);
+
+        $this->page->handleSubmission();
+        $html = $this->render();
+
+        self::assertSame([], $this->repository->saved, 'Git is the only writer of translations');
+        self::assertStringContainsString('notice-error', $html);
+        self::assertStringContainsString('Git is the only writer of translations', $html);
+        self::assertStringContainsString(">\n" . htmlspecialchars($german, ENT_QUOTES, 'UTF-8') . '</textarea>', $html);
+    }
+
+    #[Test]
     public function creates_a_draft_when_asked_and_remembers_the_box_ticked(): void
     {
         $this->post(['markdown' => wp_slash(self::DOCUMENT), 'mode' => 'import', 'draft' => '1']);

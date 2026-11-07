@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Voltz\PortfolioMd\Service;
 
 use RuntimeException;
+use Voltz\PortfolioMd\Domain\ContentSource;
 use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Domain\Language;
 
@@ -52,6 +53,14 @@ final class ImportException extends RuntimeException
         return new self(
             "The document says lang \"{$document->value}\" but sits in the \"{$folder->value}/\" language folder: a document lives in the folder of its language"
             . ' (ADR-020).',
+        );
+    }
+
+    public static function translationFromGit(Language $lang, ContentSource $source): self
+    {
+        return new self(
+            "A document in \"{$lang->value}\" cannot be written from {$source->value}: Git is the only writer of translations (ADR-020)."
+            . " Edit content/{$lang->value}/ in the repository and synchronize."
         );
     }
 
