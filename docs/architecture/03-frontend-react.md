@@ -5,7 +5,7 @@
 **Prérequis** : avoir lu [`00-overview.md`](00-overview.md)
 **Lectorat** : contributeur front, Morgan en phase d'implémentation, relecteur technique
 **Temps de lecture** : environ vingt minutes
-**Dernière mise à jour** : 8 novembre 2026 (ADR-023 : Cloudflare Pages retenu, `app.voltz.dev`, `VITE_API_URL` ; libellés dans la langue de la page et mention des intitulés non officiels, ADR-020 lot 4 ; la langue dans les clés TanStack Query, le sélecteur de langue et le bandeau de repli, ADR-021 ; version d'origine du 22 avril 2026)
+**Dernière mise à jour** : 8 novembre 2026 (ADR-023 : Cloudflare Pages retenu, `app.morganvoltz.dev`, `VITE_API_URL` ; libellés dans la langue de la page et mention des intitulés non officiels, ADR-020 lot 4 ; la langue dans les clés TanStack Query, le sélecteur de langue et le bandeau de repli, ADR-021 ; version d'origine du 22 avril 2026)
 
 ---
 
@@ -266,7 +266,7 @@ La configuration de build est minimale : `npm run build` produit un dossier `dis
 
 Les **variables d'environnement** nécessaires sont essentiellement l'URL de l'API C# (`VITE_API_URL`). Elles sont configurées dans l'interface de la plateforme et injectées au build. Vite expose uniquement les variables préfixées `VITE_` au code client, pour éviter les fuites accidentelles de secrets.
 
-Le domaine personnalisé est `app.voltz.dev` (ADR-023) : un `CNAME` dans la zone DNS de `voltz.dev`, chez Cloudflare, vers l'hôte fourni par Pages, qui gère automatiquement le certificat HTTPS. La variable de build `VITE_API_URL` vaut `https://api.voltz.dev`. L'ordre du premier déploiement et l'inventaire des secrets sont dans [`04-deployment.md`](04-deployment.md).
+Le domaine personnalisé est `app.morganvoltz.dev` (ADR-023) : un `CNAME` dans la zone DNS de `morganvoltz.dev`, chez Cloudflare, vers l'hôte fourni par Pages, qui gère automatiquement le certificat HTTPS. La variable de build `VITE_API_URL` vaut `https://api.morganvoltz.dev`. L'ordre du premier déploiement et l'inventaire des secrets sont dans [`04-deployment.md`](04-deployment.md).
 
 ---
 

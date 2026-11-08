@@ -5,7 +5,7 @@ These files are the deployment skeleton of `Portfolio.Api`, written before the A
 | File | Role |
 |---|---|
 | `Dockerfile` | Two-stage build (restore on the project files first, then publish; `api/.dockerignore` keeps the host's `bin/` and `obj/` out), runtime image pinned by major version, non-root, two ports, no container health check (the runtime image has no curl; Traefik and Uptime Kuma probe `/health/ready` from outside). Not built by any workflow until the solution exists. |
-| `docker-compose.prod.yml` | The reference of the live compose on the server: image pinned by tag and digest (the placeholder fails `compose config` until replaced), no host port, Traefik labels for `api.voltz.dev` with a readiness probe, forwarded headers on, no new privileges, every capability dropped, read-only root, memory and pids limits. |
+| `docker-compose.prod.yml` | The reference of the live compose on the server: image pinned by tag and digest (the placeholder fails `compose config` until replaced), no host port, Traefik labels for `api.morganvoltz.dev` with a readiness probe, forwarded headers on, no new privileges, every capability dropped, read-only root, memory and pids limits. |
 | `.env.example` | The settings the service reads from its environment (`PORTFOLIO__*`, a list as indexed keys); the real `.env` lives on the server only. |
 
 Until phase 6 lands, nothing here runs. Once it does: build locally with `podman build -f deploy/Dockerfile -t portfolio-api:dev .` from `api/`, and the release workflow sketched in `04-deployment.md` publishes the image.

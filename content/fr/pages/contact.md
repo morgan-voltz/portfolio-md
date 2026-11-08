@@ -11,7 +11,7 @@ Je cherche un stage de six mois à partir de janvier 2027, en développement log
 
 ## Où m'écrire
 
-- E-mail : [bonjour@voltz.dev](mailto:bonjour@voltz.dev)
+- E-mail : [contact@morganvoltz.dev](mailto:contact@morganvoltz.dev)
 - GitHub : [morgan-voltz](https://github.com/morgan-voltz)
 
 ## Ce qui m'intéresse

@@ -15,11 +15,11 @@ Ce dépôt est public : aucun identifiant, aucune adresse IP, aucun nom de serve
 
 | Hôte | Composant | Où | Sert | Certificat |
 |---|---|---|---|---|
-| `voltz.dev` (et `www`, qui redirige) | Site WordPress (plugin `portfolio-md`, thème enfant, Polylang, Yoast) | o2switch, hébergement mutualisé | les trois langues sous `/fr/`, `/de/`, `/en/`, l'API REST du plugin sous `/wp-json/portfolio/v1/` | Let's Encrypt géré par cPanel |
-| `api.voltz.dev` | API C# `Portfolio.Api` | VPS Kovelt (Hetzner), conteneur derrière Traefik v3 | `/api/*`, `/health/*` ; `/metrics` n'existe que sur le port interne 9090, que rien ne route | Let's Encrypt géré par Traefik |
-| `app.voltz.dev` | Front React | Cloudflare Pages | le portfolio technique, qui ne parle qu'à `api.voltz.dev` | géré par Cloudflare |
+| `morganvoltz.dev` (et `www`, qui redirige) | Site WordPress (plugin `portfolio-md`, thème enfant, Polylang, Yoast) | o2switch, hébergement mutualisé | les trois langues sous `/fr/`, `/de/`, `/en/`, l'API REST du plugin sous `/wp-json/portfolio/v1/` | Let's Encrypt géré par cPanel |
+| `api.morganvoltz.dev` | API C# `Portfolio.Api` | VPS Kovelt (Hetzner), conteneur derrière Traefik v3 | `/api/*`, `/health/*` ; `/metrics` n'existe que sur le port interne 9090, que rien ne route | Let's Encrypt géré par Traefik |
+| `app.morganvoltz.dev` | Front React | Cloudflare Pages | le portfolio technique, qui ne parle qu'à `api.morganvoltz.dev` | géré par Cloudflare |
 
-La zone DNS de `voltz.dev` est chez Cloudflare (ADR-023), avec `A voltz.dev` et `CNAME www` vers o2switch (sans proxy), `A api` vers le VPS (sans proxy : Traefik fait le TLS), `CNAME app` vers Cloudflare Pages ; aucun enregistrement `AAAA` tant que le VPS n'est pas testé en IPv6. Le domaine est parké au 8 novembre 2026 ; poser ces enregistrements est le premier pas de la phase onze.
+La zone DNS de `morganvoltz.dev` est chez Cloudflare (ADR-023), avec `A morganvoltz.dev` et `CNAME www` vers o2switch (sans proxy), `A api` vers le VPS (sans proxy : Traefik fait le TLS), `CNAME app` vers Cloudflare Pages ; aucun enregistrement `AAAA` tant que le VPS n'est pas testé en IPv6. Le domaine est parké au 8 novembre 2026 ; poser ces enregistrements est le premier pas de la phase onze.
 
 ## 2. WordPress chez o2switch
 
@@ -63,7 +63,7 @@ jobs:
 
 ### 3.2. Le service sur le serveur
 
-Un dossier par service, comme les autres services Kovelt : `/opt/nuvoracode/portfolio-api/` tient `docker-compose.yml` (copie de `api/deploy/docker-compose.prod.yml`, versionnée aussi dans le dépôt d'infrastructure) et `.env` (mode 600, jamais commité ; les clés sont dans `api/deploy/.env.example`). L'image y est épinglée **par tag et par digest** (le gabarit porte un digest factice qui fait échouer `compose config` tant qu'il n'est pas remplacé) ; aucun port n'est publié sur l'hôte ; Traefik route `api.voltz.dev` par labels, émet le certificat, sonde `/health/ready` ; les en-têtes transmis sont lus par l'API ; `no-new-privileges`, toutes les capacités retirées, racine en lecture seule, 256 Mo et 256 processus au plus, `restart: unless-stopped`.
+Un dossier par service, comme les autres services Kovelt : `/opt/nuvoracode/portfolio-api/` tient `docker-compose.yml` (copie de `api/deploy/docker-compose.prod.yml`, versionnée aussi dans le dépôt d'infrastructure) et `.env` (mode 600, jamais commité ; les clés sont dans `api/deploy/.env.example`). L'image y est épinglée **par tag et par digest** (le gabarit porte un digest factice qui fait échouer `compose config` tant qu'il n'est pas remplacé) ; aucun port n'est publié sur l'hôte ; Traefik route `api.morganvoltz.dev` par labels, émet le certificat, sonde `/health/ready` ; les en-têtes transmis sont lus par l'API ; `no-new-privileges`, toutes les capacités retirées, racine en lecture seule, 256 Mo et 256 processus au plus, `restart: unless-stopped`.
 
 ### 3.3. Déployer une version
 
@@ -72,22 +72,22 @@ Un dossier par service, comme les autres services Kovelt : `/opt/nuvoracode/port
 1. `docker pull ghcr.io/morgan-voltz/portfolio-api:X.Y.Z` (le VPS tourne sous Docker, Traefik lit ses labels par le fournisseur Docker ; `podman` ne sert qu'à la construction locale), puis lire le digest : `docker inspect ghcr.io/morgan-voltz/portfolio-api:X.Y.Z --format '{{index .RepoDigests 0}}'`.
 2. `cp docker-compose.yml docker-compose.yml.bak-avant-X.Y.Z`, remplacer la ligne `image:` par le tag@digest.
 3. `docker compose config -q` (le fichier est valide), puis `docker compose up -d portfolio-api`.
-4. Vérifier : `docker logs portfolio-api` (version, « prêt »), `curl https://api.voltz.dev/health/ready` (200), un `GET /api/projects?language=fr` (200, la liste), `https://api.voltz.dev/metrics` et `/Metrics` depuis l'extérieur (404 : la route n'existe que sur le port interne), et depuis le VPS `docker exec` d'un conteneur du réseau vers `portfolio-api:9090/metrics` (200).
+4. Vérifier : `docker logs portfolio-api` (version, « prêt »), `curl https://api.morganvoltz.dev/health/ready` (200), un `GET /api/projects?language=fr` (200, la liste), `https://api.morganvoltz.dev/metrics` et `/Metrics` depuis l'extérieur (404 : la route n'existe que sur le port interne), et depuis le VPS `docker exec` d'un conteneur du réseau vers `portfolio-api:9090/metrics` (200).
 5. Mettre à jour la ligne « déployé » du `CLAUDE.md` du serveur et du dépôt d'infrastructure ; commiter le compose dans le dépôt d'infrastructure (config seule).
 
 Retour arrière : remettre la copie de sauvegarde du compose et `up -d`. L'API n'a pas de base de données : rien à migrer, rien à restaurer ; le cache se reconstruit depuis WordPress au démarrage.
 
 ### 3.4. Santé et observation
 
-`GET /health/live` répond dès que le processus tourne ; `GET /health/ready` répond 503 jusqu'à la première lecture réussie du `/sitemap` du plugin, puis 200, et le reste : une panne ultérieure de WordPress fait servir le cache tel quel plutôt que couper l'API. Traefik sonde `/health/ready` et retire le conteneur du routage quand il échoue (avec une seule réplique, un démarrage pendant une panne de WordPress donne des 503 jusqu'à son retour : accepté, Uptime Kuma le dit) ; Uptime Kuma surveille `https://api.voltz.dev/health/ready` et alerte. Prometheus (déjà sur le VPS) scrute `portfolio-api:9090/metrics` sur le réseau interne : `/metrics` n'est servi que sur ce port, qu'aucun label ne route, de sorte que le nom public ne le sert jamais, en minuscules comme en majuscules. Les journaux vont sur la sortie standard (`docker logs`).
+`GET /health/live` répond dès que le processus tourne ; `GET /health/ready` répond 503 jusqu'à la première lecture réussie du `/sitemap` du plugin, puis 200, et le reste : une panne ultérieure de WordPress fait servir le cache tel quel plutôt que couper l'API. Traefik sonde `/health/ready` et retire le conteneur du routage quand il échoue (avec une seule réplique, un démarrage pendant une panne de WordPress donne des 503 jusqu'à son retour : accepté, Uptime Kuma le dit) ; Uptime Kuma surveille `https://api.morganvoltz.dev/health/ready` et alerte. Prometheus (déjà sur le VPS) scrute `portfolio-api:9090/metrics` sur le réseau interne : `/metrics` n'est servi que sur ce port, qu'aucun label ne route, de sorte que le nom public ne le sert jamais, en minuscules comme en majuscules. Les journaux vont sur la sortie standard (`docker logs`).
 
 ### 3.5. Configuration
 
-Par l'environnement, préfixe `PORTFOLIO__` (patron Options, `__` = séparateur de section, une liste en clés indexées) : `PORTFOLIO__WORDPRESSBASEURL`, la racine des routes du plugin avec son chemin (`https://voltz.dev/wp-json/portfolio/v1/`) ; `PORTFOLIO__ALLOWEDORIGINS__0`, `__1`… (`https://app.voltz.dev` ; `localhost` en développement ; en production l'API refuse de démarrer sans origine) ; `PORTFOLIO__CACHE__SITEMAPREFRESHSECONDS`. Deux réglages d'ASP.NET Core dans le compose : `ASPNETCORE_HTTP_PORTS=8080;9090` et `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`, pour que la limitation de débit et les journaux voient le client et non Traefik. Aucun secret aujourd'hui ; le jour où il y en a un, il va dans le `.env` du serveur.
+Par l'environnement, préfixe `PORTFOLIO__` (patron Options, `__` = séparateur de section, une liste en clés indexées) : `PORTFOLIO__WORDPRESSBASEURL`, la racine des routes du plugin avec son chemin (`https://morganvoltz.dev/wp-json/portfolio/v1/`) ; `PORTFOLIO__ALLOWEDORIGINS__0`, `__1`… (`https://app.morganvoltz.dev` ; `localhost` en développement ; en production l'API refuse de démarrer sans origine) ; `PORTFOLIO__CACHE__SITEMAPREFRESHSECONDS`. Deux réglages d'ASP.NET Core dans le compose : `ASPNETCORE_HTTP_PORTS=8080;9090` et `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`, pour que la limitation de débit et les journaux voient le client et non Traefik. Aucun secret aujourd'hui ; le jour où il y en a un, il va dans le `.env` du serveur.
 
 ## 4. Le front sur Cloudflare Pages
 
-Projet Pages relié au dépôt GitHub, dossier racine `frontend/`, commande `npm run build`, sortie `dist/`, variable de build `VITE_API_URL=https://api.voltz.dev`, domaine personnalisé `app.voltz.dev`. Chaque pull request reçoit une URL d'aperçu ; `main` déploie la production. Détails et alternatives : `03-frontend-react.md` §9.
+Projet Pages relié au dépôt GitHub, dossier racine `frontend/`, commande `npm run build`, sortie `dist/`, variable de build `VITE_API_URL=https://api.morganvoltz.dev`, domaine personnalisé `app.morganvoltz.dev`. Chaque pull request reçoit une URL d'aperçu ; `main` déploie la production. Détails et alternatives : `03-frontend-react.md` §9.
 
 ## 5. Inventaire des secrets et des accès
 
@@ -104,7 +104,7 @@ Projet Pages relié au dépôt GitHub, dossier racine `frontend/`, commande `npm
 ## 6. Ordre du premier déploiement
 
 1. La zone DNS chez Cloudflare et ses quatre enregistrements (§1). *(À faire ; les deux premiers enregistrements suffisent au site.)*
-2. WordPress : runbook partie 2, puis recette partie 4 sur `https://voltz.dev`. *(Installation faite le 8 novembre 2026, avant le DNS : WP-CLI n'a pas besoin que le nom résolve ; AutoSSL et la recette, si.)*
+2. WordPress : runbook partie 2, puis recette partie 4 sur `https://morganvoltz.dev`. *(Installation faite le 8 novembre 2026, avant le DNS : WP-CLI n'a pas besoin que le nom résolve ; AutoSSL et la recette, si.)*
 3. L'API, quand la phase six existe : tag `api-v0.1.0`, image, dossier du service, `.env`, premier `up -d`, vérifications du §3.3, moniteur Uptime Kuma.
 4. Le front, quand la phase sept existe : projet Pages, variable, domaine.
 5. L'ouverture des langues, une à la fois, quand leur grille est verte (runbook partie 3).

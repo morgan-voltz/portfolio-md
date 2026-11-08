@@ -164,7 +164,7 @@ Le **site WordPress** sera hébergé sur un hébergement mutualisé classique, o
 
 L'**API C#** sera déployée comme un service de plus sur le VPS Linux (Hetzner, écosystème européen cohérent avec les valeurs du projet) que Morgan exploite déjà pour d'autres services, derrière son reverse proxy Traefik v3 qui fait le HTTPS et le routage (ADR-023, 8 novembre 2026). ASP.NET Core tourne nativement sur Linux via .NET 10, dans un conteneur dont l'image est construite par ce dépôt. Le coût marginal sera nul : la machine existe déjà.
 
-Le **front React** sera déployé sur Cloudflare Pages, sous `app.voltz.dev` (ADR-023). Le build se fait à partir du repo Git, et le résultat statique est servi via un CDN mondial. Le coût d'entrée est nul dans le palier gratuit de Cloudflare Pages, largement suffisant pour le trafic d'un portfolio.
+Le **front React** sera déployé sur Cloudflare Pages, sous `app.morganvoltz.dev` (ADR-023). Le build se fait à partir du repo Git, et le résultat statique est servi via un CDN mondial. Le coût d'entrée est nul dans le palier gratuit de Cloudflare Pages, largement suffisant pour le trafic d'un portfolio.
 
 Les détails (les trois hôtes et le DNS, la procédure de déploiement de l'API, l'inventaire des secrets et leur place, l'ordre du premier déploiement) sont dans [`04-deployment.md`](04-deployment.md), écrit avec ADR-023 et complété à chaque pas réel du premier déploiement ; ce dépôt public ne contient ni identifiant, ni adresse, ni nom de serveur.
 
@@ -196,7 +196,7 @@ Le projet est découpé en douze phases indépendantes, conçues pour être atta
 
 **Phase 10** : thème WordPress sobre et SEO. Child theme configuré, Yoast SEO opérationnel, le site WordPress est prêt pour la soutenance académique. *(Terminée le 8 novembre 2026 : le thème enfant, Yoast et la configuration du site avec le lot 5 d'ADR-022 ; la page d'un projet, le statut sur les cartes, les puces et le dessin CSS avec la phase dix proprement dite, décrits dans `theme/theme-README.md`.)*
 
-**Phase 11** : déploiement. Les deux portfolios sont en ligne, accessibles publiquement sous leurs domaines respectifs. *(Cible fixée le 8 novembre 2026 par ADR-023 : `voltz.dev` pour le site, `api.voltz.dev` pour l'API, `app.voltz.dev` pour le front ; rien n'est en ligne encore.)*
+**Phase 11** : déploiement. Les deux portfolios sont en ligne, accessibles publiquement sous leurs domaines respectifs. *(Cible fixée le 8 novembre 2026 par ADR-023 : `morganvoltz.dev` pour le site, `api.morganvoltz.dev` pour l'API, `app.morganvoltz.dev` pour le front ; rien n'est en ligne encore.)*
 
 Une phase supplémentaire hypothétique — ajouter un frontend desktop en Avalonia qui consommerait `Portfolio.Application` — est une évolution possible si Morgan souhaite approfondir MVVM et le desktop C#. Elle n'est pas planifiée mais rendue possible par la forme de l'architecture.
 
