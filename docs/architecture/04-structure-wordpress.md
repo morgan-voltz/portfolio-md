@@ -38,17 +38,25 @@ Enfin, la **maintenabilité à froid**. Un projet personnel passe régulièremen
 
 ## 2. L'arborescence du site public
 
-Le site public se compose de **cinq pages principales**, exposées dans la navigation, plus les pages de détail qui découlent des deux types de contenu.
+Le site public se compose de **cinq pages principales**, exposées dans la navigation (Accueil, Projets, À propos, CV, Contact), plus les pages de détail qui découlent des deux types de contenu. Depuis ADR-020 chaque URL porte la langue en préfixe (`/fr/`, `/de/`, `/en/`), le français compris ; `/` redirige vers la langue du visiteur parmi les langues ouvertes (ADR-022), le français par défaut.
 
 ```
-/                      Home (porte d'entrée)
-/articles              Liste des articles
-/articles/:slug        Détail d'un article
-/projets               Liste des projets
-/projets/:slug         Détail d'un projet
-/a-propos              Page À propos
-/contact               Page Contact
+/                        302 vers /<lang>/ (langue du cookie ou du navigateur, parmi les langues ouvertes, sinon fr)
+/fr/                     Home de la langue (la page accueil, servie à cette adresse ; /fr/accueil/ y redirige en 301)
+/fr/articles/            Liste des articles
+/fr/articles/:slug/      Détail d'un article
+/fr/projets/             Liste des projets, toutes les fiches, les non traduites en repli avec le badge (ADR-022)
+/fr/projets/:slug/       Détail d'un projet
+/fr/a-propos/            Page À propos
+/fr/cv/                  Page CV
+/fr/contact/             Page Contact
+/de/… /en/…              Même arborescence par langue, avec les slugs de la langue (startseite, ueber-mich, lebenslauf, kontakt ; home, about, resume, get-in-touch)
+/tag/:slug/              Archives des taxonomies : sans préfixe de langue, noindex, hors sitemap, contenu selon la langue du visiteur
+/statut/:slug/           idem
+/competences/:slug/      idem
 ```
+
+Une langue **fermée** (option de publication, ADR-022) garde toute son arborescence, servie en 200 mais `noindex` et annoncée nulle part ; l'ouvrir ne change aucune URL.
 
 **Home.** La porte d'entrée du site. Depuis le lot 5d d'ADR-022, un document Markdown (`content/<lang>/pages/{accueil,startseite,home}.md`, servi à `/<lang>/` par `redirect_lang`) : la phrase d'accroche et ce que le site contient, puis le bloc « projets récents » que le thème ajoute sous le corps (trois cartes de la liste avec repli, lien vers l'archive). Les panneaux du pupitre d'origine (articles récents, stack, en cours d'apprentissage) viennent avec le dessin de la phase 10. Aucun contenu long.
 
@@ -122,7 +130,7 @@ La boîte « Document Markdown » et l'écran épuré ne s'appliquent qu'à une 
 
 ## 4. Les taxonomies
 
-Une taxonomie dans WordPress est un système de classification. Le projet définit **trois taxonomies custom**, en plus des catégories et tags natifs (qu'on n'utilise pas pour les types `article` et `project`).
+Une taxonomie dans WordPress est un système de classification. Le projet définit **trois taxonomies custom**, en plus des catégories et tags natifs (qu'on n'utilise pas pour les types `article` et `project`). Aucune des trois n'est traduite (ADR-022, point 9) : leurs archives n'ont qu'une URL, sans préfixe de langue (`/tag/rust/`, `/statut/en-cours/`, `/competences/4-0-2/`), leur contenu suit la langue du visiteur, et elles sont `noindex` et hors du sitemap XML par le réglage Yoast que `plugin/tools/site-setup.php` pose. Les termes d'une fiche s'afficheront en puces sans lien (phase 10), pour qu'un visiteur n'atterrisse jamais sur une archive vide.
 
 > **État de l'implémentation** : les trois taxonomies décrites ci-dessous sont enregistrées par la classe `Voltz\PortfolioMd\Taxonomies\TaxonomyRegistrar` (fichier `plugin/src/Taxonomies/TaxonomyRegistrar.php`). L'enregistrement se fait au hook `init`. Les statuts fermés de `project_status` et les référentiels parents de `skill` sont auto-insérés à l'activation du plugin via `TaxonomyRegistrar::ensureProjectStatusTerms()` et `TaxonomyRegistrar::ensureSkillReferentialTerms()`.
 
