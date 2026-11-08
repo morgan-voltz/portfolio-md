@@ -6,6 +6,7 @@ namespace Voltz\PortfolioMd\Rest\Controller;
 
 use InvalidArgumentException;
 use Voltz\PortfolioMd\Domain\ContentType;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Domain\Patterns;
 use Voltz\PortfolioMd\Domain\ProjectStatus;
 use Voltz\PortfolioMd\Rest\DocumentPresenter;
@@ -170,7 +171,7 @@ final class CollectionController implements RestController
         $slug = $request->get_param('slug');
         $slug = is_string($slug) ? $slug : '';
 
-        $document = $this->catalog->find($this->type, $slug);
+        $document = $this->catalog->find($this->type, $slug, Language::default());
         if ($document === null) {
             return new WP_Error(self::NOT_FOUND, sprintf('No published %s has the slug "%s".', $this->type->value, $slug), ['status' => 404]);
         }

@@ -20,6 +20,8 @@ use Voltz\PortfolioMd\Service\CatalogQuery;
 use Voltz\PortfolioMd\Service\ContentCatalog;
 use Voltz\PortfolioMd\Service\DocumentSkill;
 use Voltz\PortfolioMd\Service\DocumentTag;
+use Voltz\PortfolioMd\Service\GroupMember;
+use Voltz\PortfolioMd\Service\GroupResolver;
 use Voltz\PortfolioMd\Service\PublishedDocument;
 use Voltz\PortfolioMd\Service\SitemapEntry;
 use Voltz\PortfolioMd\Taxonomies\TaxonomyRegistrar;
@@ -44,9 +46,15 @@ use WP_Term;
  *     until it is imported again, which is why a deployment of the plugin
  *     is followed by a full synchronization;
  *   - a page of posts is one query that also primes the term and meta
- *     caches of its posts (WP_Query does so by default), and the codes of
- *     their skill terms are primed in one more: the per-post reads below hit
- *     the caches, not the base, whatever the page size.
+ *     caches of its posts (WP_Query does so by default); the translation
+ *     groups of the page are read in one more, the terms of the members
+ *     served in place of a French document in one more, and the codes of
+ *     their skill terms in a last one: the per-post reads below hit the
+ *     caches, not the base, whatever the page size.
+ *
+ * A list is anchored on the French documents and every read ends in
+ * serve(), which asks Service\GroupResolver which member of each group the
+ * reader gets (ADR-021).
  *
  * This is the only class of the read side that talks to WordPress; it is
  * exercised by the WP-CLI smoke test rest-smoke.php rather than by the
@@ -56,7 +64,9 @@ final class WordPressContentCatalog implements ContentCatalog
 {
     public function list(ContentType $type, CatalogQuery $query): CatalogPage
     {
-        $args = self::published([$type]) + [
+        // Anchored on the French documents (ADR-021): one entry per translation group, paginated,
+        // ordered and filtered on its French member, then served in the language of the query.
+        $args = self::published([$type], Language::default()) + [
             'posts_per_page' => $query->perPage,
             'paged' => $query->page,
             // Newest first; at equal dates (several sheets imported with the same day), the
@@ -81,24 +91,17 @@ final class WordPressContentCatalog implements ContentCatalog
         }
 
         $found = new WP_Query($args);
-        $posts = self::posts($found);
-        self::primeSkillCodes($posts);
+        $anchors = self::posts($found);
 
         $total = (int) $found->found_posts;
-        if ($posts === [] && $query->page > 1) {
+        if ($anchors === [] && $query->page > 1) {
             // WP_Query does not count the rows when a page comes back empty: the count is run
             // again without the page, the way the native collections do, so that a page beyond
             // the last can be told from an empty collection.
             $total = self::count($args);
         }
 
-        return new CatalogPage(array_map($this->ownDocument(...), $posts), $total, $query->page, $query->perPage);
-    }
-
-    /** A document as its own only translation, asked in French: what the routes serve until they take a language. */
-    private function ownDocument(WP_Post $post): PublishedDocument
-    {
-        return $this->document($post, [self::languageOf((int) $post->ID)->value => $post->post_name], false, Language::default());
+        return new CatalogPage($this->serve($type, $anchors, $query->language), $total, $query->page, $query->perPage);
     }
 
     /**
@@ -114,17 +117,93 @@ final class WordPressContentCatalog implements ContentCatalog
         return (int) $count->found_posts;
     }
 
-    public function find(ContentType $type, string $slug): ?PublishedDocument
+    public function find(ContentType $type, string $slug, Language $language): ?PublishedDocument
     {
+        // Any language: the slug names a document, whose group then decides what is served.
         $found = new WP_Query(self::published([$type]) + ['name' => $slug, 'posts_per_page' => 1, 'no_found_rows' => true]);
         $posts = self::posts($found);
         if ($posts === []) {
             return null;
         }
 
-        self::primeSkillCodes($posts);
+        return $this->serve($type, [$posts[0]], $language)[0];
+    }
 
-        return $this->ownDocument($posts[0]);
+    /**
+     * The documents a reader of $requested gets for these posts (ADR-021):
+     * each post names a translation group, by its kind and its key, and the
+     * group decides which member is served (Service\GroupResolver). The
+     * groups of a whole page are read in one query; the terms of the members
+     * actually served, and the codes of their skills, are primed before the
+     * documents are built.
+     *
+     * @param list<WP_Post> $own the French anchors of a page, or the post under the slug of a detail route
+     *
+     * @return list<PublishedDocument> one per post of $own, in the same order
+     */
+    private function serve(ContentType $type, array $own, Language $requested): array
+    {
+        if ($own === []) {
+            return [];
+        }
+
+        $keys = array_values(array_unique(array_map(static fn (WP_Post $post): string => self::translationKeyOf((int) $post->ID), $own)));
+        $groups = $this->groups($type, $keys);
+
+        $resolved = [];
+        foreach ($own as $post) {
+            $members = $groups[self::translationKeyOf((int) $post->ID)] ?? [];
+            $byId = [];
+            foreach ($members as $member) {
+                $byId[(int) $member->ID] = $member;
+            }
+
+            $choice = GroupResolver::resolve($requested, self::member($post), array_map(self::member(...), $members));
+            $resolved[] = ['post' => $byId[$choice['served']->id] ?? $post, 'translations' => $choice['translations'], 'isFallback' => $choice['isFallback']];
+        }
+
+        $served = array_column($resolved, 'post');
+        self::primeTerms($served);
+        self::primeSkillCodes($served);
+
+        return array_map(fn (array $row): PublishedDocument => $this->document($row['post'], $row['translations'], $row['isFallback'], $requested), $resolved);
+    }
+
+    /**
+     * Every published member of the translation groups of these keys, by
+     * key, oldest post first: one query for a whole page, whatever its
+     * size. The posts come whole (content included) because WP_Query reads
+     * them so, with their metas; their terms are left for primeTerms(),
+     * which only reads those of the members served. Accepted at the scale
+     * of a portfolio; the thing to revisit if the lists ever grow long.
+     *
+     * @param list<string> $keys
+     *
+     * @return array<string, list<WP_Post>> translation key => members
+     */
+    private function groups(ContentType $type, array $keys): array
+    {
+        $found = new WP_Query(self::published([$type], null, $keys) + [
+            'posts_per_page' => -1,
+            'no_found_rows' => true,
+            'orderby' => 'ID',
+            'order' => 'ASC',
+            'update_post_term_cache' => false,
+        ]);
+
+        $groups = [];
+        foreach (self::posts($found) as $post) {
+            $groups[self::translationKeyOf((int) $post->ID)][] = $post;
+        }
+
+        return $groups;
+    }
+
+    private static function member(WP_Post $post): GroupMember
+    {
+        $id = (int) $post->ID;
+
+        return new GroupMember($id, self::languageOf($id), $post->post_name);
     }
 
     public function sitemap(): array
@@ -196,6 +275,25 @@ final class WordPressContentCatalog implements ContentCatalog
     private static function posts(WP_Query $query): array
     {
         return array_values(array_filter($query->posts, static fn (mixed $post): bool => $post instanceof WP_Post));
+    }
+
+    /**
+     * Reads the terms of these posts in one query per post type, skipping
+     * the posts whose terms are cached already (WordPress does): the
+     * anchors of a page come with theirs, the translations served in their
+     * place do not.
+     *
+     * @param list<WP_Post> $posts
+     */
+    private static function primeTerms(array $posts): void
+    {
+        $byType = [];
+        foreach ($posts as $post) {
+            $byType[$post->post_type][] = (int) $post->ID;
+        }
+        foreach ($byType as $postType => $ids) {
+            update_object_term_cache($ids, $postType);
+        }
     }
 
     /**

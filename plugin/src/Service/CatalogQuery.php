@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Voltz\PortfolioMd\Service;
 
 use InvalidArgumentException;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Domain\Patterns;
 use Voltz\PortfolioMd\Domain\ProjectStatus;
 
@@ -17,6 +18,11 @@ use Voltz\PortfolioMd\Domain\ProjectStatus;
  * The filters are the terms of the three taxonomies: a tag (articles and
  * projects), a project status and a skill (projects). A filter is a term
  * slug; a slug that matches no term gives an empty page, not an error.
+ *
+ * The language is not a filter but the language the reader wants the
+ * documents in (ADR-021): the page holds the same entries whatever it is,
+ * each served in that language when a translation exists. French when the
+ * route received none.
  */
 final readonly class CatalogQuery
 {
@@ -31,6 +37,7 @@ final readonly class CatalogQuery
         public ?string $tag = null,
         public ?ProjectStatus $status = null,
         public ?string $skill = null,
+        public Language $language = Language::Fr,
     ) {
         if ($page < 1) {
             throw new InvalidArgumentException("The page must be 1 or more, {$page} given.");
@@ -51,7 +58,7 @@ final readonly class CatalogQuery
         return ($this->page - 1) * $this->perPage;
     }
 
-    /** Whether at least one filter narrows the collection. */
+    /** Whether at least one filter narrows the collection; the language never does. */
     public function isFiltered(): bool
     {
         return $this->tag !== null || $this->status !== null || $this->skill !== null;

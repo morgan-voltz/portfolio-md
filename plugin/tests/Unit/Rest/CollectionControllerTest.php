@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Voltz\PortfolioMd\Domain\ContentType;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Domain\ProjectStatus;
 use Voltz\PortfolioMd\Rest\Controller\CollectionController;
 use Voltz\PortfolioMd\Rest\DocumentPresenter;
@@ -364,7 +365,7 @@ final class CollectionControllerTest extends TestCase
         self::assertInstanceOf(WP_REST_Response::class, $response);
         self::assertSame(200, $response->get_status());
         self::assertSame((new DocumentPresenter())->present($project), $response->get_data());
-        self::assertSame([['type' => ContentType::Project, 'slug' => 'momocad']], $this->catalog->findCalls);
+        self::assertSame([['type' => ContentType::Project, 'slug' => 'momocad', 'language' => Language::Fr]], $this->catalog->findCalls);
     }
 
     #[Test]
@@ -389,7 +390,7 @@ final class CollectionControllerTest extends TestCase
 
         self::assertInstanceOf(WP_Error::class, $response);
         self::assertSame('No published article has the slug "".', $response->get_error_message());
-        self::assertSame([['type' => ContentType::Article, 'slug' => '']], $this->catalog->findCalls);
+        self::assertSame([['type' => ContentType::Article, 'slug' => '', 'language' => Language::Fr]], $this->catalog->findCalls);
     }
 
     private function controller(ContentType $type): CollectionController
