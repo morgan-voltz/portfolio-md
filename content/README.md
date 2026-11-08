@@ -139,7 +139,7 @@ podman-compose --profile tools run --rm wpcli wp portfolio tags sync /srv/portfo
 podman-compose --profile tools run --rm wpcli wp portfolio tags sync /srv/portfolio-content/tags.yaml
 ```
 
-Les deux commandes sont idempotentes ; `tags sync` nomme les termes `tech_tag` dans les trois langues (ADR-024) et signale les termes absents du fichier, jamais supprimés. La première les termes présents dans WordPress mais absents de la grille sont signalés, jamais supprimés. Elle écrit aussi les intitulés allemand et anglais et le drapeau `official` en term metas, et les restaure si un terme les a perdus : après un déploiement du plugin, la relancer une fois.
+Les deux commandes sont idempotentes ; les termes présents dans WordPress mais absents du fichier sont signalés, jamais supprimés. `tags sync` nomme les termes `tech_tag` dans les trois langues (ADR-024) ; `skills sync` écrit aussi les intitulés allemand et anglais et le drapeau `official` en term metas, et les restaure si un terme les a perdus : après un déploiement du plugin, relancer les deux.
 
 Les fiches projet (et, le jour venu, les articles) s'importent ensuite avec `wp portfolio import`, qui prend des fichiers ou des dossiers de documents (`<lang>/projects`, `<lang>/pages` : le dossier de langue dit la langue, le dossier de type dit le type) et exige `--user` pour donner un auteur aux posts :
 
