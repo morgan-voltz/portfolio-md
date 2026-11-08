@@ -22,7 +22,7 @@ The public read API is in (29 October 2026, ADR-018): `GET /wp-json/portfolio/v1
 
 The content is **trilingual** (ADR-020, 7 November 2026): `content/<lang>/<folder>/<slug>.md`, every document with a `lang` and the `translation_key` it shares with its translations (`Domain\Language`, `Domain\ContentPath`, the content validator `tools/validate-content.php`; lot 1a). Since lot 1b every door reads the language from the path, stores `_portfolio_lang` and `_portfolio_translation_key`, tells a `Service\LanguageGateway` the language of the post (Polylang, through `Storage\PolylangLanguageGateway`, since lot 2; it does nothing while Polylang is absent) and links the translations of a key. The plugin hands its post types to Polylang itself, every query of the plugin sees every language, a translation is read-only in the admin (Git is the only writer of translations), and `wp portfolio translations reconcile` pushes the stored languages and groups back when Polylang's own screens changed them. Since the content migration (lot 1c, 7 November 2026) the sixteen documents live in `content/fr/` and `lang` is required of every document; a path outside `content/<lang>/<folder>/` is skipped by the Git door and refused by `wp portfolio import`.
 
-Since 8 November 2026 the public REST routes take the language of the reader (`language=fr|de|en`, ADR-021): lists anchored on the French documents and served in that language, a flagged fallback for a missing translation, five language keys on every document and a sitemap that names the language and the translation group of every line (see "REST API" below). Since lot 4 of ADR-020 (8 November 2026) the status labels and the skill wordings come in the language asked, with an `official` flag on every skill, from a trilingual grid (see "WP-CLI commands" and "REST API"). What is **not yet** implemented: the public opening of a language and the hreflang work (lot 5), image import into the media library. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
+Since 8 November 2026 the public REST routes take the language of the reader (`language=fr|de|en`, ADR-021): lists anchored on the French documents and served in that language, a flagged fallback for a missing translation, five language keys on every document and a sitemap that names the language and the translation group of every line (see "REST API" below). Since lot 4 of ADR-020 (8 November 2026) the status labels and the skill wordings come in the language asked, with an `official` flag on every skill, from a trilingual grid (see "WP-CLI commands" and "REST API"). Lot 5 (ADR-022, accepted on 8 November 2026) opens a language to the public; its first part is in: the child theme `theme/portfolio-md-child` (skeleton, mounted and activated like the plugin), the replayable site setup script `tools/site-setup.php` (publication option, `noindex` of the taxonomy archives) and the opening spike that settled the mechanics (see "Tests"). What is **not yet** implemented: the publication option itself in the plugin (lot 5b), the list with fallback, the switcher and the FR badge in the theme (5c), the home and Contact pages, the menus and the Yoast description (5d), image import into the media library. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
 
 ## Local setup
 
@@ -44,6 +44,11 @@ podman-compose up -d
 
 # 3. Activate the plugin via WP-CLI
 podman-compose --profile tools run --rm wpcli wp plugin activate portfolio-md
+
+# 3 bis. Activate the child theme of GeneratePress (theme/portfolio-md-child, mounted like the plugin;
+#        bootstrap.sh does it on a fresh stack) and apply the one-time settings of the site
+podman-compose --profile tools run --rm wpcli wp theme activate portfolio-md-child
+podman-compose --profile tools run --rm wpcli wp eval-file wp-content/plugins/portfolio-md/tools/site-setup.php
 
 # 4. Verify registered post types, taxonomies and seeded terms
 podman-compose --profile tools run --rm wpcli wp post-type list
@@ -119,6 +124,14 @@ podman-compose --profile tools run --rm wpcli wp portfolio translations reconcil
 ```
 
 The languages of the site (fr, de, en, French by default, the language in the URL) are created once by `tools/polylang-setup-languages.php`, run by `bootstrap.sh` on the local stack and by hand on a fresh site before the first synchronization: without them every import fails on the language gateway.
+
+The one-time configuration of the site (ADR-022) is `tools/site-setup.php`, replayable, one line of log per setting, to run after activating the child theme and again after every change of active theme or opening of a language:
+
+```bash
+podman-compose --profile tools run --rm wpcli wp eval-file wp-content/plugins/portfolio-md/tools/site-setup.php
+```
+
+Lot 5a sets what is safe whatever the content: the active theme must be `portfolio-md-child`; the option `portfolio_md_published_languages` is created with `[fr]` when absent; the three taxonomies of the plugin (`tech_tag`, `project_status`, `skill`) are `noindex` in Yoast, which also takes their archives out of the XML sitemap (they have no URL per language and their content follows the language of the visitor). The static front page, `redirect_lang` and the menus per language come with lot 5d.
 
 ## Admin screens
 
@@ -210,7 +223,7 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
 
 ## Tests
 
-Three complementary suites for the plugin, plus the tests of the CI script, and two exploratory scripts.
+Three complementary suites for the plugin, plus the tests of the CI script, and the exploratory scripts of two spikes.
 
 **Polylang spike (lot 0 of ADR-020).** `tests/Integration/wp-cli/polylang-spike.php` checks, through WP-CLI, the Polylang behaviours the trilingual design relies on (language creation by code, options, custom post type support, language assignment and linking, `WP_Query` and the `lang` query var, the slug a second language gets) and `tools/polylang-http-spike.sh` checks what a visitor and the API consumers see (home redirection, prefixes, hreflang, REST parameters, archives, Yoast sitemap). The findings are recorded in [`../docs/architecture/spikes/2026-11-07-polylang.md`](../docs/architecture/spikes/2026-11-07-polylang.md). The PHP script keeps three side effects on purpose, the languages fr/de/en, the Polylang options and `fr` on every existing post; it purges the posts of a previous run when it starts and deletes its own posts when run with `cleanup`. The shell script only sends GET requests, plus a login to look at the admin screens when `ADMIN_USER` and `ADMIN_PASSWORD` are set:
 
@@ -221,6 +234,18 @@ podman-compose --profile tools run --rm wpcli wp rewrite flush --hard
 ADMIN_USER=<your admin login> ADMIN_PASSWORD=<its password> plugin/tools/polylang-http-spike.sh http://localhost:8000
 podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/polylang-spike.php cleanup --user=<your admin login>
+```
+
+**Opening spike (lot 5a of ADR-022).** `tests/Integration/wp-cli/opening-spike.php` sets up what the opening of a language relies on (a French home page with its German translation as the static front page, `redirect_lang`, a project with a German twin, two menus bound through Polylang's `nav_menus`, a Yoast description written by PHP, and a must-use plugin that plays the filters of a closed language) and `tools/opening-spike.sh` observes it over HTTP, opens `de` halfway through and closes it again; `cleanup` reverts everything, previous settings included. Findings: `docs/architecture/spikes/2026-11-08-ouverture-des-langues.md`. It needs the child theme active and the real content imported (the page `a-propos`, the sheet `momocad` and the tag `csharp`, which the HTTP observations request).
+
+```bash
+podman-compose --profile tools run --rm wpcli wp eval-file \
+  wp-content/plugins/portfolio-md/tests/Integration/wp-cli/opening-spike.php --user=<your admin login>
+podman-compose --profile tools run --rm wpcli wp rewrite flush --hard
+plugin/tools/opening-spike.sh http://localhost:8000
+podman-compose --profile tools run --rm wpcli wp eval-file \
+  wp-content/plugins/portfolio-md/tests/Integration/wp-cli/opening-spike.php cleanup --user=<your admin login>
+podman-compose --profile tools run --rm wpcli wp rewrite flush --hard
 ```
 
 **Unit suite (PHPUnit 11, no WordPress).** The registrars call WordPress functions, so `tests/bootstrap.php` loads small stand-ins (`tests/Support/wp-stubs.php`) that record registrations in `WordPressSpy` or mimic WordPress closely enough for the covered cases. The suite checks that every meta is registered with the right type, REST visibility and callbacks, and that every sanitizer accepts and rejects what it should. The Markdown pipeline (parser, Gutenberg transformer, import service, conflict rule) is covered there too without any stub, including a full render of every sheet in `content/fr/`.

@@ -5,7 +5,7 @@
 **Lectorat** : Morgan à froid, contributeurs futurs, et toute personne qui veut comprendre comment WordPress est organisé pour ce projet.
 **Articulation** : ce document complète `01-plugin-php.md` (qui détaille le plugin de conversion Markdown ↔ WordPress) en se concentrant sur la modélisation côté CMS.
 **Temps de lecture** : environ 12 minutes
-**Dernière mise à jour** : 8 novembre 2026 (libellés par langue, ADR-020 lot 4 : trois term metas de plus sur `skill`, libellés de statut en trois langues ; la langue dans les routes REST, ADR-021 lot 3 : les deux champs internes de langue conditionnent la visibilité d'un document dans l'API ; le 7 novembre, pont Polylang, ADR-020 lot 2 : types déclarés à Polylang par le plugin, boîte en lecture seule pour les traductions, réconciliation ; langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
+**Dernière mise à jour** : 8 novembre 2026 (ouverture des langues, ADR-022 lot 5a : archives des trois taxonomies en `noindex` et hors sitemap ; libellés par langue, ADR-020 lot 4 : trois term metas de plus sur `skill`, libellés de statut en trois langues ; la langue dans les routes REST, ADR-021 lot 3 : les deux champs internes de langue conditionnent la visibilité d'un document dans l'API ; le 7 novembre, pont Polylang, ADR-020 lot 2 : types déclarés à Polylang par le plugin, boîte en lecture seule pour les traductions, réconciliation ; langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
 
 ---
 
@@ -134,7 +134,7 @@ Une taxonomie dans WordPress est un système de classification. Le projet défin
 | Slug d'URL | `tag` |
 | Hiérarchique | Non (taxonomie plate, comme les `post_tag` natifs) |
 | Attachée à | `article`, `project` |
-| Public | Oui (pages d'archive `/tag/rust`, etc.) |
+| Public | Oui (pages d'archive `/tag/rust`, etc.), mais `noindex` et hors sitemap depuis ADR-022 : sans URL par langue, leur contenu suit la langue du visiteur |
 | Implémentation | `TaxonomyRegistrar::registerTechTag()` |
 | Constante de slug | `TaxonomyRegistrar::TECH_TAG` |
 
@@ -186,7 +186,7 @@ Ces valeurs sont **fermées** côté convention. Le plugin auto-insère ces quat
 | Slug d'URL | `competences` (hiérarchique : `/competences/<referentiel>/<competence>/`) |
 | Hiérarchique | **Oui** : un parent par référentiel, un enfant par compétence |
 | Attachée à | `project` uniquement |
-| Public | Oui (archives par référentiel et par compétence) |
+| Public | Oui (archives par référentiel et par compétence), `noindex` et hors sitemap depuis ADR-022, comme les étiquettes |
 | Term metas | `_portfolio_skill_code` : code officiel complet (ex. `4.0.1/C1.3`), string, exposé en REST ; `_portfolio_skill_name_de` et `_portfolio_skill_name_en` : intitulé de la compétence en allemand et en anglais (string, 200 caractères au plus, le français étant le nom du terme) ; `_portfolio_skill_official` : booléen, l'intitulé français est celui de l'école (absent vaut faux). Les trois derniers depuis ADR-020 lot 4, écrits par la synchronisation de la grille, jamais sur un référentiel |
 | Implémentation | `TaxonomyRegistrar::registerSkill()` |
 | Constantes | `TaxonomyRegistrar::SKILL`, `::SKILL_CODE_META`, `::SKILL_NAME_META_PREFIX` et `::skillNameMeta(Language)`, `::SKILL_OFFICIAL_META`, `::SKILL_REFERENTIALS` |
@@ -473,5 +473,10 @@ WordPress
 
 - Trois term metas de plus sur la taxonomie `skill` (section 4.3) : `_portfolio_skill_name_de`, `_portfolio_skill_name_en` et `_portfolio_skill_official`, écrits par `wp portfolio skills sync` depuis le bloc `i18n` et le drapeau `official` de `content/skills.yaml` ; absents sur un référentiel. Le nom du terme reste l'intitulé français.
 - Les libellés de statut existent en trois langues dans le code du plugin (section 4.2) ; les termes `project_status` gardent leur libellé français. L'API publique sert statut et intitulés dans la langue demandée, avec `official` sur chaque compétence (`01-plugin-php.md` §7.3).
+
+**2026-11-08 (ouverture des langues, ADR-022 lot 5a)**
+
+- Les archives des trois taxonomies du plugin (`tech_tag`, `project_status`, `skill`) sont `noindex` et hors du sitemap XML : réglage Yoast `noindex-tax-<taxonomie>` posé par `plugin/tools/site-setup.php`. Elles restent servies, sans préfixe de langue, leur contenu suivant la langue du visiteur (sections 4.1 et 4.3 ; sonde `spikes/2026-11-07-polylang.md` §3.2). Les termes ne sont pas traduits.
+- Le thème actif est l'enfant de GeneratePress versionné dans `theme/portfolio-md-child/` ; l'arborescence publique (section 2) ne change pas, les accueils par langue et les menus arrivent avec le lot 5d.
 
 ---

@@ -153,10 +153,12 @@ else
     wp theme install generatepress --version=3.6.1
     log_success "Thème GeneratePress 3.6.1 installé."
 fi
-wp theme is-active generatepress 2>/dev/null || wp theme activate generatepress
+# Le thème actif est l'enfant du projet (theme/portfolio-md-child, monté par le
+# compose, ADR-022) : GeneratePress reste installé comme parent.
+wp theme is-active portfolio-md-child 2>/dev/null || wp theme activate portfolio-md-child
 # On n'annonce actif que ce qui l'est : un échec ici arrête le script.
-wp plugin is-active polylang && wp plugin is-active wordpress-seo && wp theme is-active generatepress
-log_success "Polylang, Yoast SEO et GeneratePress actifs."
+wp plugin is-active polylang && wp plugin is-active wordpress-seo && wp theme is-active portfolio-md-child
+log_success "Polylang, Yoast SEO et le thème Portfolio MD (enfant de GeneratePress) actifs."
 
 # ─── Étape 8 bis : langues du site dans Polylang (ADR-020) ───
 # Français, allemand, anglais, le français par défaut, les URL préfixées de
