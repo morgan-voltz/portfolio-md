@@ -50,7 +50,7 @@ final class ContentRendererTest extends TestCase
         $contact = $this->renderer->render($this->frontmatter->parse((string) file_get_contents(self::CONTENT_DIR . '/fr/pages/contact.md'))->body, Language::Fr);
         $home = $this->renderer->render($this->frontmatter->parse((string) file_get_contents(self::CONTENT_DIR . '/fr/pages/accueil.md'))->body, Language::Fr);
 
-        self::assertStringContainsString('href="mailto:bonjour@morganvoltz.dev"', $contact, 'the mailto link of the Contact page survives the renderer');
+        self::assertStringContainsString('href="mailto:contact@morganvoltz.dev"', $contact, 'the mailto link of the Contact page survives the renderer');
         self::assertStringContainsString('href="https://github.com/morgan-voltz"', $contact);
         self::assertStringContainsString('href="/fr/cv/"', $contact, '../pages/cv.md resolves to the French page');
         self::assertSame(1, substr_count($home, 'href="/fr/projets/"'), 'the absolute link to the archive is kept as is, not prefixed again');
