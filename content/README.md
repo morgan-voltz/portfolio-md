@@ -15,15 +15,18 @@ content/
 │   ├── projects/        # une fiche par projet → post type project
 │   │   └── <slug>.md
 │   └── pages/           # pages statiques → type page natif
+│       ├── accueil.md   # servi à /fr/ (ADR-022, point 10)
 │       ├── a-propos.md
-│       └── cv.md
-├── de/
+│       ├── cv.md
+│       └── contact.md   # la seule page qui porte une adresse
+├── de/                  # lot 6 : à écrire
 │   ├── projects/
 │   │   └── <slug>-de.md
-│   └── pages/
-│       └── lebenslauf.md
-└── en/
-    └── …
+│   └── pages/           # startseite.md, ueber-mich.md, lebenslauf.md, kontakt.md
+└── en/                  # lot 6 : à écrire
+    ├── projects/
+    │   └── <slug>-en.md
+    └── pages/           # home.md, about.md, resume.md, get-in-touch.md
 ```
 
 Le dossier de langue dit la langue, le dossier de type dit le type, le nom du fichier est le slug (`Domain\ContentPath`). Les articles de blog (`type: "article"`) auront leur dossier `articles/` dans chaque langue quand le premier sera écrit. Un fichier `content/<dossier>/<slug>.md`, sans dossier de langue au-dessus, n'est pas un document : la porte Git l'ignore (`skipped`), `wp portfolio import` le refuse et le script de synchronisation l'avertit ; les documents vivent dans `content/<lang>/<dossier>/<slug>.md`.

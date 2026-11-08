@@ -70,7 +70,7 @@ Pour **tout repartir de zéro** :
 
 ```bash
 podman-compose down -v
-rm -rf BDD_data wordpress_data
+podman unshare rm -rf BDD_data wordpress_data
 podman-compose up -d
 ./bootstrap.sh
 podman-compose --profile tools run --rm wpcli wp plugin activate portfolio-md

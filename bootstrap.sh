@@ -16,7 +16,7 @@
 # À chaque fois que tu changes de machine, ou que tu veux remettre WordPress
 # à zéro, il suffit de :
 #   1. podman-compose down -v             (purge tout)
-#   2. rm -rf BDD_data wordpress_data     (purge les bind mounts)
+#   2. podman unshare rm -rf BDD_data wordpress_data     (purge les bind mounts)
 #   3. podman-compose up -d
 #   4. ./bootstrap.sh
 
@@ -179,7 +179,7 @@ echo "  Mot de passe : ${WP_ADMIN_PASSWORD}"
 echo ""
 echo "  Pour relancer ce script proprement (purge totale) :"
 echo "    podman-compose down -v"
-echo "    rm -rf BDD_data wordpress_data"
+echo "    podman unshare rm -rf BDD_data wordpress_data"
 echo "    podman-compose up -d"
 echo "    ./bootstrap.sh"
 echo ""
