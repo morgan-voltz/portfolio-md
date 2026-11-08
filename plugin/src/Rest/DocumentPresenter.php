@@ -65,9 +65,11 @@ final class DocumentPresenter
             'updated' => self::instant($document->updated),
         ];
 
+        $language = $document->requestedLanguage;
         if ($document->type !== ContentType::Page) {
+            // The name follows the language of the reader (ADR-024), like the labels of lot 4.
             $data['tags'] = array_map(
-                static fn (DocumentTag $tag): array => ['slug' => $tag->slug, 'name' => $tag->name],
+                static fn (DocumentTag $tag): array => ['slug' => $tag->slug, 'name' => $tag->label($language)],
                 $document->tags,
             );
             $data['subtitle'] = self::textOrNull($document->subtitle);
@@ -81,7 +83,6 @@ final class DocumentPresenter
         }
 
         if ($document->type === ContentType::Project) {
-            $language = $document->requestedLanguage;
             $data += [
                 'status' => $document->status === null ? null : ['slug' => $document->status->value, 'label' => $document->status->label($language)],
                 'skills' => array_map(

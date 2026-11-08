@@ -148,6 +148,8 @@ Une taxonomie dans WordPress est un système de classification. Le projet défin
 
 Cette taxonomie regroupe les **technologies, outils et concepts techniques** qui caractérisent un contenu. Elle s'applique aux articles ET aux projets, ce qui permet à un visiteur de filtrer tous les contenus liés à Rust (articles + projets) en une seule vue.
 
+**Les noms viennent de `content/tags.yaml` (ADR-024, 8 novembre 2026).** Une fiche cite un tag par son slug ; l'import crée le terme avec le slug pour nom ; `wp portfolio tags sync content/tags.yaml` pose le nom français comme nom du terme et les noms allemand et anglais dans les term metas `_portfolio_tag_name_de` et `_portfolio_tag_name_en` (`TaxonomyRegistrar::tagNameMeta()`), et signale les termes absents du fichier sans les supprimer. L'API sert `tags[].name` dans la langue demandée, le thème affiche la puce dans la langue de la page. Le validateur de contenu refuse un tag qui n'est pas nommé dans le fichier.
+
 **Liste de départ** (à enrichir au fil de l'eau) :
 
 *Langages :* `Rust`, `C#`, `PHP`, `Python`, `C++`, `JavaScript`, `TypeScript`, `SQL`

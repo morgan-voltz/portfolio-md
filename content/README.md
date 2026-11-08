@@ -11,6 +11,7 @@
 content/
 ├── README.md            # ce document
 ├── skills.yaml          # grille de compétences UHA 4.0 → taxonomie skill (ADR-014), intitulés fr, de, en (ADR-020 lot 4)
+├── tags.yaml            # noms des tags techniques → taxonomie tech_tag, fr, de, en (ADR-024)
 ├── fr/                  # une arborescence par langue : fr, de, en
 │   ├── projects/        # une fiche par projet → post type project
 │   │   └── <slug>.md
@@ -62,7 +63,7 @@ repo_url: "https://github.com/morgan-voltz/..."   # http(s) seulement, vide si p
 demo_url: ""
 client: ""                          # commanditaire réel, vide sinon
 is_fil_rouge: false                 # true pour le seul projet fil rouge 4.0.2
-tags: [csharp, dotnet, wpf]         # taxonomie tech_tag, slugs libres
+tags: [csharp, dotnet, wpf]         # taxonomie tech_tag, slugs libres, chacun nommé dans tags.yaml (ADR-024)
 skills: ["4.0.1/FR-13", "4.0.2/E07"] # codes de content/skills.yaml
 ---
 ```
@@ -71,7 +72,7 @@ Les codes de compétences viennent de `skills.yaml` : pour 4.0.1, les intitulés
 
 Le plugin n'exige que `title`, `slug`, `type` et `lang`, plus `status` pour un projet et `translation_key` hors du français ; les autres clés peuvent être omises et valent alors vide ou `false`. Le validateur, lui, exige une fiche complète, comme ci-dessus (`reading_time` excepté). `lang` est obligatoire et vaut la langue du dossier. Les booléens s'écrivent `true` ou `false` (pas `yes`), les dates `AAAA-MM-JJ`, et le parseur refuse toute clé qu'il ne connaît pas.
 
-Pas de champ `category` : la taxonomie native n'est pas utilisée (`04-structure-wordpress.md` §4.4), les tags techniques suffisent. Les flags `needs_mermaid` / `needs_katex` viendront avec le pipeline (ADR-013).
+Pas de champ `category` : la taxonomie native n'est pas utilisée (`04-structure-wordpress.md` §4.4), les tags techniques suffisent. **Un tag est un slug ; son nom vient de `tags.yaml`** (ADR-024) : `slug: "Nom"` quand il est le même dans les trois langues, `slug: { name: "Nom français", i18n: { de: "…", en: "…" } }` quand il se traduit. Le validateur refuse un tag qui n'y est pas nommé ; le site l'affiche dans la langue de la page. Les flags `needs_mermaid` / `needs_katex` viendront avec le pipeline (ADR-013).
 
 ## Corps d'une fiche projet : le patron en trois temps
 
@@ -134,9 +135,11 @@ La grille de compétences se synchronise avec la taxonomie `skill` par WP-CLI (l
 ```bash
 podman-compose --profile tools run --rm wpcli wp portfolio skills sync /srv/portfolio-content/skills.yaml --dry-run
 podman-compose --profile tools run --rm wpcli wp portfolio skills sync /srv/portfolio-content/skills.yaml
+podman-compose --profile tools run --rm wpcli wp portfolio tags sync /srv/portfolio-content/tags.yaml --dry-run
+podman-compose --profile tools run --rm wpcli wp portfolio tags sync /srv/portfolio-content/tags.yaml
 ```
 
-La commande est idempotente ; les termes présents dans WordPress mais absents de la grille sont signalés, jamais supprimés. Elle écrit aussi les intitulés allemand et anglais et le drapeau `official` en term metas, et les restaure si un terme les a perdus : après un déploiement du plugin, la relancer une fois.
+Les deux commandes sont idempotentes ; les termes présents dans WordPress mais absents du fichier sont signalés, jamais supprimés. `tags sync` nomme les termes `tech_tag` dans les trois langues (ADR-024) ; `skills sync` écrit aussi les intitulés allemand et anglais et le drapeau `official` en term metas, et les restaure si un terme les a perdus : après un déploiement du plugin, relancer les deux.
 
 Les fiches projet (et, le jour venu, les articles) s'importent ensuite avec `wp portfolio import`, qui prend des fichiers ou des dossiers de documents (`<lang>/projects`, `<lang>/pages` : le dossier de langue dit la langue, le dossier de type dit le type) et exige `--user` pour donner un auteur aux posts :
 
@@ -177,6 +180,7 @@ Il charge d'abord la grille par le chargeur du plugin (`Parsing\SkillsGridLoader
 7. les sections de la langue du document, l'absence de HTML et de h1 dans le corps, de données de contact sur une page ;
 8. qu'aucune traduction n'est orpheline et qu'une clé n'est portée qu'une fois par langue ;
 9. qu'un slug n'est pas repris dans une autre langue du même type ;
-10. que chaque lien de la forme `../<dossier>/<slug>.md` ou `../../<lang>/<dossier>/<slug>.md` pointe vers un fichier de `content/` qui existe, et qu'aucun lien vers un `.md` n'a une autre forme : le rendu ne réécrit que ces deux-là.
+10. que chaque lien de la forme `../<dossier>/<slug>.md` ou `../../<lang>/<dossier>/<slug>.md` pointe vers un fichier de `content/` qui existe, et qu'aucun lien vers un `.md` n'a une autre forme : le rendu ne réécrit que ces deux-là ;
+11. que chaque tag d'une fiche est nommé dans `tags.yaml` (ADR-024), dès que ce fichier est à côté des documents.
 
 Le code de retour vaut 1 dès qu'un fichier ou l'arbre échoue ; un dossier de type laissé à la racine (`content/projects/`) est une erreur de l'arbre.

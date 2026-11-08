@@ -13,6 +13,7 @@ use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Rest\DocumentPresenter;
 use Voltz\PortfolioMd\Service\DocumentSkill;
+use Voltz\PortfolioMd\Service\DocumentTag;
 use Voltz\PortfolioMd\Service\SitemapEntry;
 use Voltz\PortfolioMd\Tests\Support\Documents;
 
@@ -28,6 +29,19 @@ final class DocumentPresenterTest extends TestCase
     protected function setUp(): void
     {
         $this->presenter = new DocumentPresenter();
+    }
+
+    #[Test]
+    public function the_name_of_a_tag_follows_the_language_asked_and_a_neutral_name_does_not_move(): void
+    {
+        $document = Documents::project([
+            'tags' => [new DocumentTag('dotnet', '.NET'), new DocumentTag('architecture-hexagonale', 'Architecture hexagonale', ['de' => 'Hexagonale Architektur', 'en' => 'Hexagonal architecture'])],
+        ])->withTranslation(['fr' => 'momocad'], false, Language::De);
+
+        self::assertSame(
+            [['slug' => 'dotnet', 'name' => '.NET'], ['slug' => 'architecture-hexagonale', 'name' => 'Hexagonale Architektur']],
+            $this->presenter->present($document)['tags'],
+        );
     }
 
     #[Test]

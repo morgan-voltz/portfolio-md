@@ -53,7 +53,7 @@ final class ChildThemeProjectRenderTest extends TestCase
             'lang' => Language::Fr,
             'translationKey' => 'momocad',
             'subtitle' => 'Un logiciel de dessin 2D façon CAO',
-            'tags' => [new DocumentTag('csharp', 'C#'), new DocumentTag('event-sourcing', 'event-sourcing')],
+            'tags' => [new DocumentTag('csharp', 'C#'), new DocumentTag('event-sourcing', 'Event sourcing'), new DocumentTag('architecture-hexagonale', 'Architecture hexagonale', ['de' => 'Hexagonale Architektur', 'en' => 'Hexagonal architecture']), new DocumentTag('securite', 'Sécurité', ['en' => 'Security'])],
             'status' => ProjectStatus::EnCours,
             'skills' => [
                 new DocumentSkill('e06-tests-unitaires', '4.0.2/E06', ['fr' => 'Tests unitaires', 'de' => 'Unit-Tests', 'en' => 'Unit tests'], false),
@@ -144,7 +144,7 @@ final class ChildThemeProjectRenderTest extends TestCase
         $html = portfolio_md_child_render_project_footer(self::document(), 'de');
 
         $tags = substr($html, strpos($html, '<section class="project-tags"'), strpos($html, '</section>') - strpos($html, '<section class="project-tags"'));
-        self::assertStringContainsString('<h2 id="project-tags-title">Technologien</h2><ul class="tech-tags"><li class="tech-tag">C#</li><li class="tech-tag">event-sourcing</li></ul>', $tags);
+        self::assertStringContainsString('<h2 id="project-tags-title">Technologien</h2><ul class="tech-tags"><li class="tech-tag">C#</li><li class="tech-tag">Event sourcing</li><li class="tech-tag">Hexagonale Architektur</li><li class="tech-tag" lang="en">Security</li></ul>', $tags, 'a neutral name is not marked, a translated one reads in German, a name that fell back on English says so (ADR-024)');
         self::assertStringNotContainsString('<a ', $tags, 'the archives of the tags are noindex: no link to them');
         self::assertStringContainsString('<section class="project-skills" aria-labelledby="project-skills-title"><h2 id="project-skills-title">Nachgewiesene Kompetenzen</h2><ul class="skills">', $html);
         self::assertStringContainsString('<li class="skill is-provisional"><span class="skill-code">4.0.2/E06</span> <span class="skill-text"><span class="skill-label">Unit-Tests</span><span class="skill-provisional" title="vorläufige Bezeichnung"><span aria-hidden="true">*</span><span class="screen-reader-text"> (vorläufige Bezeichnung)</span></span></span></li>', $html, 'a German wording, not official in the referential: an asterisk glued to the label');

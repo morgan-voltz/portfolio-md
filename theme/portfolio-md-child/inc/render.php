@@ -299,7 +299,9 @@ function portfolio_md_child_render_project_header(PublishedDocument $document, s
 /**
  * The footer of the page of a project (phase 10), after its body: the
  * technologies as bullets without link (the archives of `tech_tag` are
- * noindex, ADR-022 point 9: nothing sends a visitor or a robot there), then
+ * noindex, ADR-022 point 9: nothing sends a visitor or a robot there), each
+ * named in the language of the page as the plugin resolves it (ADR-024),
+ * marked with its language when the name had to fall back on another, then
  * the skills the project demonstrates, each with its code and its label in
  * the language of the page as the plugin resolves it (ADR-020 lot 4), the
  * label marked with its language when it had to fall back on another one,
@@ -311,9 +313,11 @@ function portfolio_md_child_render_project_footer(PublishedDocument $document, s
 {
     $html = '';
     if ($document->tags !== []) {
+        $page = portfolio_md_child_language($language);
         $items = '';
         foreach ($document->tags as $tag) {
-            $items .= '<li class="tech-tag">' . esc_html($tag->name) . '</li>';
+            $wording = $tag->wordingLanguage($page);
+            $items .= '<li class="tech-tag"' . ($wording === $page ? '' : ' lang="' . esc_attr($wording->value) . '"') . '>' . esc_html($tag->label($page)) . '</li>';
         }
         $html .= '<section class="project-tags" aria-labelledby="project-tags-title">'
             . '<h2 id="project-tags-title">' . esc_html(portfolio_md_child_text('technologies', $language)) . '</h2>'

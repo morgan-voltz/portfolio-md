@@ -11,6 +11,10 @@ use Voltz\PortfolioMd\Admin\ImportPage;
 use Voltz\PortfolioMd\Cli\ImportCommand;
 use Voltz\PortfolioMd\Cli\LanguagesCommand;
 use Voltz\PortfolioMd\Cli\SkillsCommand;
+use Voltz\PortfolioMd\Cli\TagsCommand;
+use Voltz\PortfolioMd\Storage\WordPressTagTermGateway;
+use Voltz\PortfolioMd\Service\TagTermSynchronizer;
+use Voltz\PortfolioMd\Parsing\TagsFileLoader;
 use Voltz\PortfolioMd\Cli\TranslationsCommand;
 use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Meta\CommonMetaRegistrar;
@@ -293,6 +297,12 @@ final class Plugin
         \WP_CLI::add_command('portfolio skills', new SkillsCommand(
             new SkillsGridLoader(),
             new SkillTermSynchronizer(new WordPressSkillTermGateway()),
+        ));
+
+        // The names of the technology tags (ADR-024): file (Parsing) → synchronizer (Service) → terms (Storage).
+        \WP_CLI::add_command('portfolio tags', new TagsCommand(
+            new TagsFileLoader(),
+            new TagTermSynchronizer(new WordPressTagTermGateway()),
         ));
 
         \WP_CLI::add_command('portfolio import', new ImportCommand($this->importService()));
