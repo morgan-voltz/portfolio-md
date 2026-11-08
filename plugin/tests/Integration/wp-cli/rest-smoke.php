@@ -17,12 +17,18 @@
  * `--user` is required: the imported documents need an author. The script
  * creates zz-smoke-* posts (a published article, two projects and a page; a
  * draft, a password-protected article; an article and a page made by hand
- * without document) and deletes them at the end, with the tech tag it made.
- * The routes themselves are called as an anonymous visitor.
+ * without document; a German translation of the project and of the page,
+ * and a German project without French original) and deletes them at the
+ * end, with the tech tag it made. The routes themselves are called as an
+ * anonymous visitor. The translations are imported without a language
+ * gateway, so Polylang knows nothing of them: their `link` is not checked
+ * here (the i18n smoke does, through the real adapter), only what the
+ * plugin serves from its own metas (ADR-021).
  *
  * No `declare(strict_types=1)`: `wp eval-file` runs the file through eval().
  */
 
+use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
 use Voltz\PortfolioMd\Parsing\ContentRenderer;
 use Voltz\PortfolioMd\Parsing\FrontmatterParser;
 use Voltz\PortfolioMd\Parsing\GutenbergTransformer;
@@ -177,6 +183,61 @@ Corps de la page.
 
 MD;
 
+// The German translation of the project (same key, slug suffixed) and of the page (natural German slug). The
+// German sheet is dated months before the French one and carries its own tag: a list that sorted or filtered
+// on the sheet served instead of the French anchor would show.
+$germanProject = <<<MD
+---
+title: "Rauchprojekt (Lesen)"
+slug: "zz-smoke-project-de"
+type: "project"
+lang: "de"
+translation_key: "zz-smoke-project"
+date: 2026-01-01
+status: "en-cours"
+tags: [zz-smoke-tag-de]
+skills: ["{$skill->code}"]
+---
+
+Text des Projekts.
+
+MD;
+
+// A second German sheet under the same key: the anomaly of ADR-020, where the oldest post wins the group.
+$germanCopy = str_replace(['zz-smoke-project-de', 'Rauchprojekt (Lesen)'], ['zz-smoke-project-copy-de', 'Rauchprojekt, Kopie (Lesen)'], $germanProject);
+
+$germanPage = <<<'MD'
+---
+title: "Rauchseite (Lesen)"
+slug: "zz-smoke-seite"
+type: "page"
+lang: "de"
+translation_key: "zz-smoke-page"
+date: 2026-10-24
+---
+
+Text der Seite.
+
+MD;
+
+// A German project whose French original does not exist: the anomaly `translations reconcile` reports.
+$orphan = <<<'MD'
+---
+title: "Waise (Lesen)"
+slug: "zz-smoke-waise-de"
+type: "project"
+lang: "de"
+translation_key: "zz-smoke-waise"
+date: 2026-10-22
+status: "prototype"
+tags: []
+skills: []
+---
+
+Ohne französisches Original.
+
+MD;
+
 $import = static function (string $document, ImportOptions $options) use ($service, &$createdPosts, $check): ?int {
     $result = $service->import($document, $options);
     if ($result->postId !== null) {
@@ -288,7 +349,7 @@ try {
     $response = $get('/articles/zz-smoke-article');
     $data = $response->get_data();
     $check('GET /articles/{slug} answers 200', $response->get_status() === 200 && is_array($data), 'status ' . $response->get_status());
-    $check('with the keys of the contract, in order, the Markdown last', array_keys($data) === ['id', 'type', 'slug', 'title', 'link', 'date', 'updated', 'tags', 'subtitle', 'seo_description', 'reading_time', 'featured', 'markdown'], implode(',', array_keys($data)));
+    $check('with the keys of the contract, in order, the Markdown last', array_keys($data) === ['id', 'type', 'slug', 'lang', 'translation_key', 'translations', 'is_fallback', 'requested_language', 'title', 'link', 'date', 'updated', 'tags', 'subtitle', 'seo_description', 'reading_time', 'featured', 'markdown'], implode(',', array_keys($data)));
     $check('the id, type, slug and title are the post\'s', ($data['id'] ?? null) === $articleId && ($data['type'] ?? null) === 'article' && ($data['slug'] ?? null) === 'zz-smoke-article' && ($data['title'] ?? null) === 'Article de fumée (lecture)');
     $check('the link is the permalink', ($data['link'] ?? null) === get_permalink($articleId), (string) ($data['link'] ?? ''));
     $expectedDate = get_post_datetime($articleId, 'date', 'gmt');
@@ -303,7 +364,7 @@ try {
     $response = $get('/projects/zz-smoke-project');
     $data = $response->get_data();
     $check('GET /projects/{slug} answers 200', $response->get_status() === 200 && is_array($data), 'status ' . $response->get_status());
-    $check('with the project fields between the common ones and the Markdown', array_keys($data) === ['id', 'type', 'slug', 'title', 'link', 'date', 'updated', 'tags', 'subtitle', 'seo_description', 'reading_time', 'featured', 'status', 'skills', 'is_fil_rouge', 'role', 'period_start', 'period_end', 'repo_url', 'demo_url', 'client', 'markdown'], implode(',', array_keys($data)));
+    $check('with the project fields between the common ones and the Markdown', array_keys($data) === ['id', 'type', 'slug', 'lang', 'translation_key', 'translations', 'is_fallback', 'requested_language', 'title', 'link', 'date', 'updated', 'tags', 'subtitle', 'seo_description', 'reading_time', 'featured', 'status', 'skills', 'is_fil_rouge', 'role', 'period_start', 'period_end', 'repo_url', 'demo_url', 'client', 'markdown'], implode(',', array_keys($data)));
     $check('the status is an object {slug, label}', ($data['status'] ?? null) === ['slug' => 'en-cours', 'label' => 'En cours'], json_encode($data['status'] ?? null));
     $check('the skills are objects {slug, code, label} with the official code', ($data['skills'] ?? null) === [['slug' => $skill->slug, 'code' => $skill->code, 'label' => $skill->name]], json_encode($data['skills'] ?? null));
     $check('the empty optional fields are null', $isNull($data, 'subtitle') && $isNull($data, 'reading_time') && $isNull($data, 'period_end') && $isNull($data, 'demo_url') && $isNull($data, 'client') && $isNull($data, 'seo_description'), json_encode(array_intersect_key($data, array_flip(['subtitle', 'reading_time', 'period_end', 'demo_url', 'client', 'seo_description']))));
@@ -311,7 +372,7 @@ try {
 
     $response = $get('/pages/zz-smoke-page');
     $data = $response->get_data();
-    $check('GET /pages/{slug} answers 200 with the common fields only', $response->get_status() === 200 && array_keys($data) === ['id', 'type', 'slug', 'title', 'link', 'date', 'updated', 'seo_description', 'markdown'], implode(',', array_keys((array) $data)));
+    $check('GET /pages/{slug} answers 200 with the common fields only', $response->get_status() === 200 && array_keys($data) === ['id', 'type', 'slug', 'lang', 'translation_key', 'translations', 'is_fallback', 'requested_language', 'title', 'link', 'date', 'updated', 'seo_description', 'markdown'], implode(',', array_keys((array) $data)));
     $check('and the page\'s values', ($data['id'] ?? null) === $pageId && ($data['type'] ?? null) === 'page' && ($data['seo_description'] ?? null) === 'Description de la page de fumée.' && ($data['markdown'] ?? null) === $page);
     $check('GET /pages lists the documented page and not the hand-made one', in_array('zz-smoke-page', $slugsOf($get('/pages', ['per_page' => '100'])), true) && !in_array('zz-smoke-handmade-page', $slugsOf($get('/pages', ['per_page' => '100'])), true));
 
@@ -335,7 +396,7 @@ try {
     $entries = static fn (string $collection): array => array_column($data[$collection] ?? [], 'updated', 'slug');
     $check('the article, the project and the page are in their lists', isset($entries('articles')['zz-smoke-article'], $entries('projects')['zz-smoke-project'], $entries('pages')['zz-smoke-page']));
     $check('the draft, the protected and the hand-made posts are not', !isset($entries('articles')['zz-smoke-draft'], $entries('articles')['zz-smoke-secret'], $entries('articles')['zz-smoke-handmade'], $entries('pages')['zz-smoke-handmade-page']));
-    $check('each line is {slug, updated}', array_keys($data['articles'][0] ?? []) === ['slug', 'updated']);
+    $check('each line is {slug, updated, lang, translation_key}', array_keys($data['articles'][0] ?? []) === ['slug', 'updated', 'lang', 'translation_key']);
     $projectSlugs = array_keys($entries('projects'));
     $sortedSlugs = $projectSlugs;
     sort($sortedSlugs, SORT_STRING);
@@ -356,22 +417,136 @@ try {
 
     wp_set_current_user($adminId);
     $check('a logged-in user gets the same answer', $get('/articles/zz-smoke-article')->get_status() === 200);
+
+    // 9. The languages (ADR-021) ------------------------------------------------------------------------
+
+    $germanProjectId = $import($germanProject, new ImportOptions());
+    $germanCopyId = $import($germanCopy, new ImportOptions());
+    $germanPageId = $import($germanPage, new ImportOptions());
+    $import($orphan, new ImportOptions());
+    wp_set_current_user(0);
+
+    foreach (['xx', '', 'DE', ['de']] as $bad) {
+        $shown = is_array($bad) ? 'language[]=de' : "language={$bad}";
+        $response = $get('/projects', ['language' => $bad]);
+        $check("the list refuses {$shown} with 400 from the schema", $response->get_status() === 400 && $errorCode($response) === 'rest_invalid_param', 'status ' . $response->get_status() . ' ' . $errorCode($response));
+        $response = $get('/projects/zz-smoke-project', ['language' => $bad]);
+        $check("so does the document route for {$shown}", $response->get_status() === 400 && $errorCode($response) === 'rest_invalid_param', 'status ' . $response->get_status() . ' ' . $errorCode($response));
+    }
+
+    $bySlug = static fn (WP_REST_Response $response): array => array_column(is_array($response->get_data()) ? $response->get_data() : [], null, 'slug');
+    $french = $get('/projects', ['per_page' => '100', 'language' => 'fr']);
+    $german = $get('/projects', ['per_page' => '100', 'language' => 'de']);
+    $english = $get('/projects', ['per_page' => '100', 'language' => 'en']);
+    $bare = $get('/projects', ['per_page' => '100']);
+    $check('an absent language is French: the same list as language=fr', $bare->get_data() === $french->get_data() && $bare->get_headers()['X-WP-Total'] === $french->get_headers()['X-WP-Total']);
+    $check('a German list has the total and the size of the French one', $german->get_headers()['X-WP-Total'] === $french->get_headers()['X-WP-Total'] && count($german->get_data()) === count($french->get_data()), json_encode([$french->get_headers()['X-WP-Total'] ?? null, $german->get_headers()['X-WP-Total'] ?? null]));
+    $germanItems = $bySlug($german);
+    $check('the translated project is replaced by its German sheet', isset($germanItems['zz-smoke-project-de']) && !isset($germanItems['zz-smoke-project']) && $germanItems['zz-smoke-project-de']['lang'] === 'de' && $germanItems['zz-smoke-project-de']['is_fallback'] === false && $germanItems['zz-smoke-project-de']['requested_language'] === 'de' && $germanItems['zz-smoke-project-de']['translation_key'] === 'zz-smoke-project', implode(',', array_keys($germanItems)));
+    $check('its translations map says the slugs by language, French first', (array) ($germanItems['zz-smoke-project-de']['translations'] ?? []) === ['fr' => 'zz-smoke-project', 'de' => 'zz-smoke-project-de']);
+    $check('the untranslated project is served in French and flagged', isset($germanItems['zz-smoke-project-2']) && $germanItems['zz-smoke-project-2']['lang'] === 'fr' && $germanItems['zz-smoke-project-2']['is_fallback'] === true && $germanItems['zz-smoke-project-2']['requested_language'] === 'de' && (array) $germanItems['zz-smoke-project-2']['translations'] === ['fr' => 'zz-smoke-project-2']);
+    $check('the German list keeps the order of the French one', array_keys($germanItems) === array_map(static fn (string $slug): string => $slug === 'zz-smoke-project' ? 'zz-smoke-project-de' : $slug, array_keys($bySlug($french))));
+    $position = array_search('zz-smoke-project', array_keys($bySlug($french)), true);
+    $check('the German sheet, dated months before, keeps the position of the French sheet it replaces', $position !== false && $position < count($germanItems) - 1 && array_keys($germanItems)[$position] === 'zz-smoke-project-de', json_encode([$position, array_keys($germanItems)]));
+    $check('two German sheets under one key: the list serves the older one, once', isset($germanItems['zz-smoke-project-de']) && !isset($germanItems['zz-smoke-project-copy-de']) && $germanProjectId < $germanCopyId);
+    $check('a document without French original is in no list', !isset($germanItems['zz-smoke-waise-de']) && !isset($bySlug($french)['zz-smoke-waise-de']) && !isset($bySlug($english)['zz-smoke-waise-de']));
+    $check('an English reader gets the French sheet flagged, requested_language en', ($bySlug($english)['zz-smoke-project']['is_fallback'] ?? null) === true && ($bySlug($english)['zz-smoke-project']['requested_language'] ?? null) === 'en' && ($bySlug($english)['zz-smoke-project']['lang'] ?? null) === 'fr');
+    $check('the tag filter applies to the French document: the German sheet comes out for the French tag', $slugsOf($get('/projects', ['tag' => $tagSlug, 'language' => 'de'])) === ['zz-smoke-project-de']);
+    $check('and the tag the German sheet alone carries selects nothing', $slugsOf($get('/projects', ['tag' => 'zz-smoke-tag-de', 'language' => 'de'])) === [] && $get('/projects', ['tag' => 'zz-smoke-tag-de', 'language' => 'de'])->get_status() === 200);
+
+    $response = $get('/projects', ['per_page' => '1', 'language' => 'de']);
+    $check('the Link header carries the language when the request did', str_contains((string) ($response->get_headers()['Link'] ?? ''), 'page=2&per_page=1&language=de>; rel="next"'), (string) ($response->get_headers()['Link'] ?? 'no Link'));
+    $response = $get('/projects', ['per_page' => '1']);
+    $check('and not when it did not', isset($response->get_headers()['Link']) && !str_contains((string) $response->get_headers()['Link'], 'language'), (string) ($response->get_headers()['Link'] ?? 'no Link'));
+
+    $data = $get('/projects/zz-smoke-project', ['language' => 'de'])->get_data();
+    $check('GET /projects/{slug}?language=de serves the German sheet of the group', ($data['slug'] ?? null) === 'zz-smoke-project-de' && ($data['id'] ?? null) === $germanProjectId && $data['lang'] === 'de' && $data['is_fallback'] === false, json_encode(array_intersect_key((array) $data, array_flip(['slug', 'lang', 'is_fallback']))));
+    $check('with the skills and the status of the German sheet', ($data['status']['slug'] ?? null) === 'en-cours' && ($data['skills'][0]['code'] ?? null) === $skill->code, json_encode([$data['status'] ?? null, $data['skills'] ?? null]));
+    $data = $get('/projects/zz-smoke-project-de', ['language' => 'fr'])->get_data();
+    $check('the German slug asked in French answers the French sheet, no fallback', ($data['slug'] ?? null) === 'zz-smoke-project' && $data['is_fallback'] === false && $data['requested_language'] === 'fr');
+    $data = $get('/projects/zz-smoke-project', ['language' => 'en'])->get_data();
+    $check('asked in English, the French sheet is served as a fallback', ($data['slug'] ?? null) === 'zz-smoke-project' && $data['lang'] === 'fr' && $data['is_fallback'] === true && $data['requested_language'] === 'en');
+    $data = $get('/projects/zz-smoke-project-2', ['language' => 'de'])->get_data();
+    $check('a group of one is served as itself, flagged', ($data['slug'] ?? null) === 'zz-smoke-project-2' && $data['is_fallback'] === true && (array) $data['translations'] === ['fr' => 'zz-smoke-project-2']);
+    $data = $get('/projects/zz-smoke-project-copy-de', ['language' => 'de'])->get_data();
+    $check('the German copy, asked by its slug, is served as itself with its own slug in the map', ($data['slug'] ?? null) === 'zz-smoke-project-copy-de' && $data['is_fallback'] === false && ((array) $data['translations'])['de'] === 'zz-smoke-project-copy-de');
+    $data = $get('/projects/zz-smoke-project-copy-de', ['language' => 'fr'])->get_data();
+    $check('and answers the French sheet when asked in French', ($data['slug'] ?? null) === 'zz-smoke-project');
+    $response = $get('/projects/zz-smoke-waise-de', ['language' => 'fr']);
+    $data = $response->get_data();
+    $check('a document without French original is served under its slug, flagged, never 404', $response->get_status() === 200 && ($data['lang'] ?? null) === 'de' && $data['is_fallback'] === true && $data['requested_language'] === 'fr' && (array) $data['translations'] === ['de' => 'zz-smoke-waise-de'], 'status ' . $response->get_status());
+    $response = $get('/projects/zz-smoke-nobody', ['language' => 'de']);
+    $check('an unknown slug is still 404 whatever the language', $response->get_status() === 404 && $errorCode($response) === CollectionController::NOT_FOUND);
+    $data = $get('/pages/zz-smoke-page', ['language' => 'de'])->get_data();
+    $check('a page is translated the same way, under its natural German slug', ($data['slug'] ?? null) === 'zz-smoke-seite' && ($data['id'] ?? null) === $germanPageId && $data['translation_key'] === 'zz-smoke-page' && array_keys((array) $data['translations']) === ['fr', 'de']);
+    $pages = $slugsOf($get('/pages', ['per_page' => '100', 'language' => 'de']));
+    $check('GET /pages?language=de lists the German page in place of the French one', in_array('zz-smoke-seite', $pages, true) && !in_array('zz-smoke-page', $pages, true), implode(',', $pages));
+    $check('a translation is never an anchor: the German slugs are in no French list', !in_array('zz-smoke-seite', $slugsOf($get('/pages', ['per_page' => '100'])), true) && !isset($bySlug($french)['zz-smoke-project-de']));
+
+    $check('Polylang\'s lang parameter changes nothing on our routes', $get('/projects/zz-smoke-project', ['lang' => 'de'])->get_data() === $get('/projects/zz-smoke-project')->get_data());
+    $data = $get('/projects/zz-smoke-project', ['lang' => 'fr', 'language' => 'de'])->get_data();
+    $check('and language alone drives when both are given', ($data['slug'] ?? null) === 'zz-smoke-project-de');
+
+    $data = $get('/sitemap')->get_data();
+    $lines = array_column($data['projects'] ?? [], null, 'slug');
+    $check('the sitemap holds every language with its key, the orphan included', ($lines['zz-smoke-project']['lang'] ?? null) === 'fr' && ($lines['zz-smoke-project']['translation_key'] ?? null) === 'zz-smoke-project' && ($lines['zz-smoke-project-de']['lang'] ?? null) === 'de' && ($lines['zz-smoke-project-de']['translation_key'] ?? null) === 'zz-smoke-project' && ($lines['zz-smoke-waise-de']['translation_key'] ?? null) === 'zz-smoke-waise', implode(',', array_keys($lines)));
+    $check('the sitemap ignores a language parameter', $get('/sitemap', ['language' => 'de'])->get_data() === $data);
+
+    // The visibility rule (ADR-021): a document that loses one of its two language metas disappears from the
+    // list, the detail route and the sitemap, and comes back once the meta is stored again.
+    foreach ([InternalMetaRegistrar::TRANSLATION_KEY => 'translation key', InternalMetaRegistrar::LANG => 'language'] as $meta => $what) {
+        $kept = get_post_meta($projectId, $meta, true);
+        delete_post_meta($projectId, $meta);
+        wp_cache_flush();
+        $hidden = $get('/projects/zz-smoke-project');
+        $check("a document without stored {$what} is hidden from the detail route", $hidden->get_status() === 404 && $errorCode($hidden) === CollectionController::NOT_FOUND, 'status ' . $hidden->get_status());
+        $check("from the lists in every language", !in_array('zz-smoke-project', $slugsOf($get('/projects', ['per_page' => '100'])), true) && !isset($bySlug($get('/projects', ['per_page' => '100', 'language' => 'de']))['zz-smoke-project-de']));
+        $check("and from the sitemap", !isset(array_column($get('/sitemap')->get_data()['projects'] ?? [], null, 'slug')['zz-smoke-project']));
+        update_post_meta($projectId, $meta, $kept);
+        wp_cache_flush();
+        $check("and comes back once its {$what} is stored again", $get('/projects/zz-smoke-project')->get_status() === 200 && in_array('zz-smoke-project', $slugsOf($get('/projects', ['per_page' => '100'])), true));
+    }
+
+    $documented = get_posts(['post_type' => [PostTypeRegistrar::ARTICLE, PostTypeRegistrar::PROJECT, PostTypeRegistrar::PAGE], 'post_status' => 'publish', 'numberposts' => -1, 'fields' => 'ids', 'lang' => '', 'meta_query' => [['key' => InternalMetaRegistrar::MD_HASH, 'value' => '', 'compare' => '!=']]]);
+    $lacking = array_values(array_filter($documented, static fn (int $id): bool => get_post_meta($id, InternalMetaRegistrar::LANG, true) === '' || get_post_meta($id, InternalMetaRegistrar::TRANSLATION_KEY, true) === ''));
+    $check('every published document stores its language and its key (otherwise the API hides it: import it again)', $lacking === [], implode(',', $lacking));
+
+    global $wpdb;
+    $queries = static function (callable $call) use ($wpdb): int {
+        wp_cache_flush();
+        $before = (int) $wpdb->num_queries;
+        $call();
+
+        return (int) $wpdb->num_queries - $before;
+    };
+    $one = $queries(static fn () => $get('/projects', ['per_page' => '1', 'language' => 'de']));
+    $all = $queries(static fn () => $get('/projects', ['per_page' => '100', 'language' => 'de']));
+    // One page is a fixed number of queries whatever its size: the posts, their metas and terms, their
+    // groups, the terms and metas of the translations served in place of a French sheet, and the term metas
+    // (skill codes), each read in one query for the whole page. Measured on the local stack: the page of
+    // every project costs five queries more than the page of one (the groups, the terms and the metas of
+    // the German twin served, the term and term meta of the tag it alone carries), whatever the number of
+    // projects. Anything per post would add one query per project, fourteen here, and fail this bound.
+    $check("a page of every project costs about as many queries as a page of one ({$one}, then {$all})", $all <= $one + 8, "{$one} queries for one, {$all} for all");
 } finally {
     wp_set_current_user($adminId);
     foreach ($createdPosts as $postId) {
         wp_delete_post($postId, true);
     }
-    $tag = get_term_by('slug', $tagSlug, TaxonomyRegistrar::TECH_TAG);
-    if ($tag instanceof WP_Term) {
-        wp_delete_term($tag->term_id, TaxonomyRegistrar::TECH_TAG);
+    foreach ([$tagSlug, 'zz-smoke-tag-de'] as $slug) {
+        $tag = get_term_by('slug', $slug, TaxonomyRegistrar::TECH_TAG);
+        if ($tag instanceof WP_Term) {
+            wp_delete_term($tag->term_id, TaxonomyRegistrar::TECH_TAG);
+        }
     }
 }
 
-$left = count(get_posts(['post_type' => [PostTypeRegistrar::ARTICLE, PostTypeRegistrar::PROJECT, PostTypeRegistrar::PAGE], 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids', 's' => 'fumée (lecture)']))
+$left = count(get_posts(['post_type' => [PostTypeRegistrar::ARTICLE, PostTypeRegistrar::PROJECT, PostTypeRegistrar::PAGE], 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids', 'lang' => '', 's' => 'fumée (lecture)']))
+    + count(get_posts(['post_type' => [PostTypeRegistrar::PROJECT, PostTypeRegistrar::PAGE], 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids', 'lang' => '', 's' => '(Lesen)']))
     + count(get_posts(['post_type' => [PostTypeRegistrar::ARTICLE, PostTypeRegistrar::PAGE], 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids', 'name' => 'zz-smoke-handmade']))
     + count(get_posts(['post_type' => PostTypeRegistrar::PAGE, 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids', 'name' => 'zz-smoke-handmade-page']));
 $check('the smoke posts are cleaned up', $left === 0, "{$left} left");
-$check('the smoke tag is cleaned up', get_term_by('slug', $tagSlug, TaxonomyRegistrar::TECH_TAG) === false);
+$check('the smoke tags are cleaned up', get_term_by('slug', $tagSlug, TaxonomyRegistrar::TECH_TAG) === false && get_term_by('slug', 'zz-smoke-tag-de', TaxonomyRegistrar::TECH_TAG) === false);
 
 if ($failures > 0) {
     WP_CLI::error("{$failures} check(s) failed");

@@ -7,6 +7,7 @@ namespace Voltz\PortfolioMd\Tests\Support;
 use DateTimeImmutable;
 use DateTimeZone;
 use Voltz\PortfolioMd\Domain\ContentType;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Domain\ProjectStatus;
 use Voltz\PortfolioMd\Service\DocumentSkill;
 use Voltz\PortfolioMd\Service\DocumentTag;
@@ -14,7 +15,9 @@ use Voltz\PortfolioMd\Service\PublishedDocument;
 
 /**
  * Published documents for the tests of the read side: one of each kind,
- * fully filled, with named overrides for what a test wants to vary.
+ * fully filled, with named overrides for what a test wants to vary. Unless
+ * a test says otherwise a document is French, its own translation key
+ * (ADR-020) and the only member of its group.
  */
 final class Documents
 {
@@ -27,7 +30,7 @@ final class Documents
      */
     public static function article(array $overrides = []): PublishedDocument
     {
-        return new PublishedDocument(...[
+        return self::build([
             'id' => 42,
             'type' => ContentType::Article,
             'slug' => 'rust-ownership-intuition',
@@ -50,7 +53,7 @@ final class Documents
      */
     public static function project(array $overrides = []): PublishedDocument
     {
-        return new PublishedDocument(...[
+        return self::build([
             'id' => 23,
             'type' => ContentType::Project,
             'slug' => 'momocad',
@@ -82,7 +85,7 @@ final class Documents
      */
     public static function page(array $overrides = []): PublishedDocument
     {
-        return new PublishedDocument(...[
+        return self::build([
             'id' => 195,
             'type' => ContentType::Page,
             'slug' => 'a-propos',
@@ -99,5 +102,17 @@ final class Documents
     public static function utc(string $instant): DateTimeImmutable
     {
         return new DateTimeImmutable($instant, new DateTimeZone('UTC'));
+    }
+
+    /**
+     * @param array<string, mixed> $fields named arguments of PublishedDocument, the language keys optional
+     */
+    private static function build(array $fields): PublishedDocument
+    {
+        $fields['lang'] ??= Language::Fr;
+        $fields['translationKey'] ??= $fields['slug'];
+        $fields['translations'] ??= [$fields['lang']->value => $fields['slug']];
+
+        return new PublishedDocument(...$fields);
     }
 }

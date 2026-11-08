@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Domain\ProjectStatus;
 use Voltz\PortfolioMd\Service\CatalogPage;
 use Voltz\PortfolioMd\Service\CatalogQuery;
@@ -27,8 +28,18 @@ final class CatalogQueryTest extends TestCase
         self::assertNull($query->tag);
         self::assertNull($query->status);
         self::assertNull($query->skill);
+        self::assertSame(Language::Fr, $query->language);
         self::assertFalse($query->isFiltered());
         self::assertSame(0, $query->offset());
+    }
+
+    #[Test]
+    public function the_language_is_the_readers_not_a_filter(): void
+    {
+        $query = new CatalogQuery(language: Language::De);
+
+        self::assertSame(Language::De, $query->language);
+        self::assertFalse($query->isFiltered());
     }
 
     #[Test]

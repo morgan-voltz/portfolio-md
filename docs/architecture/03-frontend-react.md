@@ -5,7 +5,7 @@
 **Prérequis** : avoir lu [`00-overview.md`](00-overview.md)
 **Lectorat** : contributeur front, Morgan en phase d'implémentation, relecteur technique
 **Temps de lecture** : environ vingt minutes
-**Dernière mise à jour** : 22 avril 2026
+**Dernière mise à jour** : 8 novembre 2026 (la langue dans les clés TanStack Query, le sélecteur de langue et le bandeau de repli, ADR-021 ; version d'origine du 22 avril 2026)
 
 ---
 
@@ -131,6 +131,8 @@ Sur les pages `/projets` et `/projets/:slug`, les composants d'affichage doivent
 
 Les routes sont déclarées dans `App.tsx` via React Router. Chaque route correspond à un composant de `src/routes/` qui compose le layout global et le contenu spécifique.
 
+**La langue (ADR-021, 8 novembre 2026).** Le site est trilingue (ADR-020) et l'API sert une langue à la fois : le front porte la langue courante et la passe à chaque requête. La forme des routes (`/:lang/articles/:slug`, ou une langue mémorisée sans segment d'URL) reste à décider avec l'ADR du front, en phase 7 ; ce qui est acquis : le **sélecteur de langue** d'une page de détail se construit avec `translations` (langue → slug), qui dit dans quelles langues le document existe réellement, et un **bandeau « traduction indisponible »** s'affiche quand `isFallback` est vrai, c'est-à-dire quand `lang` (la langue du document servi) diffère de `requestedLanguage` (celle qu'on a demandée). Un repli n'est jamais un 404 : le contenu français (ou anglais, pour un lecteur allemand) s'affiche, avec le bandeau. Le front ne sérialise jamais une langue indéfinie en `language=` : l'API répond `400 rest_invalid_param` à une valeur vide ; il omet le paramètre (ce qui donne `fr`) ou passe toujours une `Language` définie (`'fr' | 'de' | 'en'`). La détection de la langue du navigateur ne se fait que sur `/`, et revient au site WordPress (lot 5).
+
 ---
 
 ## 5. Consommation de l'API avec TanStack Query
@@ -139,10 +141,12 @@ Le pattern de consommation suit les conventions établies par TanStack Query. Ch
 
 ```typescript
 // Dans src/hooks/useArticle.ts
-export function useArticle(slug: string) {
+type Language = 'fr' | 'de' | 'en'; // les trois langues du site (ADR-020)
+
+export function useArticle(slug: string, language: Language) {
   return useQuery({
-    queryKey: ['article', slug],
-    queryFn: () => fetchArticle(slug),
+    queryKey: ['article', language, slug],
+    queryFn: () => fetchArticle(slug, language),
     staleTime: 5 * 60 * 1000, // 5 minutes avant refetch auto
   });
 }
@@ -150,7 +154,8 @@ export function useArticle(slug: string) {
 // Dans src/routes/ArticleDetail.tsx
 export function ArticleDetail() {
   const { slug } = useParams();
-  const { data: article, isLoading, error } = useArticle(slug!);
+  const language = useLanguage(); // la langue courante du front (voir §4)
+  const { data: article, isLoading, error } = useArticle(slug!, language);
 
   if (isLoading) return <LoadingSpinner />;
   if (error) return <ErrorBanner />;
@@ -160,7 +165,7 @@ export function ArticleDetail() {
 }
 ```
 
-Le `queryKey` est la clé d'identification de la requête dans le cache TanStack Query. La convention est de commencer par le nom de la ressource (`'article'`) suivi des paramètres qui distinguent la requête (ici `slug`). Cette hiérarchie permet des invalidations ciblées — on peut invalider toutes les requêtes articles avec `queryClient.invalidateQueries({ queryKey: ['article'] })`.
+Le `queryKey` est la clé d'identification de la requête dans le cache TanStack Query. La convention est de commencer par le nom de la ressource (`'article'`) suivi des paramètres qui distinguent la requête : ici la **langue, puis le slug**, parce que l'API sert une langue à la fois et que le même slug en deux langues est deux documents (ADR-021 : la langue entre dans toutes les clés de cache, côté C# comme ici ; une liste a pour clé `['articles', language, page, filtres]`). Cette hiérarchie permet des invalidations ciblées — on peut invalider toutes les requêtes articles avec `queryClient.invalidateQueries({ queryKey: ['article'] })`, ou celles d'une langue avec `['article', 'de']`.
 
 Le `staleTime` contrôle le temps pendant lequel une entrée de cache est considérée fraîche. Pendant cette période, les navigations vers la même page ne redéclenchent pas de requête réseau. Pour un portfolio où le contenu change peu, cinq minutes est raisonnable ; on peut l'ajuster selon l'observation.
 
