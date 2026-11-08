@@ -45,9 +45,25 @@ function portfolio_md_child_language_switcher(): void
     if (!function_exists('pll_the_languages') || !function_exists('portfolio_md_published_languages')) {
         return;
     }
-    $elements = pll_the_languages(['raw' => 1, 'hide_if_empty' => 0, 'hide_if_no_translation' => 0, 'hide_current' => 0]);
+    $elements = pll_the_languages(['raw' => 1, 'hide_if_empty' => 0, 'hide_if_no_translation' => 0, 'hide_current' => 0, 'show_wrapper' => 0]);
     $items = portfolio_md_child_switcher_items(is_array($elements) ? $elements : [], portfolio_md_published_languages());
 
     echo portfolio_md_child_render_switcher($items, portfolio_md_child_text('languages', portfolio_md_child_current_language())); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped while rendered
 }
 add_action('generate_menu_bar_items', 'portfolio_md_child_language_switcher');
+
+/**
+ * The main query of the project archive (ADR-022, point 8): archive-project.php
+ * prints the list of the plugin, not the loop, but WordPress still pages the
+ * loop and would answer /projets/page/2/ with the same cards. The page size
+ * of the loop is aligned on what the template prints, so that a second page
+ * exists only beyond it and is a 404 otherwise.
+ */
+function portfolio_md_child_archive_query(WP_Query $query): void
+{
+    if (is_admin() || !$query->is_main_query() || !$query->is_post_type_archive('project')) {
+        return;
+    }
+    $query->set('posts_per_page', class_exists(\Voltz\PortfolioMd\Service\ListWithFallback::class) ? \Voltz\PortfolioMd\Service\ListWithFallback::DEFAULT_LIMIT : 50);
+}
+add_action('pre_get_posts', 'portfolio_md_child_archive_query');

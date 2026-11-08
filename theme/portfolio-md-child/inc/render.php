@@ -60,9 +60,10 @@ function portfolio_md_child_switcher_items(array $elements, array $published): a
 
 /**
  * The switcher as menu bar items of GeneratePress (one `.menu-bar-item` per
- * language, so its spacing applies), the current language as text, not as a
- * link; a language without translation of the page links to its home, as
- * Polylang gave it, and says so with a class. Nothing when fewer than two
+ * language, so its spacing applies), the current language as an anchor
+ * without href, a placeholder that is not a link but takes the same room as
+ * its neighbours; a language without translation of the page links to its
+ * home, as Polylang gave it, and says so with a class. Nothing when fewer than two
  * languages are open: a switcher with one entry says nothing. No id, since
  * GeneratePress renders the menu bar twice (main and mobile navigation).
  *
@@ -81,7 +82,7 @@ function portfolio_md_child_render_switcher(array $items, string $label): string
         $name = esc_html($item['name']);
         $slug = esc_attr($item['slug']);
         if ($item['current']) {
-            $html .= '<span class="menu-bar-item lang-item current-lang"><span class="lang-current" lang="' . $slug . '" aria-current="true"><span aria-hidden="true">' . $code . '</span><span class="screen-reader-text">' . $name . '</span></span></span>';
+            $html .= '<span class="menu-bar-item lang-item current-lang"><a class="lang-current" lang="' . $slug . '" aria-current="page"><span aria-hidden="true">' . $code . '</span><span class="screen-reader-text">' . $name . '</span></a></span>';
             continue;
         }
         $html .= '<span class="menu-bar-item lang-item' . ($item['noTranslation'] ? ' no-translation' : '') . '"><a href="' . esc_url($item['url']) . '" lang="' . $slug . '" hreflang="' . $slug . '"><span aria-hidden="true">' . $code . '</span><span class="screen-reader-text">' . $name . '</span></a></span>';

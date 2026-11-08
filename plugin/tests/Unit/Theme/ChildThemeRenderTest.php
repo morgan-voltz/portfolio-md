@@ -18,7 +18,12 @@ final class ChildThemeRenderTest extends TestCase
 {
     public static function setUpBeforeClass(): void
     {
+        // The theme lives beside the plugin in the repository: the suite must run from a checkout
+        // of the whole repository (the container commands of plugin-README.md mount its root).
         $theme = dirname(__DIR__, 4) . '/theme/portfolio-md-child/inc';
+        if (!is_file($theme . '/render.php')) {
+            self::fail("The child theme was not found at {$theme}: run the suite from a checkout of the whole repository.");
+        }
         require_once $theme . '/strings.php';
         require_once $theme . '/render.php';
     }
@@ -78,11 +83,11 @@ final class ChildThemeRenderTest extends TestCase
         $html = portfolio_md_child_render_switcher(portfolio_md_child_switcher_items(self::elements(), ['fr', 'de', 'en']), 'Langues');
 
         self::assertStringStartsWith('<span class="lang-switcher" role="group" aria-label="Langues">', $html);
-        self::assertStringContainsString('<span class="menu-bar-item lang-item current-lang"><span class="lang-current" lang="fr" aria-current="true"><span aria-hidden="true">FR</span><span class="screen-reader-text">Français</span></span></span>', $html);
+        self::assertStringContainsString('<span class="menu-bar-item lang-item current-lang"><a class="lang-current" lang="fr" aria-current="page"><span aria-hidden="true">FR</span><span class="screen-reader-text">Français</span></a></span>', $html, 'the current language is an anchor without href: not a link, but styled as its neighbours');
         self::assertStringContainsString('<span class="menu-bar-item lang-item no-translation"><a href="http://example.test/de/" lang="de" hreflang="de"><span aria-hidden="true">DE</span><span class="screen-reader-text">Deutsch</span></a></span>', $html, 'a language without translation of the page links to its home, as Polylang gave it');
         self::assertStringContainsString('<span class="menu-bar-item lang-item"><a href="http://example.test/en/projets/" lang="en" hreflang="en"><span aria-hidden="true">EN</span><span class="screen-reader-text">English</span></a></span>', $html);
         self::assertStringNotContainsString(' id=', $html, 'GeneratePress renders the menu bar twice: no id');
-        self::assertSame(2, substr_count($html, '<a '), 'two links for the two other languages: the current one is not a link');
+        self::assertSame(2, substr_count($html, 'href="'), 'two links for the two other languages: the current one has no href');
     }
 
     #[Test]

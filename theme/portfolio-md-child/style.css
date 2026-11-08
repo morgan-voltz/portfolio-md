@@ -19,18 +19,17 @@ Text Domain: portfolio-md-child
  * to enqueue in functions.php. Sober rules only; the real design is phase 10.
  */
 
-/* The language switcher (ADR-022, point 5): one menu bar item per open language,
-   the current one as text with the same room as the links of GeneratePress. */
+/* The language switcher (ADR-022, point 5): one menu bar item per open language;
+   the current one is an anchor without href, so GeneratePress's own menu bar
+   rules (padding, line height from the Customizer) apply to it as to the links. */
 .lang-switcher {
 	display: inline-flex;
 	align-items: center;
 }
 
 .lang-switcher .lang-current {
-	display: inline-block;
-	padding: 0 20px;
-	line-height: 60px;
 	font-weight: 700;
+	cursor: default;
 }
 
 .lang-switcher .no-translation a {
