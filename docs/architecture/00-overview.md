@@ -196,7 +196,7 @@ Le projet est découpé en douze phases indépendantes, conçues pour être atta
 
 **Phase 10** : thème WordPress sobre et SEO. Child theme configuré, Yoast SEO opérationnel, le site WordPress est prêt pour la soutenance académique. *(Terminée le 8 novembre 2026 : le thème enfant, Yoast et la configuration du site avec le lot 5 d'ADR-022 ; la page d'un projet, le statut sur les cartes, les puces et le dessin CSS avec la phase dix proprement dite, décrits dans `theme/theme-README.md`.)*
 
-**Phase 11** : déploiement. Les deux portfolios sont en ligne, accessibles publiquement sous leurs domaines respectifs. *(Cible fixée le 8 novembre 2026 par ADR-023 : `morganvoltz.dev` pour le site, `api.morganvoltz.dev` pour l'API, `app.morganvoltz.dev` pour le front ; rien n'est en ligne encore.)*
+**Phase 11** : déploiement. Les deux portfolios sont en ligne, accessibles publiquement sous leurs domaines respectifs. *(Cible fixée le 8 novembre 2026 par ADR-023 : `morganvoltz.dev` pour le site, `api.morganvoltz.dev` pour l'API, `app.morganvoltz.dev` pour le front. Le site WordPress est en ligne depuis le 8 novembre 2026, en français, les deux autres langues fermées ; l'API et le front suivront leurs phases.)*
 
 Une phase supplémentaire hypothétique — ajouter un frontend desktop en Avalonia qui consommerait `Portfolio.Application` — est une évolution possible si Morgan souhaite approfondir MVVM et le desktop C#. Elle n'est pas planifiée mais rendue possible par la forme de l'architecture.
 
