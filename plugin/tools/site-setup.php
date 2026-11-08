@@ -24,16 +24,19 @@
  *   5. Polylang's redirect_lang is on: the home of a language is /<lang>/ and
  *      the permalink of its home page redirects there (point 11);
  *   6. one menu per language that owns its home page, "Menu FR", "Menu DE",
- *      "Menu EN", built only when empty (Home, Projects as a custom link to
- *      /<lang>/projets/, About, CV, Contact: pages found by slug, a missing
- *      page skipped), the French menu bound to the `primary` location in the
- *      raw theme_mods option (get_theme_mod() is filtered by Polylang) and
- *      every language bound in Polylang's nav_menus under the active theme;
- *      a language without home page is logged "skip <lang>: no home page"
- *      and handled at its opening;
+ *      "Menu EN", built only when it holds nothing (Home, Projects as a
+ *      root-relative link to /<lang>/projets/, About, CV, Contact: pages
+ *      found by slug, a missing page skipped); each language bound in
+ *      Polylang's nav_menus under the active theme and the French menu bound
+ *      to the `primary` location in the raw theme_mods option (get_theme_mod()
+ *      is filtered by Polylang), both only when the slot is empty or points to
+ *      a menu that no longer exists; a language without home page is logged
+ *      "skip <lang>: no home page" and handled at its opening;
  *   7. Polylang's languages cache is cleaned when anything changed.
- * The script never deletes anything and never rebuilds a menu that holds
- * items: what Morgan arranges in the admin stays.
+ * The script never deletes anything, never rebuilds a menu that holds items
+ * and never rebinds a slot that holds a living menu: what Morgan arranges in
+ * the admin stays. The front page and redirect_lang, on the other hand, are
+ * enforced on every run: they are the design of ADR-022, not a choice.
  *
  * No `declare(strict_types=1)`: `wp eval-file` runs the file through eval().
  */
@@ -146,8 +149,17 @@ if ($polylang === null) {
         // 6. One menu per language that owns its home page.
         $projectsLabel = ['fr' => 'Projets', 'de' => 'Projekte', 'en' => 'Projects'];
         $navMenus = is_array($polylang->options['nav_menus']) ? $polylang->options['nav_menus'] : [];
-        $bound = is_array($navMenus[$stylesheet]['primary'] ?? null) ? $navMenus[$stylesheet]['primary'] : [];
+        $bound = is_array($navMenus[$stylesheet]['primary'] ?? null) ? array_map('intval', $navMenus[$stylesheet]['primary']) : [];
         $boundChanged = false;
+        /** Whether an id still names a menu: a binding to a deleted menu is a free slot. */
+        $menuExists = static fn (int $id): bool => $id > 0 && wp_get_nav_menu_object($id) !== false;
+        /** Adds an item, or stops: a menu left half built would read as built on the next run. */
+        $addItem = static function (int $menuId, array $item, string $name): void {
+            $id = wp_update_nav_menu_item($menuId, 0, $item + ['menu-item-status' => 'publish']);
+            if (is_wp_error($id) || (int) $id === 0) {
+                WP_CLI::error("menu {$name}: an item could not be added" . (is_wp_error($id) ? ' (' . $id->get_error_message() . ')' : '') . '; delete the menu and run the script again.');
+            }
+        };
         foreach (Language::cases() as $language) {
             $slug = $language->value;
             $home = $language->isDefault() ? $frenchHome : $pageOf(CorePages::HOME, $language);
@@ -168,15 +180,15 @@ if ($polylang === null) {
             } else {
                 $menuId = (int) $menu->term_id;
             }
-            $items = wp_get_nav_menu_items($menuId);
-            if (!is_array($items) || $items === []) {
+            // Everything attached to the menu, drafts and orphans included: a menu that holds anything is left as is.
+            $attached = get_objects_in_term($menuId, 'nav_menu');
+            $attached = is_array($attached) ? $attached : [];
+            if ($attached === []) {
                 $added = 0;
-                $pageItem = static function (int $pageId) use ($menuId, &$added): void {
-                    wp_update_nav_menu_item($menuId, 0, ['menu-item-type' => 'post_type', 'menu-item-object' => 'page', 'menu-item-object-id' => $pageId, 'menu-item-status' => 'publish']);
-                    $added++;
-                };
-                $pageItem($home);
-                wp_update_nav_menu_item($menuId, 0, ['menu-item-title' => $projectsLabel[$slug], 'menu-item-type' => 'custom', 'menu-item-url' => home_url("/{$slug}/projets/"), 'menu-item-status' => 'publish']);
+                $addItem($menuId, ['menu-item-type' => 'post_type', 'menu-item-object' => 'page', 'menu-item-object-id' => $home], $name);
+                $added++;
+                // The archive of the language, root-relative: the menu survives a change of host or scheme.
+                $addItem($menuId, ['menu-item-title' => $projectsLabel[$slug], 'menu-item-type' => 'custom', 'menu-item-url' => "/{$slug}/projets/"], $name);
                 $added++;
                 foreach ([CorePages::ABOUT, CorePages::CV, CorePages::CONTACT] as $key) {
                     $pageId = $pageOf($key, $language);
@@ -184,45 +196,63 @@ if ($polylang === null) {
                         WP_CLI::log("menu {$name}: no page {$key} in {$slug}, item skipped");
                         continue;
                     }
-                    $pageItem($pageId);
+                    $addItem($menuId, ['menu-item-type' => 'post_type', 'menu-item-object' => 'page', 'menu-item-object-id' => $pageId], $name);
+                    $added++;
                 }
                 WP_CLI::log("menu {$name}: built with {$added} item(s)");
                 $changed++;
             } else {
-                WP_CLI::log("menu {$name}: already built (" . count($items) . ' item(s)), left as is');
+                WP_CLI::log("menu {$name}: already holds " . count($attached) . ' item(s), left as is');
             }
-            if ((int) ($bound[$slug] ?? 0) !== $menuId) {
+            // The binding of the language: written when empty or pointing to a menu that no longer
+            // exists, kept when another menu was chosen in the admin.
+            $current = $bound[$slug] ?? 0;
+            if ($current === $menuId) {
+                WP_CLI::log("polylang nav_menus {$slug}: already {$name} ({$menuId})");
+            } elseif ($menuExists($current)) {
+                WP_CLI::log("polylang nav_menus {$slug}: bound to another menu ({$current}), left as is");
+            } else {
                 $bound[$slug] = $menuId;
                 $boundChanged = true;
+                WP_CLI::log("polylang nav_menus {$slug}: bound to {$name} ({$menuId})");
             }
         }
 
-        // The theme location: the French menu, in the raw option (Polylang filters get_theme_mod()).
+        // Polylang's option first: when it refuses, nothing else has moved.
+        if ($boundChanged) {
+            $navMenus[$stylesheet]['primary'] = $bound;
+            $error = $polylang->options->set('nav_menus', $navMenus);
+            $stored = $polylang->options['nav_menus'];
+            $kept = is_array($stored[$stylesheet]['primary'] ?? null) ? array_map('intval', $stored[$stylesheet]['primary']) : [];
+            if ($kept != $bound) {
+                WP_CLI::error('polylang nav_menus refused: ' . (is_wp_error($error) && $error->has_errors() ? $error->get_error_message() : 'the value was not kept'));
+            }
+            if (is_wp_error($error) && $error->has_errors()) {
+                WP_CLI::warning('polylang nav_menus: ' . $error->get_error_message() . ' (not blocking: the bindings are saved)');
+            }
+            $polylang->options->save();
+            WP_CLI::log("polylang nav_menus {$stylesheet}/primary: saved " . json_encode($bound));
+            $changed++;
+        }
+
+        // The theme location, in the raw option (Polylang filters get_theme_mod()): the French menu
+        // when the location is empty or points to a menu that no longer exists, kept otherwise.
         if (isset($bound['fr'])) {
             $modsKey = "theme_mods_{$stylesheet}";
             $mods = get_option($modsKey);
             $mods = is_array($mods) ? $mods : [];
-            if ((int) ($mods['nav_menu_locations']['primary'] ?? 0) !== (int) $bound['fr']) {
-                $mods['nav_menu_locations'] = is_array($mods['nav_menu_locations'] ?? null) ? $mods['nav_menu_locations'] : [];
-                $mods['nav_menu_locations']['primary'] = (int) $bound['fr'];
-                update_option($modsKey, $mods);
-                WP_CLI::log("theme location primary: bound to Menu FR ({$bound['fr']})");
-                $changed++;
+            $current = (int) ($mods['nav_menu_locations']['primary'] ?? 0);
+            if ($current === $bound['fr']) {
+                WP_CLI::log("theme location primary: already menu {$current}");
+            } elseif ($menuExists($current)) {
+                WP_CLI::log("theme location primary: bound to another menu ({$current}), left as is");
             } else {
-                WP_CLI::log("theme location primary: already Menu FR ({$bound['fr']})");
+                $mods['nav_menu_locations'] = is_array($mods['nav_menu_locations'] ?? null) ? $mods['nav_menu_locations'] : [];
+                $mods['nav_menu_locations']['primary'] = $bound['fr'];
+                update_option($modsKey, $mods);
+                WP_CLI::log("theme location primary: bound to menu {$bound['fr']}");
+                $changed++;
             }
-        }
-        if ($boundChanged) {
-            $navMenus[$stylesheet]['primary'] = $bound;
-            $error = $polylang->options->set('nav_menus', $navMenus);
-            if (is_wp_error($error) && $error->has_errors()) {
-                WP_CLI::error('polylang nav_menus refused: ' . $error->get_error_message());
-            }
-            $polylang->options->save();
-            WP_CLI::log("polylang nav_menus {$stylesheet}/primary: " . json_encode($bound));
-            $changed++;
-        } else {
-            WP_CLI::log("polylang nav_menus {$stylesheet}/primary: already " . json_encode($bound));
         }
 
         // 7. The cache Polylang keeps of the home page of each language.
