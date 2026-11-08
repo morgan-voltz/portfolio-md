@@ -45,6 +45,22 @@ final class ContentRendererTest extends TestCase
     }
 
     #[Test]
+    public function the_home_and_contact_pages_keep_their_mail_and_site_links_and_resolve_the_page_links(): void
+    {
+        $contact = $this->renderer->render($this->frontmatter->parse((string) file_get_contents(self::CONTENT_DIR . '/fr/pages/contact.md'))->body, Language::Fr);
+        $home = $this->renderer->render($this->frontmatter->parse((string) file_get_contents(self::CONTENT_DIR . '/fr/pages/accueil.md'))->body, Language::Fr);
+
+        self::assertStringContainsString('href="mailto:bonjour@voltz.dev"', $contact, 'the mailto link of the Contact page survives the renderer');
+        self::assertStringContainsString('href="https://github.com/morgan-voltz"', $contact);
+        self::assertStringContainsString('href="/fr/cv/"', $contact, '../pages/cv.md resolves to the French page');
+        self::assertSame(1, substr_count($home, 'href="/fr/projets/"'), 'the absolute link to the archive is kept as is, not prefixed again');
+        self::assertStringNotContainsString('/fr/fr/', $home . $contact);
+        foreach (['/fr/a-propos/', '/fr/cv/', '/fr/contact/'] as $page) {
+            self::assertStringContainsString('href="' . $page . '"', $home, "the home page links {$page}");
+        }
+    }
+
+    #[Test]
     public function every_content_sheet_maps_to_known_blocks(): void
     {
         $files = glob(self::CONTENT_DIR . '/fr/{projects,pages}/*.md', GLOB_BRACE);
@@ -87,10 +103,11 @@ final class ContentRendererTest extends TestCase
     }
 
     #[Test]
-    public function the_render_version_is_pinned_to_what_the_links_look_like(): void
+    public function the_render_version_is_pinned_to_what_the_pipeline_stores(): void
     {
-        // 1.2.0 since the links carry the language of the document (ADR-020, lot 1b): a post rendered by an
-        // older version is rendered again at its next import. Move this pin on purpose, with the version.
-        self::assertSame('1.2.0', ContentRenderer::VERSION);
+        // 1.2.0 since the links carry the language of the document (ADR-020, lot 1b), 1.3.0 since the SEO
+        // description is also written to Yoast (ADR-022, point 13): a post written by an older version is
+        // written again at its next import. Move this pin on purpose, with the version.
+        self::assertSame('1.3.0', ContentRenderer::VERSION);
     }
 }

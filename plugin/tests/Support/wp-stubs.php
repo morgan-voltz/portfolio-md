@@ -831,7 +831,7 @@ if (!function_exists('esc_url_raw')) {
 if (!function_exists('PLL')) {
     function PLL(): ?object
     {
-        return null;
+        return WordPressSpy::$pll;
     }
 }
 

@@ -5,7 +5,7 @@
 **Lectorat** : Morgan à froid, contributeurs futurs, et toute personne qui veut comprendre comment WordPress est organisé pour ce projet.
 **Articulation** : ce document complète `01-plugin-php.md` (qui détaille le plugin de conversion Markdown ↔ WordPress) en se concentrant sur la modélisation côté CMS.
 **Temps de lecture** : environ 12 minutes
-**Dernière mise à jour** : 8 novembre 2026 (ouverture des langues, ADR-022 lot 5b : l'option `portfolio_md_published_languages`, une langue fermée servie mais `noindex` et hors sitemap ; lot 5a : archives des trois taxonomies en `noindex` et hors sitemap ; libellés par langue, ADR-020 lot 4 : trois term metas de plus sur `skill`, libellés de statut en trois langues ; la langue dans les routes REST, ADR-021 lot 3 : les deux champs internes de langue conditionnent la visibilité d'un document dans l'API ; le 7 novembre, pont Polylang, ADR-020 lot 2 : types déclarés à Polylang par le plugin, boîte en lecture seule pour les traductions, réconciliation ; langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
+**Dernière mise à jour** : 8 novembre 2026 (ouverture des langues, ADR-022 lot 5d : pages Accueil et Contact en documents, accueil statique et menus par langue, description SEO recopiée vers Yoast ; lot 5c : archive des projets avec repli et sélecteur ; lot 5b : l'option `portfolio_md_published_languages`, une langue fermée servie mais `noindex` et hors sitemap ; lot 5a : archives des trois taxonomies en `noindex` et hors sitemap ; libellés par langue, ADR-020 lot 4 : trois term metas de plus sur `skill`, libellés de statut en trois langues ; la langue dans les routes REST, ADR-021 lot 3 : les deux champs internes de langue conditionnent la visibilité d'un document dans l'API ; le 7 novembre, pont Polylang, ADR-020 lot 2 : types déclarés à Polylang par le plugin, boîte en lecture seule pour les traductions, réconciliation ; langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
 
 ---
 
@@ -50,7 +50,7 @@ Le site public se compose de **cinq pages principales**, exposées dans la navig
 /contact               Page Contact
 ```
 
-**Home.** La porte d'entrée du site. Contient la phrase d'accroche, la ligne de statut courant, et les panneaux du pupitre (articles récents, projets en cours, stack, en cours d'apprentissage). Aucun contenu long ; uniquement des vitrines vers le reste. Voir `03-direction-graphique.md` section 6 et `05-textes-du-site.md` pour les textes à intégrer.
+**Home.** La porte d'entrée du site. Depuis le lot 5d d'ADR-022, un document Markdown (`content/<lang>/pages/{accueil,startseite,home}.md`, servi à `/<lang>/` par `redirect_lang`) : la phrase d'accroche et ce que le site contient, puis le bloc « projets récents » que le thème ajoute sous le corps (trois cartes de la liste avec repli, lien vers l'archive). Les panneaux du pupitre d'origine (articles récents, stack, en cours d'apprentissage) viennent avec le dessin de la phase 10. Aucun contenu long.
 
 **Liste articles.** Affiche tous les articles, paginés, filtrables par tag technique. Tri par date de publication descendante par défaut.
 
@@ -62,7 +62,7 @@ Le site public se compose de **cinq pages principales**, exposées dans la navig
 
 **À propos.** Page statique. Version étendue de la phrase d'accroche, raconte le parcours électronique → automatisme → développement. Voir `05-textes-du-site.md` section 3.
 
-**Contact.** Page statique courte et factuelle. Email, GitHub, LinkedIn, éventuellement disponibilité.
+**Contact.** Page statique courte et factuelle, un document Markdown comme les autres depuis le lot 5d d'ADR-022 (`content/<lang>/pages/{contact,kontakt,get-in-touch}.md`, la seule page qui porte une adresse : le validateur de contenu l'exempte de sa règle) : ce que je cherche, l'e-mail en lien `mailto:`, GitHub, pas de formulaire.
 
 ---
 
@@ -116,7 +116,7 @@ Les **projets**, en revanche, n'ont pas d'équivalent natif et nécessitent obli
 
 Les pages `À propos` et `CV` (`content/<lang>/pages/`) utilisent le type natif `page` de WordPress et passent par le pipeline Markdown comme les articles et les projets (ADR-017, 27 octobre 2026) : `wp portfolio import /srv/portfolio-content/fr/pages`, la page de collage ou la boîte « Document Markdown ». Une page importée porte la description SEO (section 5.1) et les sept champs internes (section 5.3), aucun terme (les taxonomies du plugin ne sont pas rattachées au type `page`) et aucun autre champ. Sur le site, elle vit à la racine (`/a-propos/`, `/cv/`), sans parent ni modèle choisis dans l'admin (la boîte d'attributs est retirée de son écran, et le dépôt remet `post_parent` à zéro à chaque écriture), et les liens qu'elle fait vers des fiches (`../projects/<slug>.md`) sont réécrits en liens du site au rendu (`/fr/projets/<slug>/`, `01-plugin-php.md` §4.2). Polylang traduit les pages par défaut ; une page allemande et une page française qui partageraient un slug recevraient le suffixe `-2` du cœur, d'où les slugs naturels distincts par langue (`cv`, `lebenslauf`, `resume` ; ADR-020).
 
-La boîte « Document Markdown » et l'écran épuré ne s'appliquent qu'à une page qui porte un document (sa marque : le hash interne écrit par le pipeline). Une page faite à la main dans l'éditeur de blocs, Contact par exemple, reste une page ordinaire, et « Ajouter une page » ouvre toujours l'éditeur de blocs : une page nouvelle en Markdown entre par le collage ou la commande. Dans la liste des pages, les deux sortes cohabitent ; seules les pages documentées perdent Quick Edit, et Bulk Edit reste à toutes. Une page documentée est aussi servie par l'API du plugin (`/wp-json/portfolio/v1/pages/<slug>`, `01-plugin-php.md` §7.1) ; une page faite à la main ne l'est pas, elle n'a pas de Markdown à servir (ADR-018).
+La boîte « Document Markdown » et l'écran épuré ne s'appliquent qu'à une page qui porte un document (sa marque : le hash interne écrit par le pipeline). Une page faite à la main dans l'éditeur de blocs, une page de test par exemple, reste une page ordinaire, et « Ajouter une page » ouvre toujours l'éditeur de blocs : une page nouvelle en Markdown entre par le collage ou la commande. Dans la liste des pages, les deux sortes cohabitent ; seules les pages documentées perdent Quick Edit, et Bulk Edit reste à toutes. Une page documentée est aussi servie par l'API du plugin (`/wp-json/portfolio/v1/pages/<slug>`, `01-plugin-php.md` §7.1) ; une page faite à la main ne l'est pas, elle n'a pas de Markdown à servir (ADR-018).
 
 ---
 
@@ -231,7 +231,7 @@ Enregistrés sur `article` **et** `project` par `CommonMetaRegistrar`. `subtitle
 
 | Clé | Type | Défaut | REST | Utilité |
 |---|---|---|---|---|
-| `_portfolio_seo_description` | string | `''` | lecture/écriture | Description meta pour SEO, tronquée à 160 caractères (recopie vers `_yoast_wpseo_metadesc` à prévoir dans le pipeline si Yoast est actif) |
+| `_portfolio_seo_description` | string | `''` | lecture/écriture | Description meta pour SEO, tronquée à 160 caractères ; recopiée telle quelle dans `_yoast_wpseo_metadesc` par le pipeline (ADR-022 point 13, lot 5d), qui supprime la meta de Yoast quand la description est absente |
 | `_portfolio_featured` | boolean | `false` | lecture/écriture | Mis en avant sur la home |
 | `_portfolio_reading_time` | integer | `0` | lecture/écriture | Temps de lecture estimé en minutes, 0 à 240 |
 | `_portfolio_subtitle` | string | `''` | lecture/écriture | Sous-titre / résumé court |
@@ -358,7 +358,7 @@ WordPress
 ├── Types de contenu
 │   ├── article (custom post type) ......... PostTypeRegistrar::registerArticle
 │   ├── project (custom post type) ......... PostTypeRegistrar::registerProject
-│   └── page (natif : À propos et CV importées de content/<lang>/pages, Contact à la main)
+│   └── page (natif : Accueil, À propos, CV et Contact importées de content/<lang>/pages, ADR-022 point 10)
 │
 ├── Taxonomies
 │   ├── tech_tag (sur article + project) ... TaxonomyRegistrar::registerTechTag
@@ -486,5 +486,9 @@ WordPress
 **2026-11-08 (ouverture des langues, ADR-022 lot 5c)**
 
 - L'archive des projets de chaque langue (`/fr/projets/`, `/de/projets/`, `/en/projets/`) liste toutes les fiches, par la liste du plugin et non par la boucle principale : celles de la langue, puis les françaises en repli avec le badge, dans l'ordre de l'archive française (section 4.1 inchangée : aucun type, taxonomie ou meta ne change). Une archive dont la langue n'a aucune fiche propre est `noindex, follow` jusqu'à la première traduction ; le sélecteur de langue du thème ne montre que les langues ouvertes.
+
+**2026-11-08 (ouverture des langues, ADR-022 lot 5d)**
+
+- Les pages Accueil et Contact sont des documents (`content/fr/pages/accueil.md`, `contact.md`), importés comme À propos et CV ; la page d'accueil statique du site est la page française `accueil`, servie à `/fr/` (`redirect_lang`), son permalien `/fr/accueil/` redirige en 301. Un menu par langue (« Menu FR » : Accueil, Projets, À propos, CV, Contact), lié par `plugin/tools/site-setup.php` dans l'option brute `theme_mods_*` et dans `nav_menus` de Polylang. La description SEO de chaque document est recopiée dans `_yoast_wpseo_metadesc` (version de rendu 1.3.0, réimport de tous les documents). Le modèle ne change pas autrement.
 
 ---

@@ -55,6 +55,23 @@ Text Domain: portfolio-md-child
 	margin-bottom: 0;
 }
 
+/* The recent projects block of the home page (point 10): cards nested in the page. */
+.home-projects {
+	margin-top: 2em;
+}
+
+.home-projects .portfolio-card {
+	margin-top: 1em;
+}
+
+.home-projects .portfolio-card .inside-article {
+	padding: 0;
+}
+
+.home-projects-more {
+	margin-top: 1em;
+}
+
 /* WordPress's own hidden-text class, as GeneratePress defines it, in case a parent update drops it. */
 .screen-reader-text {
 	position: absolute !important;

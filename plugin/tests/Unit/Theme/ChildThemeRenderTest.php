@@ -161,6 +161,33 @@ final class ChildThemeRenderTest extends TestCase
     }
 
     #[Test]
+    public function the_home_block_lists_the_recent_projects_under_a_heading_and_links_the_archive_in_the_language_of_the_page(): void
+    {
+        $items = [
+            new ListItem(12, 'MomoCad', 'Un logiciel de dessin 2D', 'http://example.test/fr/projets/momocad/', Language::Fr, Language::De, true),
+            new ListItem(13, 'Projekt', 'Untertitel', 'http://example.test/de/projets/projekt-de/', Language::De, Language::De, false),
+        ];
+
+        $html = portfolio_md_child_render_home_projects($items, 'de', 'http://example.test/de/projets/');
+
+        self::assertStringStartsWith('<section class="home-projects" aria-labelledby="home-projects-title"><h2 id="home-projects-title" class="home-projects-title">Neueste Projekte</h2><article id="post-12"', $html);
+        self::assertSame(2, substr_count($html, '<article id="post-'));
+        self::assertSame(1, substr_count($html, 'class="lang-badge"'), 'the French card wears the badge, the German one does not');
+        self::assertStringEndsWith('<p class="home-projects-more"><a href="http://example.test/de/projets/">Alle Projekte</a></p></section>', $html);
+    }
+
+    #[Test]
+    public function the_home_block_is_nothing_without_project_and_has_no_archive_link_without_archive_url(): void
+    {
+        self::assertSame('', portfolio_md_child_render_home_projects([], 'fr', 'http://example.test/fr/projets/'));
+
+        $html = portfolio_md_child_render_home_projects([new ListItem(1, 'P', '', 'http://example.test/fr/projets/p/', Language::Fr, Language::Fr, false)], 'fr', '');
+
+        self::assertStringContainsString('Projets récents', $html);
+        self::assertStringNotContainsString('home-projects-more', $html);
+    }
+
+    #[Test]
     public function the_texts_of_the_theme_fall_back_on_french(): void
     {
         self::assertSame('Projekte', portfolio_md_child_text('projects', 'de'));
@@ -170,7 +197,7 @@ final class ChildThemeRenderTest extends TestCase
         self::assertSame('anglais', portfolio_md_child_language_name('en', 'fr'));
         self::assertSame('XX', portfolio_md_child_language_name('xx', 'de'));
         foreach (['fr', 'de', 'en'] as $language) {
-            self::assertSame(['projects', 'no_projects', 'languages', 'only_in'], array_keys(portfolio_md_child_strings()[$language]), "every language has every text ({$language})");
+            self::assertSame(['projects', 'no_projects', 'languages', 'only_in', 'recent_projects', 'all_projects'], array_keys(portfolio_md_child_strings()[$language]), "every language has every text ({$language})");
             self::assertSame(['fr', 'de', 'en'], array_keys(portfolio_md_child_language_names()[$language]));
         }
     }

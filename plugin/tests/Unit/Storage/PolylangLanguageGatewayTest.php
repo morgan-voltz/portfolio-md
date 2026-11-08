@@ -99,6 +99,61 @@ final class PolylangLanguageGatewayTest extends TestCase
     }
 
     #[Test]
+    public function a_group_saved_or_dissolved_cleans_the_languages_cache_of_polylang(): void
+    {
+        $model = self::polylangModel();
+
+        $this->gateway->linkTranslations(['fr' => 40, 'de' => 41]);
+
+        self::assertSame(1, $model->cleaned, 'Polylang caches the home page of each language until the cache is cleaned (ADR-022, point 11)');
+        self::assertSame([['set', 40, 'fr'], ['set', 41, 'de'], ['save', ['fr' => 40, 'de' => 41]], ['clean']], WordPressSpy::$pllCalls, 'cleaned after the save');
+
+        $this->gateway->linkTranslations(['fr' => 40, 'de' => 41]);
+
+        self::assertSame(1, $model->cleaned, 'a group every member already sees changes nothing');
+
+        $this->gateway->linkTranslations(['fr' => 40]);
+
+        self::assertSame(2, $model->cleaned, 'dissolving a group cleans it too');
+    }
+
+    #[Test]
+    public function a_group_polylang_kept_only_in_part_cleans_the_cache_before_the_error_is_reported(): void
+    {
+        $model = self::polylangModel();
+        WordPressSpy::$pllRefuseGroups = true;
+
+        try {
+            $this->gateway->linkTranslations(['fr' => 40, 'de' => 41]);
+            self::fail('a group Polylang did not keep is reported');
+        } catch (LanguageGatewayException) {
+        }
+
+        self::assertSame(1, $model->cleaned, 'whatever Polylang wrote before refusing may have touched the cached pages');
+
+        $this->gateway->linkTranslations(['fr' => 40]);
+
+        self::assertSame(1, $model->cleaned, 'a post already alone dissolves nothing and cleans nothing');
+    }
+
+    /** A stand-in for PLL()->model that counts the cache cleanings and records them among the Polylang calls. */
+    private static function polylangModel(): object
+    {
+        $model = new class {
+            public int $cleaned = 0;
+
+            public function clean_languages_cache(): void
+            {
+                $this->cleaned++;
+                WordPressSpy::$pllCalls[] = ['clean'];
+            }
+        };
+        WordPressSpy::$pll = (object) ['model' => $model];
+
+        return $model;
+    }
+
+    #[Test]
     public function a_group_every_member_already_sees_is_not_saved_again(): void
     {
         $this->gateway->linkTranslations(['fr' => 40, 'de' => 41]);

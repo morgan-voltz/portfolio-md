@@ -62,7 +62,10 @@ final class ContentValidatorTest extends TestCase
 
         self::assertClean($report);
         self::assertCount(count(glob(self::CONTENT . '/*/*/*.md') ?: []), $report->notes, 'every document of the tree passes');
-        self::assertGreaterThanOrEqual(16, count($report->notes), 'the fourteen sheets and the two pages of content/fr/, at least');
+        self::assertGreaterThanOrEqual(18, count($report->notes), 'the fourteen sheets and the four pages of content/fr/, at least');
+        foreach (['fr/pages/accueil.md', 'fr/pages/a-propos.md', 'fr/pages/cv.md', 'fr/pages/contact.md'] as $page) {
+            self::assertArrayHasKey($page, $report->notes, "the core page {$page} is in the tree and passes (ADR-022, point 10)");
+        }
     }
 
     #[Test]
@@ -396,6 +399,24 @@ final class ContentValidatorTest extends TestCase
         yield 'a tag that is not a slug' => [['tags' => ['C#']], 'tag non slug : C#'];
         yield 'a status outside the list' => [['status' => 'finished'], 'status hors liste'];
         yield 'a seo description that is not text' => [['seo_description' => ['a']], 'seo_description doit être une chaîne'];
+    }
+
+    #[Test]
+    public function the_contact_page_alone_may_hold_an_address_in_every_language(): void
+    {
+        $this->tree->put('fr/pages/contact.md', ContentTree::pageFrontmatter(['slug' => 'contact', 'title' => 'Contact']), "Un e-mail : [bonjour@example.test](mailto:bonjour@example.test), ou le +33 6 12 34 56 78.\n");
+        $this->tree->put('de/pages/kontakt.md', ContentTree::pageFrontmatter(['slug' => 'kontakt', 'title' => 'Kontakt', 'lang' => 'de', 'translation_key' => 'contact']), "Eine E-Mail: bonjour@example.test.\n");
+        $this->tree->put('fr/pages/cv.md', ContentTree::pageFrontmatter(), "Pas d'adresse ici : bonjour@example.test.\n");
+        $this->tree->put('de/pages/ueber-mich.md', ContentTree::pageFrontmatter(['slug' => 'ueber-mich', 'title' => 'Über mich', 'lang' => 'de', 'translation_key' => 'contact']), "Falsch geschlüsselt: bonjour@example.test.\n");
+        $this->tree->put('en/pages/write-me.md', ContentTree::pageFrontmatter(['slug' => 'write-me', 'title' => 'Write me', 'lang' => 'en', 'translation_key' => 'cv']), "Not the Contact page: bonjour@example.test.\n");
+
+        $report = $this->validate();
+
+        self::assertError($report, 'fr/pages/cv.md', 'donnée de contact détectée');
+        self::assertError($report, 'de/pages/ueber-mich.md', 'donnée de contact détectée');
+        self::assertError($report, 'en/pages/write-me.md', 'donnée de contact détectée');
+        self::assertArrayNotHasKey('fr/pages/contact.md', $report->errors, 'the French Contact page carries the address by design (ADR-022, point 10)');
+        self::assertArrayNotHasKey('de/pages/kontakt.md', $report->errors, 'and so does its translation, through its key and its slug');
     }
 
     #[Test]

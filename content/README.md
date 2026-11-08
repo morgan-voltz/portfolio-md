@@ -76,7 +76,7 @@ Le projet fil rouge 4.0.2 suit le même patron avec, en plus, une section **Corr
 
 ## Frontmatter d'une page statique
 
-Les pages `À propos` et `CV` utilisent le type natif `page` de WordPress ; le plugin y garde la description SEO et ses champs internes, rien d'autre :
+Les pages `Accueil`, `À propos`, `CV` et `Contact` utilisent le type natif `page` de WordPress ; le plugin y garde la description SEO (recopiée dans la description Yoast) et ses champs internes, rien d'autre :
 
 ```markdown
 ---
@@ -104,7 +104,7 @@ Chaque document existe dans les trois langues à terme (ADR-020). Les règles :
 - **Une traduction garde les étiquettes de son original** : mêmes `tags`, même `status`, mêmes `skills`. Les listes de l'API de lecture sont ancrées sur le document français et c'est lui que les filtres regardent (ADR-021) ; une fiche allemande aux étiquettes différentes serait filtrée d'après celles du français.
 - **Une traduction manquante n'est pas un trou** : l'API sert le document français (ou anglais, pour un lecteur allemand) à sa place et le signale (`is_fallback`). Traduire une fiche la fait apparaître dans sa langue sans rien changer d'autre.
 - **Git est le seul écrivain des traductions** : une traduction ne se modifie pas depuis l'admin (la boîte « Document Markdown » les montre en lecture seule, et la page de collage refuse un document qui n'est pas français). Dès maintenant, **un post garde sa langue** : un document dont la `lang` diffère de celle du post qui porte son slug est refusé, par toutes les portes.
-- Les pages d'accueil et de contact sont créées à la main dans WordPress, sans fichier : elles sont hors du périmètre du validateur.
+- **Les pages d'accueil et de contact sont des documents comme les autres** (ADR-022, point 10) : `accueil.md` (servi à `/fr/` par la configuration du site, son permalien redirige) et `contact.md`, la seule page qui porte une adresse ; le validateur l'exempte de la règle « aucune donnée de contact » pour le groupe `contact` et l'applique partout ailleurs. Leurs traductions suivent les slugs des pages cœur : `startseite`/`home`, `kontakt`/`get-in-touch`.
 
 Les cinq sections d'une fiche se reconnaissent par un mot entier de leur titre, dans la langue du document (plus la section du fil rouge quand `is_fil_rouge` vaut `true`) :
 

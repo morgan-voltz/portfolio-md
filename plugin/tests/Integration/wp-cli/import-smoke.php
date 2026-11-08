@@ -208,6 +208,7 @@ try {
     $check('the hash is the SHA-256 of the Markdown', $meta($articleId, InternalMetaRegistrar::MD_HASH) === hash('sha256', $article));
     $check('source type, render version and sync time are recorded', $meta($articleId, InternalMetaRegistrar::SOURCE_TYPE) === 'git' && $meta($articleId, InternalMetaRegistrar::RENDER_VERSION) === ContentRenderer::VERSION && preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/', (string) $meta($articleId, InternalMetaRegistrar::LAST_SYNC_AT)) === 1);
     $check('the common metas are filled', $meta($articleId, CommonMetaRegistrar::SEO_DESCRIPTION) === 'Description SEO de fumée.' && $meta($articleId, CommonMetaRegistrar::SUBTITLE) === 'Sous-titre de fumée' && (bool) $meta($articleId, CommonMetaRegistrar::FEATURED) === true && (int) $meta($articleId, CommonMetaRegistrar::READING_TIME) === 7);
+    $check('the Yoast meta description mirrors the SEO description (ADR-022, point 13)', $meta($articleId, WordPressContentRepository::YOAST_META_DESCRIPTION) === 'Description SEO de fumée.', var_export($meta($articleId, WordPressContentRepository::YOAST_META_DESCRIPTION), true));
     $check('the tech tag is created and attached', wp_get_object_terms($articleId, TaxonomyRegistrar::TECH_TAG, ['fields' => 'slugs']) === [$tagSlug]);
 
     // 2. Idempotence and the conflict rule --------------------------------------------------
@@ -231,6 +232,14 @@ try {
     $check('a changed file updates the same post', $updated->outcome === ImportOutcome::Updated && $updated->postId === $articleId, $updated->outcome->value);
     $check('the title changed, the slug did not', get_post($articleId)->post_title === 'Article renommé' && get_post($articleId)->post_name === $articleSlug);
 
+    $described = str_replace('seo_description: "Description SEO de fumée."', 'seo_description: "Nouvelle description."', $renamed);
+    $service->import($described, new ImportOptions());
+    $check('a changed SEO description follows into the Yoast meta', $meta($articleId, WordPressContentRepository::YOAST_META_DESCRIPTION) === 'Nouvelle description.', var_export($meta($articleId, WordPressContentRepository::YOAST_META_DESCRIPTION), true));
+    $service->import(str_replace("seo_description: \"Nouvelle description.\"\n", '', $described), new ImportOptions());
+    $check('a removed SEO description deletes the Yoast meta', !metadata_exists('post', $articleId, WordPressContentRepository::YOAST_META_DESCRIPTION));
+    $service->import($renamed, new ImportOptions());
+    $check('and it comes back with the description', $meta($articleId, WordPressContentRepository::YOAST_META_DESCRIPTION) === 'Description SEO de fumée.');
+
     // 3. A project gets its status, skills and project metas ----------------------------------
 
     $result = $service->import($project($skill->code), new ImportOptions());
@@ -241,6 +250,7 @@ try {
         $createdPosts[] = (int) $post->ID;
         $projectId = (int) $post->ID;
         $check('the project status term is attached', wp_get_object_terms($projectId, TaxonomyRegistrar::PROJECT_STATUS, ['fields' => 'slugs']) === ['en-cours']);
+        $check('a document without SEO description leaves no Yoast meta description', $meta($projectId, WordPressContentRepository::YOAST_META_DESCRIPTION) === '' && metadata_exists('post', $projectId, WordPressContentRepository::YOAST_META_DESCRIPTION) === false);
         $check('the competency term is attached by its code', wp_get_object_terms($projectId, TaxonomyRegistrar::SKILL, ['fields' => 'ids']) === [$skill->id]);
         $check('the project stores its language and is its own translation key', $meta($projectId, InternalMetaRegistrar::LANG) === 'fr' && $meta($projectId, InternalMetaRegistrar::TRANSLATION_KEY) === $projectSlug);
 

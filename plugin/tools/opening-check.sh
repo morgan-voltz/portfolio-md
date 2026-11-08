@@ -3,10 +3,12 @@
 # anonymous visitor and a robot see it: with German closed, then opened with
 # `wp portfolio languages publish de --force`, then closed again. Since lot 5c
 # each page also reports what the theme renders: cards and badges of the
-# project archive, languages of the switcher. Only GET
+# project archive, languages of the switcher; since lot 5d the meta
+# description of each page and where the permalink of the home page goes. Only GET
 # requests on the site plus the two commands; the option is put back as it
 # was. Run from the repository root with the stack up; prints observations,
-# compare them with the expectations in docs/architecture/01-plugin-php.md §7.1.
+# compare them with the expectations written in the lot 5b to 5d notes of
+# ADR-022 (docs/architecture/99-decisions.md).
 #
 #   plugin/tools/opening-check.sh [base-url]        (default http://localhost:8000)
 #
@@ -28,7 +30,8 @@ head_tags() {
   local b; b=$(curl -s "$1")
   local hl; hl=$(grep -o '<link rel="alternate" href="[^"]*" hreflang="[^"]*"' <<<"$b" | sed -E 's/.*href="([^"]*)" hreflang="([^"]*)"/\2→\1/' | tr '\n' ' ')
   local rob; rob=$(grep -o "<meta name='robots' content='[^']*'" <<<"$b" | head -1 | sed "s/.*content=//")
-  printf '      hreflang: %s\n      robots: %s\n' "${hl:-none}" "${rob:-none}"
+  local desc; desc=$(grep -oE "<meta name=[\"']description[\"'] content=[\"'][^\"']*[\"']" <<<"$b" | head -1 | sed -E "s/.*content=[\"']//; s/[\"']$//")
+  printf '      hreflang: %s\n      robots: %s\n      description: %s\n' "${hl:-none}" "${rob:-none}" "${desc:-none}"
 }
 sitemap_locs() { curl -s "$1" | grep -o '<loc>[^<]*</loc>' | sed 's/<\/*loc>//g' | grep -E "$2" | tr '\n' ' '; }
 
@@ -58,6 +61,7 @@ observe() {
   section "$1"
   printf '   Accept-Language de on /          → %s\n' "$(status_and_target -H 'Accept-Language: de' "$BASE/")"
   printf '   Cookie pll_language=de on /      → %s\n' "$(status_and_target -H 'Cookie: pll_language=de' "$BASE/")"
+  printf '   /fr/accueil/ (expected 301 → /fr/) → %s\n' "$(status_and_target "$BASE/fr/accueil/")"
   for u in /fr/ /de/ /fr/projets/ /de/projets/ /fr/projets/momocad/ /fr/projets/page/2/; do printf '   %-28s %s\n' "$u" "$(code "$BASE$u")"; head_tags "$BASE$u"; theme_tags "$BASE$u"; done
   printf '   project-sitemap, /de/ URLs: %s\n' "$(sitemap_locs "$BASE/project-sitemap.xml" '/de/')"
   printf '   page-sitemap, /de/ URLs: %s\n' "$(sitemap_locs "$BASE/page-sitemap.xml" '/de/')"

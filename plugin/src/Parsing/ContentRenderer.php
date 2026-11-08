@@ -21,8 +21,12 @@ final class ContentRenderer
      * again at the next import even if its Markdown did not change.
      * 1.2.0: the links between documents carry the language prefix of the
      * site's URL tree (ADR-020).
+     * 1.3.0: the SEO description is also written to Yoast's own meta
+     * description (ADR-022, point 13); the rendering itself did not change,
+     * but what the pipeline stores did, and a document imported by 1.2.0
+     * must be written again to get it.
      */
-    public const VERSION = '1.2.0';
+    public const VERSION = '1.3.0';
 
     public function __construct(
         private readonly MarkdownParser $parser,
