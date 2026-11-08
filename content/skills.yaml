@@ -98,7 +98,7 @@ referentials:
         slug: fr-09-construire-des-bases-relationnelles
         name: "Construire des bases de données relationnelles"
         i18n:
-          de: { name: "Relationale Datenbanken entwerfen" }
+          de: { name: "Relationale Datenbanken aufbauen" }
           en: { name: "Build relational databases" }
         description: "Étape BDD : modélisation, clés primaires et étrangères, script SQL."
       - code: "4.0.1/FR-10"
@@ -113,7 +113,7 @@ referentials:
         name: "Développer une procédure logique répondant à des problématiques partielles"
         i18n:
           de: { name: "Einen logischen Ablauf entwickeln, der Teilprobleme löst" }
-          en: { name: "Develop a logical procedure that addresses partial problems" }
+          en: { name: "Develop a logical procedure that addresses sub-problems" }
         description: "Étape Persistance : algorithmique de stockage des données d'API en base."
       - code: "4.0.1/FR-12"
         slug: fr-12-structures-de-donnees
@@ -170,7 +170,7 @@ referentials:
         name: "Appliquer le framework agile SCRUM"
         i18n:
           de: { name: "Das agile Framework Scrum anwenden" }
-          en: { name: "Apply the Scrum agile framework" }
+          en: { name: "Apply the agile Scrum framework" }
         description: "Sprints, backlog Jira, revues de sprint."
       - code: "4.0.1/PM-04"
         slug: pm-04-registres-d-expression-francaise
@@ -183,7 +183,7 @@ referentials:
         slug: pm-05-presenter-a-l-oral-avec-support
         name: "Présenter son parcours et ses travaux à l'oral en s'appuyant sur un support visuel"
         i18n:
-          de: { name: "Den eigenen Werdegang und die eigenen Arbeiten mündlich anhand einer visuellen Unterlage vorstellen" }
+          de: { name: "Den eigenen Werdegang und die eigenen Arbeiten mündlich anhand einer visuellen Präsentation vorstellen" }
           en: { name: "Present one's background and work orally, supported by a visual aid" }
         description: "Revues de sprint, soutenances."
       - code: "4.0.1/PM-06"
@@ -286,7 +286,7 @@ referentials:
         slug: e03-heritage-et-polymorphisme
         name: "Factoriser par héritage et prouver le polymorphisme"
         i18n:
-          de: { name: "Durch Vererbung faktorisieren und Polymorphie nachweisen" }
+          de: { name: "Gemeinsamkeiten durch Vererbung in eine Oberklasse auslagern und Polymorphie nachweisen" }
           en: { name: "Factor out through inheritance and demonstrate polymorphism" }
         description: >-
           Introduire une classe mère commune aux formes, y remonter les membres partagés
@@ -304,8 +304,8 @@ referentials:
         slug: e05-composition-et-calculs
         name: "Composer des objets et calculer sur la composition"
         i18n:
-          de: { name: "Objekte zusammensetzen und auf der Komposition rechnen" }
-          en: { name: "Compose objects and compute over the composition" }
+          de: { name: "Objekte zusammensetzen und Berechnungen über die Komposition ausführen" }
+          en: { name: "Compose objects and run calculations on the composition" }
         description: >-
           Calculer aire et périmètre de chaque forme, concevoir une classe de composition
           qui en contient plusieurs et agrège les totaux.
@@ -393,7 +393,7 @@ referentials:
         slug: o03-interface-graphique
         name: "Construire une interface graphique riche"
         i18n:
-          de: { name: "Eine umfangreiche grafische Benutzeroberfläche bauen" }
+          de: { name: "Eine funktionsreiche grafische Benutzeroberfläche bauen" }
           en: { name: "Build a rich graphical interface" }
         description: >-
           Utiliser une bibliothèque graphique pour une interface attractive de
