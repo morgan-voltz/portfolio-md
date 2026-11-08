@@ -99,6 +99,32 @@ final class PolylangLanguageGatewayTest extends TestCase
     }
 
     #[Test]
+    public function a_group_saved_or_dissolved_cleans_the_languages_cache_of_polylang(): void
+    {
+        $model = new class {
+            public int $cleaned = 0;
+
+            public function clean_languages_cache(): void
+            {
+                $this->cleaned++;
+            }
+        };
+        WordPressSpy::$pll = (object) ['model' => $model];
+
+        $this->gateway->linkTranslations(['fr' => 40, 'de' => 41]);
+
+        self::assertSame(1, $model->cleaned, 'Polylang caches the home page of each language until the cache is cleaned (ADR-022, point 11)');
+
+        $this->gateway->linkTranslations(['fr' => 40, 'de' => 41]);
+
+        self::assertSame(1, $model->cleaned, 'a group every member already sees changes nothing');
+
+        $this->gateway->linkTranslations(['fr' => 40]);
+
+        self::assertSame(2, $model->cleaned, 'dissolving a group cleans it too');
+    }
+
+    #[Test]
     public function a_group_every_member_already_sees_is_not_saved_again(): void
     {
         $this->gateway->linkTranslations(['fr' => 40, 'de' => 41]);

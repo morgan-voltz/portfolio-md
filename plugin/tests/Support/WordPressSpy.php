@@ -134,6 +134,9 @@ final class WordPressSpy
     /** @var list<array<int, mixed>> every writing pll_* call: ['set', id, slug] or ['save', group] */
     public static array $pllCalls = [];
 
+    /** What PLL() answers: null in the unit suite unless a test gives it an object (a `model` with clean_languages_cache(), say). */
+    public static ?object $pll = null;
+
     /** When true, pll_set_post_language() records the call but keeps the language unchanged. */
     public static bool $pllRefuseWrites = false;
 
@@ -186,6 +189,7 @@ final class WordPressSpy
         self::$pllTermOf = [];
         self::$pllTerms = [];
         self::$pllCalls = [];
+        self::$pll = null;
         self::$pllRefuseWrites = false;
         self::$pllRefuseGroups = false;
     }
