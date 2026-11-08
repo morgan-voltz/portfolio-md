@@ -5,7 +5,7 @@
 **Lectorat** : Morgan à froid, contributeurs futurs, et toute personne qui veut comprendre comment WordPress est organisé pour ce projet.
 **Articulation** : ce document complète `01-plugin-php.md` (qui détaille le plugin de conversion Markdown ↔ WordPress) en se concentrant sur la modélisation côté CMS.
 **Temps de lecture** : environ 12 minutes
-**Dernière mise à jour** : 7 novembre 2026 (pont Polylang, ADR-020 lot 2 : types déclarés à Polylang par le plugin, boîte en lecture seule pour les traductions, réconciliation ; langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
+**Dernière mise à jour** : 8 novembre 2026 (la langue dans les routes REST, ADR-021 lot 3 : les deux champs internes de langue conditionnent la visibilité d'un document dans l'API ; le 7 novembre, pont Polylang, ADR-020 lot 2 : types déclarés à Polylang par le plugin, boîte en lecture seule pour les traductions, réconciliation ; langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
 
 ---
 
@@ -461,5 +461,10 @@ WordPress
 - Les types `article` et `project` sont déclarés à Polylang par le plugin (filtre `pll_get_post_types`, sections 3.2 et 3.3) ; les pages le sont par défaut. La langue stockée est poussée chez Polylang à chaque écriture et les traductions d'une clé sont liées ; `wp portfolio translations reconcile` remet ce que les écrans de Polylang auraient changé.
 - Toutes les requêtes du plugin passent `lang => ''` : elles voient toutes les langues, quel que soit le filtre de langue de l'admin ou de la requête.
 - La boîte « Document Markdown » est en lecture seule pour une traduction et la page de collage refuse un document non français : Git est le seul écrivain des traductions.
+
+**2026-11-08 (la langue dans les routes REST, ADR-021 lot 3)**
+
+- Le modèle de contenu ne change pas. Les deux champs internes `_portfolio_lang` et `_portfolio_translation_key` (section 5.3) deviennent la condition de visibilité d'un document dans l'API publique de lecture, sitemap compris : un post qui n'en stocke pas (importé avant le lot 1b d'ADR-020) n'est plus servi jusqu'à sa réimportation. Après un déploiement du plugin, une synchronisation complète du contenu est donc obligatoire (`01-plugin-php.md` §7.1).
+- Les routes de lecture prennent `language=fr|de|en` et servent les listes ancrées sur les documents français, avec repli signalé ; la langue reste celle que le plugin stocke, jamais celle de Polylang.
 
 ---

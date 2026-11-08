@@ -5,7 +5,7 @@
 **Prérequis** : avoir lu [`00-overview.md`](00-overview.md)
 **Lectorat** : contributeur .NET, Morgan en phase d'implémentation, relecteur technique
 **Temps de lecture** : environ vingt-cinq minutes
-**Dernière mise à jour** : 29 octobre 2026 (contrat réel des routes du plugin, phase 5 ; version d'origine du 22 avril 2026)
+**Dernière mise à jour** : 8 novembre 2026 (la langue dans les routes du plugin et dans les clés de cache, ADR-021 ; contrat réel des routes du plugin le 29 octobre, phase 5 ; version d'origine du 22 avril 2026)
 
 ---
 
@@ -177,7 +177,7 @@ public async Task<ArticleDto?> ExecuteAsync(string slug)
 }
 ```
 
-**Étape quatre : appel au client WordPress en cas de cache miss.** Si le cache ne contient pas l'article, le handler appelle `_wordPressClient.GetArticleBySlugAsync(slug)`. L'implémentation concrète de cette interface vit dans `Portfolio.Infrastructure.WordPress.WordPressClient`, qui utilise un `HttpClient` typé pour taper `GET /wp-json/portfolio/v1/articles/{slug}` sur l'instance WordPress configurée. La réponse JSON est désérialisée en un objet `WordPressArticle` (une classe interne à l'infrastructure).
+**Étape quatre : appel au client WordPress en cas de cache miss.** Si le cache ne contient pas l'article, le handler appelle `_wordPressClient.GetArticleBySlugAsync(slug, language)`, la langue venant de la requête du front (voir §5.3 : elle fait partie de la clé de cache et du contrat du plugin). L'implémentation concrète de cette interface vit dans `Portfolio.Infrastructure.WordPress.WordPressClient`, qui utilise un `HttpClient` typé pour taper `GET /wp-json/portfolio/v1/articles/{slug}` sur l'instance WordPress configurée. La réponse JSON est désérialisée en un objet `WordPressArticle` (une classe interne à l'infrastructure).
 
 Si WordPress retourne 404, le client retourne `null`. Le handler retourne à son tour `null`, et l'endpoint HTTP conclut avec un 404.
 
@@ -211,6 +211,12 @@ Cette approche a un coût de requête faible (une seule requête au sitemap pér
 
 Le service qui fait le polling est enregistré comme `BackgroundService` hébergé par ASP.NET Core. C'est un pattern standard pour les tâches de fond associées à un serveur web.
 
+Depuis ADR-021 (8 novembre 2026), chaque ligne du sitemap porte aussi `lang` et `translation_key` : `{ "slug", "updated", "lang", "translation_key" }`, pour les documents réels de toutes les langues, jamais les replis. La règle d'invalidation en découle : **toute ligne ajoutée, modifiée ou disparue pour une `translation_key` invalide tout le groupe**, c'est-à-dire les entrées de détail de toutes les langues pour cette clé (une entrée allemande peut servir le document français en repli, elle change donc quand le français change) ; et **tout changement d'une collection invalide ses listes** dans toutes les langues, pas seulement la ligne du document français. Le service de fond compare donc l'ensemble des lignes, pas seulement les instants : une ligne qui disparaît (document dépublié ou supprimé) invalide autant qu'une ligne qui avance.
+
+### 5.3. La langue dans toutes les clés de cache
+
+Le plugin ne sert qu'une langue à la fois (`language=fr|de|en`, `fr` quand le paramètre est absent) et n'ajoute aucun en-tête de cache : c'est à l'API de ne jamais mélanger deux langues sous une même clé. Les clés de `IArticleCache` sont donc `(collection, language, slug)` pour un document et `(collection, language, page, per_page, filtres)` pour une liste. Le même document dans deux langues est deux entrées, invalidées ensemble par la règle de groupe ci-dessus.
+
 ---
 
 ## 6. Parsing Markdown côté C#
@@ -230,6 +236,8 @@ Si un jour on veut offrir un format de sortie alternatif (par exemple retourner 
 ## 7. Endpoints publics exposés
 
 L'API expose plusieurs endpoints sous le préfixe `/api/`. Leur forme mime celle de l'API WordPress sous-jacente mais peut s'en écarter quand c'est utile pour le front.
+
+Tous les endpoints de lecture prennent `language=fr|de|en` (ADR-021), relayé tel quel au plugin ; absent, l'API demande `fr`. La règle vaut des deux côtés : le `WordPressClient` envoie **`language`**, jamais `lang` (le paramètre de Polylang) ni `Accept-Language`, n'envoie jamais un `language=` vide (le plugin répond 400 : une langue indéfinie côté C# se traduit par l'absence du paramètre), ne retire jamais un paramètre qu'il ne connaît pas d'une URL qu'il relaie (un normaliseur qui le ferait fusionnerait les langues), et appelle l'URL de base du site **sans préfixe de langue** (`/wp-json/portfolio/v1/…`, jamais `/de/wp-json/…`, qui est une page 404 du site). Ce que le plugin répond est décrit dans `01-plugin-php.md` §7.1 : une liste ancrée sur les documents français, servie dans la langue demandée avec les traductions manquantes en repli signalé, et un détail qui ne répond jamais 404 pour un slug existant. Les DTO relaient les cinq clés du plugin jusqu'au front, en camelCase : `lang`, `translationKey`, `translations`, `isFallback`, `requestedLanguage`. Les libellés (`status.label`, `skills[].label`, noms des tags) restent français tant que le lot 4 d'ADR-020 ne les traduit pas côté plugin.
 
 `GET /api/articles` retourne la liste paginée des articles avec un filtre optionnel par tag (le plugin l'offre tel quel, `?tag=<slug>` ; il n'y a pas de catégorie dans ce projet, ADR-015). Une recherche textuelle, si elle vient, sera calculée côté API : le plugin n'en expose pas. La pagination utilise les paramètres `page` et `per_page`, ceux du plugin (10 par défaut, 100 au plus par page, totaux dans les en-têtes `X-WP-Total` et `X-WP-TotalPages`, pages voisines dans `Link`).
 
