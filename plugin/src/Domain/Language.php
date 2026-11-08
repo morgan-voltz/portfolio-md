@@ -13,8 +13,10 @@ namespace Voltz\PortfolioMd\Domain;
  * a natural slug in each language (`cv`, `lebenslauf`, `resume`), which
  * ContentType::suffixesSlugs() tells apart.
  *
- * Pure domain code: no locale, no label, no fallback chain here. Those come
- * with the Polylang bridge, the REST contract and the site (lots 2, 3 and 5).
+ * The fallback chain of a language (ADR-021) lives here too: what a reader
+ * of that language is served when a document has no version in it. Pure
+ * domain code otherwise: no locale and no label, which come with the
+ * Polylang bridge and the site (lots 2 and 5).
  */
 enum Language: string
 {
@@ -58,6 +60,24 @@ enum Language: string
         }
 
         return true;
+    }
+
+    /**
+     * The languages a reader of this language is served, in order, when a
+     * document has no version in it (ADR-021): a German reader gets English,
+     * then French; an English reader gets French; a French reader gets
+     * nothing else, French being the language every group is anchored on.
+     * The chain starts with the language itself and always ends with French.
+     *
+     * @return non-empty-list<self>
+     */
+    public function fallbackChain(): array
+    {
+        return match ($this) {
+            self::Fr => [self::Fr],
+            self::De => [self::De, self::En, self::Fr],
+            self::En => [self::En, self::Fr],
+        };
     }
 
     /**

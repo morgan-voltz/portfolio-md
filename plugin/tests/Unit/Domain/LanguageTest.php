@@ -37,6 +37,14 @@ final class LanguageTest extends TestCase
     }
 
     #[Test]
+    public function the_fallback_chain_starts_with_the_language_and_ends_with_french(): void
+    {
+        self::assertSame([Language::Fr], Language::Fr->fallbackChain());
+        self::assertSame([Language::De, Language::En, Language::Fr], Language::De->fallbackChain());
+        self::assertSame([Language::En, Language::Fr], Language::En->fallbackChain());
+    }
+
+    #[Test]
     public function an_unknown_language_is_refused(): void
     {
         self::assertNull(Language::tryFrom('es'));
