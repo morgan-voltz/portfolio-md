@@ -134,7 +134,7 @@ podman-compose --profile tools run --rm wpcli wp portfolio languages unpublish d
 
 The languages of the site (fr, de, en, French by default, the language in the URL) are created once by `tools/polylang-setup-languages.php`, run by `bootstrap.sh` on the local stack and by hand on a fresh site before the first synchronization: without them every import fails on the language gateway.
 
-The one-time configuration of the site (ADR-022) is `tools/site-setup.php`, replayable, one line of log per setting, to run after activating the child theme and again after every change of active theme or opening of a language:
+The one-time configuration of the site (ADR-022, point 12) is `tools/site-setup.php`, replayable, one line of log per setting, to run after activating the child theme and importing `content/fr/pages`, and again after every change of active theme or opening of a language. In order: the active theme, the publication option, the Yoast noindex of the three taxonomies, the static front page (the French page `accueil`, found by slug and stored language), Polylang's `redirect_lang`, one menu per language that owns its home page ("Menu FR"...: Home, Projects as a custom link to the archive, About, CV, Contact; built only when empty, never rebuilt), the French menu on the `primary` location (raw `theme_mods_*` option) and every language in Polylang's `nav_menus`, the languages cache cleaned. A language without home page is logged `skip de: no home page`:
 
 ```bash
 podman-compose --profile tools run --rm wpcli wp eval-file wp-content/plugins/portfolio-md/tools/site-setup.php
@@ -283,6 +283,13 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/list-smoke.php --user=<your admin login>
 ```
 
+**Setup smoke (lot 5d of ADR-022).** `tests/Integration/wp-cli/setup-smoke.php` runs `tools/site-setup.php` in a second `wp` process and reads its effects back (static front page, `redirect_lang`, Menu FR and its items, the theme location, Polylang's `nav_menus`, the languages without home page skipped), then runs it again and checks nothing changes. It applies the wanted state of the site and restores nothing. It needs `content/fr/pages` imported.
+
+```bash
+podman-compose --profile tools run --rm wpcli wp eval-file \
+  wp-content/plugins/portfolio-md/tests/Integration/wp-cli/setup-smoke.php --user=<your admin login>
+```
+
 **Unit suite (PHPUnit 11, no WordPress).** The registrars call WordPress functions, so `tests/bootstrap.php` loads small stand-ins (`tests/Support/wp-stubs.php`) that record registrations in `WordPressSpy` or mimic WordPress closely enough for the covered cases. The suite checks that every meta is registered with the right type, REST visibility and callbacks, and that every sanitizer accepts and rejects what it should. The Markdown pipeline (parser, Gutenberg transformer, import service, conflict rule) is covered there too without any stub, including a full render of every sheet in `content/fr/`.
 
 ```bash
@@ -315,7 +322,7 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/i18n-smoke.php --user=<your admin login>
 ```
 
-`--user` is required for the capability checks. The other smoke scripts (`skills`, `import`, `admin`, `preview`, `rest`, `sync`, `i18n`, `publication`, `list`) are listed in their sections above. The unit suite also loads `../theme/portfolio-md-child/inc/` to test the rendering functions of the child theme (`tests/Unit/Theme/`). The official `wp-phpunit` framework will come if the smoke scripts stop being enough.
+`--user` is required for the capability checks. The other smoke scripts (`skills`, `import`, `admin`, `preview`, `rest`, `sync`, `i18n`, `publication`, `list`, `setup`) are listed in their sections above. The unit suite also loads `../theme/portfolio-md-child/inc/` to test the rendering functions of the child theme (`tests/Unit/Theme/`). The official `wp-phpunit` framework will come if the smoke scripts stop being enough.
 
 **CI script (Python, no network).** `.github/scripts/test_sync_content.py` covers the pure parts of `sync-content.py`: reading the `-z` diff, which paths are documents (the language layout, the stray files left in a type folder without a language folder), the grid first, batches by count and bytes, the summaries. From the repository root:
 
@@ -368,6 +375,7 @@ The most frequent issues you'll hit while developing locally are documented in [
 - The preview looks plainer than the site → by design: the frame loads the core block styles, not the theme's stylesheet; the HTML is the one the site prints
 - A shortcode or an `[embed]` URL stays literal in the preview → by design: the preview runs no shortcode and fetches nothing; the site will run it once the post is published
 - A page imported from Markdown opens in the classic screen with the Markdown box instead of the block editor → by design (`Admin\MarkdownPosts`): it holds a document; a page made by hand keeps the block editor. To make a documented page an ordinary one again, delete its `_portfolio_*` metas (`wp post meta delete`)
+- A document whose Markdown did not change is `UNCHANGED` at import and its metas are not written again: when the pipeline stores something new (the Yoast description copy of lot 5d), bump `ContentRenderer::VERSION` so that every document is written again at its next import (1.3.0 did that).
 - Links of the CV page to the project sheets are broken on the site → import the page again: `ContentRenderer` 1.2.0 rewrites `../projects/<slug>.md` into `/fr/projets/<slug>/` (the language of the document) and `../../de/projects/<slug>-de.md` into `/de/projets/<slug>-de/`, and a post stored with an older render version is rendered again at its next import
 - Images referenced by a relative path are broken in the preview → expected until the media import exists; the site shows the same thing
 - The Tab key stays in the editor → it indents; press Escape, then Tab, to move the focus out
