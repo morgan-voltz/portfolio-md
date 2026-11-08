@@ -30,6 +30,7 @@ if (!defined('WP_CLI') || !WP_CLI) {
 }
 
 $changed = 0;
+$skipped = false;
 
 // 1. The active theme ---------------------------------------------------------------------
 $stylesheet = (string) get_option('stylesheet');
@@ -49,6 +50,7 @@ if (get_option('portfolio_md_published_languages', null) === null) {
 
 // 3. The taxonomy archives out of the index and of the sitemap ------------------------------------
 if (!class_exists('WPSEO_Options')) {
+    $skipped = true;
     WP_CLI::warning('Yoast SEO is not active: the noindex of the taxonomy archives is left for a later run.');
 } else {
     foreach (['tech_tag', 'project_status', 'skill'] as $taxonomy) {
@@ -69,4 +71,8 @@ if (!class_exists('WPSEO_Options')) {
     }
 }
 
+if ($skipped) {
+    WP_CLI::warning("{$changed} setting(s) applied, the Yoast step skipped: run the script again once Yoast SEO is active.");
+    WP_CLI::halt(1);
+}
 WP_CLI::success($changed === 0 ? 'Nothing to change: the site is configured.' : "{$changed} setting(s) applied.");
