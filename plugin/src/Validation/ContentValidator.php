@@ -364,10 +364,11 @@ final class ContentValidator
         }
 
         if ($type === ContentType::Page) {
-            // The Contact page (ADR-022, point 10) is the one page that holds the address: the group
-            // is its translation key, the slug of the French page for the French one.
-            $group = (string) ($fm['translation_key'] ?? $fm['slug'] ?? '');
-            if ($group !== CorePages::CONTACT && preg_match('/(\+33|0[1-9](?:[ .]?\d{2}){4}|@[a-z0-9.-]+\.[a-z]{2,})/i', $body) === 1) {
+            // The Contact page (ADR-022, point 10) is the one page that holds the address: the page whose
+            // validated translation key is the contact group (the slug itself for the French page) and
+            // whose slug is the Contact slug of its language; a page merely keyed "contact" is not.
+            $isContact = $langOk && $translationKey === CorePages::CONTACT && $slug === CorePages::slug(CorePages::CONTACT, $lang);
+            if (!$isContact && preg_match('/(\+33|0[1-9](?:[ .]?\d{2}){4}|@[a-z0-9.-]+\.[a-z]{2,})/i', $body) === 1) {
                 $found[] = 'donnée de contact détectée (téléphone ou e-mail)';
             }
         } elseif ($type !== null) {
