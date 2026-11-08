@@ -176,12 +176,16 @@ try {
             $check('the public list still holds the French page', in_array('zz-smoke-i18n', $listed, true), implode(',', $listed));
             $listedInGerman = array_map(static fn ($document) => $document->slug, $catalog->list(ContentType::Page, new CatalogQuery(perPage: 50, language: Language::De))->items);
             $check('the German list holds the German page in its place', in_array('zz-smoke-i18n-de', $listedInGerman, true) && !in_array('zz-smoke-i18n', $listedInGerman, true), implode(',', $listedInGerman));
+            $frenchLink = (string) $catalog->find(ContentType::Page, 'zz-smoke-i18n', Language::Fr)?->link;
+            $check('the link follows the language of the document, not the forced one: the French page keeps /fr/', str_contains($frenchLink, '/fr/') && !str_contains($frenchLink, '/de/'), $frenchLink);
             $check('the sitemap still holds it', in_array('zz-smoke-i18n', array_map(static fn ($entry) => $entry->slug, $catalog->sitemap()), true));
             $check('the document lister sees both pages', count(array_filter($repository->listDocuments(ContentType::Page), static fn ($d) => in_array($d->id, $ids, true))) === 2);
         }
     } finally {
         PLL()->curlang = $savedLanguage;
     }
+    $germanLink = (string) (new WordPressContentCatalog())->find(ContentType::Page, 'zz-smoke-i18n', Language::De)?->link;
+    $check('and the German page keeps /de/ once the current language is back to normal', str_contains($germanLink, '/de/'), $germanLink);
 } finally {
     foreach (['zz-smoke-i18n', 'zz-smoke-i18n-de'] as $slug) {
         foreach (get_posts(['post_type' => 'page', 'post_status' => array_keys(get_post_stati()), 'name' => $slug, 'numberposts' => -1, 'lang' => '']) as $post) {
