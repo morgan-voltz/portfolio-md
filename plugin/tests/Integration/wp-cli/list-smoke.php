@@ -169,10 +169,13 @@ try {
     $at = $at === false ? 0 : $at;
     $expectedGerman = $ids($frenchList);
     $expectedGerman[$at] = $deId;
-    $check('a German reader gets the German translation in place of the French one, the other cards being the French documents in the French order', $ids($germanList) === $expectedGerman, json_encode([$ids($germanList), $expectedGerman]));
+    // Every other card is the French document itself or, when the site has translated it, its German version: the
+    // test must hold whatever the number of translated sheets the site has (the whole portfolio since lot 6).
+    $sameGroups = static fn (array $list, Language $language): bool => count($list) === count($frenchList) && array_filter(array_keys($frenchList), static fn (int $i): bool => $list[$i]->postId !== $frenchList[$i]->postId && !($list[$i]->lang === $language && !$list[$i]->isFallback)) === [];
+    $check('a German reader gets the German translation in place of the French one, the other cards being the French documents or their German versions in the French order', isset($germanList[$at]) && $germanList[$at]->postId === $deId && $sameGroups($germanList, Language::De), json_encode([$ids($germanList), $expectedGerman]));
     $check('the German card is not flagged and links under /de/; a card is flagged exactly when it is not German', isset($germanList[$at]) && $germanList[$at]->lang === Language::De && !$germanList[$at]->isFallback && str_contains($germanList[$at]->permalink, '/de/projets/zz-smoke-liste-de/') && array_filter($germanList, static fn (ListItem $item): bool => $item->isFallback !== ($item->lang !== Language::De)) === [], json_encode(isset($germanList[$at]) ? [$germanList[$at]->postId, $germanList[$at]->lang->value, $germanList[$at]->permalink] : null));
     $check('the German list and GET /projects?language=de hold the same documents in the same order', $ids($germanList) === $restList('de'));
-    $check('an English reader gets the same documents, each flagged unless English', $ids($englishList) === $ids($frenchList) && array_filter($englishList, static fn (ListItem $item): bool => $item->isFallback !== ($item->lang !== Language::En)) === []);
+    $check('an English reader gets the same groups in the same order, each card flagged unless English', $sameGroups($englishList, Language::En) && array_filter($englishList, static fn (ListItem $item): bool => $item->isFallback !== ($item->lang !== Language::En)) === [], json_encode($ids($englishList)));
     $check('the German draft is in no list', !in_array((int) $entwurf->postId, [...$ids($frenchList), ...$ids($germanList), ...$ids($englishList)], true));
     $check('the excerpt of a card is its subtitle', $germanList[$at]->excerpt === 'Ein Untertitel' && $frenchList[$at]->excerpt === 'Un sous-titre de fumée');
     $frenchDocument = portfolio_md_document($frId);
@@ -187,7 +190,7 @@ try {
     $html = portfolio_md_child_render_cards($germanList, 'de');
     $flagged = count(array_filter($germanList, static fn (ListItem $item): bool => $item->isFallback));
     $check('the German archive renders one card per project, the untranslated ones with the badge', substr_count($html, '<article id="post-') === count($germanList) && substr_count($html, 'class="lang-badge"') === $flagged && substr_count($html, 'is-fallback') === $flagged && $flagged === count($germanList) - 1 - $baseline['de']['project']);
-    $check('the badge speaks the language of the page', str_contains($html, 'Diese Seite ist nur auf Französisch verfügbar.') && !str_contains($html, 'Cette page'));
+    $check('the badge, when a card wears one, speaks the language of the page', ($flagged === 0 || str_contains($html, 'Diese Seite ist nur auf Französisch verfügbar.')) && !str_contains($html, 'Cette page'), "{$flagged} flagged card(s)");
     $prototypes = count(array_filter($germanList, static fn (ListItem $item): bool => $item->status === ProjectStatus::Prototype));
     $check('the cards wear the status of their project in the language of the page', $prototypes >= 1 && substr_count($html, '<span class="project-status is-prototype">Prototyp</span>') === $prototypes && !str_contains($html, '>Prototype</span>'), "{$prototypes} prototype(s) in the list");
     $header = $germanDocument instanceof PublishedDocument ? portfolio_md_child_render_project_header($germanDocument, 'de') : '';

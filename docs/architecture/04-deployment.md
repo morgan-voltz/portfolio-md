@@ -23,7 +23,7 @@ La zone DNS de `voltz.dev` est chez Cloudflare (ADR-023), avec `A voltz.dev` et 
 
 ## 2. WordPress chez o2switch
 
-Tout est dans le runbook `docs/guides/02-exploitation-site-trilingue.md`, partie 2 : prérequis (PHP 8.2 ou plus, WordPress 7.1.4, Polylang 3.9.1, Yoast 28.8, GeneratePress 3.6.1, WP-CLI par SSH), dépôt du plugin **construit** (`composer install --no-dev`, bundle de l'éditeur) et du thème enfant, langues, grille et contenu, `site-setup.php`, test de fumée Yoast, recette, puis ouverture d'une langue quand sa grille est verte. `WP_ENVIRONMENT_TYPE` reste `production` : Yoast ne persiste ses indexables qu'ainsi.
+Tout est dans le runbook `docs/guides/02-exploitation-site-trilingue.md`, partie 2 : prérequis (PHP 8.5, la version d'o2switch confirmée le 8 novembre 2026, le plugin exigeant 8.2 ou plus, la stack locale alignée le même jour ; sous cette version Yoast 28.8 journalise six dépréciations par page, sans effet, runbook partie 5 ; WordPress 7.1.4, Polylang 3.9.1, Yoast 28.8, GeneratePress 3.6.1, WP-CLI par SSH), dépôt du plugin **construit** (`composer install --no-dev`, bundle de l'éditeur) et du thème enfant, langues, grille et contenu, `site-setup.php`, test de fumée Yoast, recette, puis ouverture d'une langue quand sa grille est verte. `WP_ENVIRONMENT_TYPE` reste `production` : Yoast ne persiste ses indexables qu'ainsi.
 
 La porte Git (ADR-019) s'active avec trois secrets GitHub, `PORTFOLIO_SYNC_URL`, `PORTFOLIO_SYNC_USER`, `PORTFOLIO_SYNC_PASSWORD` (un mot de passe d'application WordPress, affiché une fois, collé directement dans le secret) ; le premier import passe par un lancement manuel du workflow, ensuite chaque push sur `main` qui touche `content/` synchronise la différence.
 

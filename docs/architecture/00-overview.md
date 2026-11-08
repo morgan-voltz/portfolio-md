@@ -160,7 +160,7 @@ On lit le diagramme de haut en bas. Morgan rédige du Markdown. Ce Markdown entr
 
 Le projet est pensé pour être déployé en production à faible coût, sur des infrastructures classiques qu'un étudiant peut assumer.
 
-Le **site WordPress** sera hébergé sur un hébergement mutualisé classique, o2switch (choisi en novembre 2026 ; WordPress 7.1.4 y est disponible, la stack locale est alignée sur cette version), qui garantit la compatibilité PHP/MariaDB et les fonctionnalités WordPress attendues (crons, email sortant, upload de médias). Le coût d'entrée est de quelques euros par mois. Les gestes de déploiement, d'ouverture d'une langue et de recette sont dans `docs/guides/02-exploitation-site-trilingue.md`.
+Le **site WordPress** sera hébergé sur un hébergement mutualisé classique, o2switch (choisi en novembre 2026 ; WordPress 7.1.4 et PHP 8.5 y sont disponibles, la stack locale est alignée sur ces versions), qui garantit la compatibilité PHP/MariaDB et les fonctionnalités WordPress attendues (crons, email sortant, upload de médias). Le coût d'entrée est de quelques euros par mois. Les gestes de déploiement, d'ouverture d'une langue et de recette sont dans `docs/guides/02-exploitation-site-trilingue.md`.
 
 L'**API C#** sera déployée comme un service de plus sur le VPS Linux (Hetzner, écosystème européen cohérent avec les valeurs du projet) que Morgan exploite déjà pour d'autres services, derrière son reverse proxy Traefik v3 qui fait le HTTPS et le routage (ADR-023, 8 novembre 2026). ASP.NET Core tourne nativement sur Linux via .NET 10, dans un conteneur dont l'image est construite par ce dépôt. Le coût marginal sera nul : la machine existe déjà.
 

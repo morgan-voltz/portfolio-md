@@ -51,7 +51,7 @@ services:
     #     runs (7.1.4 on 7 November 2026) : the stack's minimum WordPress
     #     version is set by Polylang (6.8) and Yoast SEO (7.0); a surprise major
     #     upgrade must be a decision, not a side effect of `up -d`.
-    image: docker.io/library/wordpress:7.1.4-php8.3-apache
+    image: docker.io/library/wordpress:7.1.4-php8.5-apache
     restart: unless-stopped
     depends_on:
       db:
@@ -72,7 +72,11 @@ services:
       # Environnement « local » : c'est ce que ce poste est, et WordPress n'autorise
       # les mots de passe d'application sans HTTPS que dans cet environnement ; le
       # webhook Git (POST /wp-json/portfolio/v1/sync) s'authentifie avec l'un d'eux.
-      WORDPRESS_CONFIG_EXTRA: "define('WP_ENVIRONMENT_TYPE', 'local');"
+      # The notices go to wp-content/debug.log instead of the page: on PHP 8.5, Yoast 28.8 emits
+      # six deprecations per page, which, printed before the doctype, would put the browser in
+      # quirks mode and distort every local check. Read them with:
+      #   podman exec portfolio-md_wordpress_1 tail -n 50 /var/www/html/wp-content/debug.log
+      WORDPRESS_CONFIG_EXTRA: "define('WP_ENVIRONMENT_TYPE', 'local'); define('WP_DEBUG_DISPLAY', false); define('WP_DEBUG_LOG', true);"
     volumes:
       # Volume principal : l'ensemble du WordPress (core + wp-content).
       # En production réelle, on ne monterait que wp-content pour préserver
@@ -101,7 +105,7 @@ services:
   # même installation. Il dépend aussi de `db` pour les commandes qui
   # touchent à la base.
   wpcli:
-    image: docker.io/library/wordpress:cli-2.12.0-php8.3
+    image: docker.io/library/wordpress:cli-2.12.0-php8.5
     depends_on:
       db:
         condition: service_healthy
@@ -114,7 +118,11 @@ services:
       WORDPRESS_DB_NAME: ${DB_NAME}
       # Le même environnement que le service wordpress : wp-config.php est partagé et
       # relit cette variable à chaque exécution (wp eval, tests de fumée).
-      WORDPRESS_CONFIG_EXTRA: "define('WP_ENVIRONMENT_TYPE', 'local');"
+      # The notices go to wp-content/debug.log instead of the page: on PHP 8.5, Yoast 28.8 emits
+      # six deprecations per page, which, printed before the doctype, would put the browser in
+      # quirks mode and distort every local check. Read them with:
+      #   podman exec portfolio-md_wordpress_1 tail -n 50 /var/www/html/wp-content/debug.log
+      WORDPRESS_CONFIG_EXTRA: "define('WP_ENVIRONMENT_TYPE', 'local'); define('WP_DEBUG_DISPLAY', false); define('WP_DEBUG_LOG', true);"
     volumes:
       - ./wordpress_data:/var/www/html:z
       # On monte aussi le plugin pour que WP-CLI puisse l'activer/désactiver,
