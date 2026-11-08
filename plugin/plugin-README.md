@@ -56,7 +56,7 @@ podman-compose --profile tools run --rm wpcli wp taxonomy list
 podman-compose --profile tools run --rm wpcli wp term list skill --fields=name,slug,parent
 ```
 
-For a full setup from scratch (containers + database + WordPress install + plugin activation), use the [`bootstrap.sh`](../bootstrap.sh) script at the repo root.
+For a full setup from scratch (containers + database + WordPress install + plugin activation), use the [`bootstrap.sh`](../bootstrap.sh) script at the repo root. The whole sequence (replay from scratch, production, opening a language, acceptance) is the runbook [`docs/guides/02-exploitation-site-trilingue.md`](../docs/guides/02-exploitation-site-trilingue.md).
 
 The bundle (`assets/dist/`) is not committed: build it once after cloning and again after changing anything in `assets/src/` (`npm run watch` rebuilds on save). Without it the admin still works, with a plain textarea and a notice saying how to build.
 
@@ -288,6 +288,12 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
 ```bash
 podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/setup-smoke.php --user=<your admin login>
+```
+
+**Opening rehearsal (lot 5e of ADR-022).** `tools/opening-rehearsal.sh` imports a rehearsal project with its German and English translations through the real pipeline (`tests/Integration/wp-cli/rehearsal-fixtures.php setup`), observes everything closed, German open, German and English open, both closed again (redirects of `/`, the three versions of the sheet with canonical, hreflang, robots and description, an untranslated sheet, the tag archive with and without prefix, the project archives, the sitemaps, the switcher), then deletes the fixtures and restores the option. The helpers shared with `opening-check.sh` are in `tools/lib/observe.sh`.
+
+```bash
+plugin/tools/opening-rehearsal.sh http://localhost:8000 <your admin login>
 ```
 
 **Unit suite (PHPUnit 11, no WordPress).** The registrars call WordPress functions, so `tests/bootstrap.php` loads small stand-ins (`tests/Support/wp-stubs.php`) that record registrations in `WordPressSpy` or mimic WordPress closely enough for the covered cases. The suite checks that every meta is registered with the right type, REST visibility and callbacks, and that every sanitizer accepts and rejects what it should. The Markdown pipeline (parser, Gutenberg transformer, import service, conflict rule) is covered there too without any stub, including a full render of every sheet in `content/fr/`.
