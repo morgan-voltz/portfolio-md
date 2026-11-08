@@ -4,7 +4,7 @@
 **Rôle** : le document que `00-overview.md` §6 promettait pour la phase onze : où tourne chaque composant, comment on l'y met, quels secrets existent et où ils vivent, dans quel ordre on déploie la première fois
 **Prérequis** : avoir lu `00-overview.md` ; pour WordPress, le runbook `docs/guides/02-exploitation-site-trilingue.md`
 **Lectorat** : Morgan, seul à tenir le clavier en production ; un relecteur qui veut savoir ce qui est en ligne et comment
-**Statut** : Accepté avec ADR-023 (8 novembre 2026) ; complété à chaque pas réel du premier déploiement
+**Statut** : Accepté avec ADR-023 (8 novembre 2026) ; complété à chaque pas réel du premier déploiement (WordPress installé le 8 novembre 2026, en attente du DNS)
 **Dernière mise à jour** : 8 novembre 2026
 
 Ce dépôt est public : aucun identifiant, aucune adresse IP, aucun nom de serveur, aucun secret n'y figure. Ce document dit **où** chaque chose vit et **comment** on y va, pas **avec quoi** on s'y connecte.
@@ -23,7 +23,7 @@ La zone DNS de `voltz.dev` est chez Cloudflare (ADR-023), avec `A voltz.dev` et 
 
 ## 2. WordPress chez o2switch
 
-Tout est dans le runbook `docs/guides/02-exploitation-site-trilingue.md`, partie 2 : prérequis (PHP 8.5, la version d'o2switch confirmée le 8 novembre 2026, le plugin exigeant 8.2 ou plus, la stack locale alignée le même jour ; sous cette version Yoast 28.8 journalise six dépréciations par page, sans effet, runbook partie 5 ; WordPress 7.1.4, Polylang 3.9.1, Yoast 28.8, GeneratePress 3.6.1, WP-CLI par SSH), dépôt du plugin **construit** (`composer install --no-dev`, bundle de l'éditeur) et du thème enfant, langues, grille et contenu, `site-setup.php`, test de fumée Yoast, recette, puis ouverture d'une langue quand sa grille est verte. `WP_ENVIRONMENT_TYPE` reste `production` : Yoast ne persiste ses indexables qu'ainsi.
+**Fait le 8 novembre 2026** : WordPress 7.1.4 installé par WP-CLI dans le dossier racine du domaine additionnel, les trois langues, la grille, les 54 documents (langues allemande et anglaise fermées), la configuration du site ; le certificat et la recette attendent le DNS. Tout est dans le runbook `docs/guides/02-exploitation-site-trilingue.md`, partie 2 : prérequis (PHP 8.5, la version d'o2switch confirmée le 8 novembre 2026, le plugin exigeant 8.2 ou plus, la stack locale alignée le même jour ; sous cette version Yoast 28.8 journalise six dépréciations par page, sans effet, runbook partie 5 ; WordPress 7.1.4, Polylang 3.9.1, Yoast 28.8, GeneratePress 3.6.1, WP-CLI par SSH), dépôt du plugin **construit** (`composer install --no-dev`, bundle de l'éditeur) et du thème enfant, langues, grille et contenu, `site-setup.php`, test de fumée Yoast, recette, puis ouverture d'une langue quand sa grille est verte. `WP_ENVIRONMENT_TYPE` reste `production` : Yoast ne persiste ses indexables qu'ainsi.
 
 La porte Git (ADR-019) s'active avec trois secrets GitHub, `PORTFOLIO_SYNC_URL`, `PORTFOLIO_SYNC_USER`, `PORTFOLIO_SYNC_PASSWORD` (un mot de passe d'application WordPress, affiché une fois, collé directement dans le secret) ; le premier import passe par un lancement manuel du workflow, ensuite chaque push sur `main` qui touche `content/` synchronise la différence.
 
@@ -103,8 +103,8 @@ Projet Pages relié au dépôt GitHub, dossier racine `frontend/`, commande `npm
 
 ## 6. Ordre du premier déploiement
 
-1. La zone DNS chez Cloudflare et ses quatre enregistrements (§1).
-2. WordPress : runbook partie 2, puis recette partie 4 sur `https://voltz.dev`.
+1. La zone DNS chez Cloudflare et ses quatre enregistrements (§1). *(À faire ; les deux premiers enregistrements suffisent au site.)*
+2. WordPress : runbook partie 2, puis recette partie 4 sur `https://voltz.dev`. *(Installation faite le 8 novembre 2026, avant le DNS : WP-CLI n'a pas besoin que le nom résolve ; AutoSSL et la recette, si.)*
 3. L'API, quand la phase six existe : tag `api-v0.1.0`, image, dossier du service, `.env`, premier `up -d`, vérifications du §3.3, moniteur Uptime Kuma.
 4. Le front, quand la phase sept existe : projet Pages, variable, domaine.
 5. L'ouverture des langues, une à la fois, quand leur grille est verte (runbook partie 3).
@@ -112,6 +112,7 @@ Projet Pages relié au dépôt GitHub, dossier racine `frontend/`, commande `npm
 ## 7. Ce qui reste à décider ou à compléter
 
 - Le proxy et le cache de Cloudflare devant WordPress : après la mise en ligne et la recette des langues, pas avant.
-- Le chemin du dépôt sur le serveur o2switch et le login WP-CLI : au premier déploiement (runbook, partie 2.3).
+- ~~Le chemin du dépôt sur le serveur o2switch et le login WP-CLI~~ : tranchés le 8 novembre 2026 (runbook, partie 2.3 : la racine du domaine additionnel, un dossier de contenu hors de la racine web, le compte d'administration pour les imports).
+- La version de PHP du vhost dans MultiPHP Manager, à régler explicitement sur 8.5 ; le certificat AutoSSL et le mot de passe d'administration, dès que le DNS pointe.
 - Les images « chiseled » de .NET pour l'API : après quelques semaines de production.
 - Ce document est complété à chaque pas réel : ce qu'on a tapé, ce qu'on a vu.
