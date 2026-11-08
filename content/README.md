@@ -10,7 +10,7 @@
 ```
 content/
 ├── README.md            # ce document
-├── skills.yaml          # grille de compétences UHA 4.0 → taxonomie skill (ADR-014), hors langue
+├── skills.yaml          # grille de compétences UHA 4.0 → taxonomie skill (ADR-014), intitulés fr, de, en (ADR-020 lot 4)
 ├── fr/                  # une arborescence par langue : fr, de, en
 │   ├── projects/        # une fiche par projet → post type project
 │   │   └── <slug>.md
@@ -56,7 +56,7 @@ skills: ["4.0.1/FR-13", "4.0.2/E07"] # codes de content/skills.yaml
 ---
 ```
 
-Les codes de compétences viennent de `skills.yaml` : pour 4.0.1, les intitulés officiels de la feuille de suivi (`FR-nn` techniques, `PM-nn` métier, `TR-nn` transverses) ; pour 4.0.2, les étapes de la consigne du fil rouge (`Enn`, `Onn`) en attendant la feuille de suivi de l'année. Une fiche ne cite que les compétences que le projet démontre concrètement.
+Les codes de compétences viennent de `skills.yaml` : pour 4.0.1, les intitulés officiels de la feuille de suivi (`FR-nn` techniques, `PM-nn` métier, `TR-nn` transverses) ; pour 4.0.2, les étapes de la consigne du fil rouge (`Enn`, `Onn`) en attendant la feuille de suivi de l'année. Une fiche ne cite que les compétences que le projet démontre concrètement. La grille est trilingue (ADR-020, lot 4) : chaque compétence a son intitulé français (`name`, le nom du terme WordPress) et un bloc `i18n` avec ses intitulés allemand et anglais (`de` et `en`, obligatoires, 200 caractères au plus) ; chaque référentiel dit par `official` si ses intitulés français sont ceux de l'école (vrai pour 4.0.1, faux pour 4.0.2 tant que sa feuille de suivi manque). Une traduction n'est jamais officielle : pas de clé `official` dans `i18n`, et le chargeur refuse toute clé qu'il ne connaît pas. L'API sert ces intitulés dans la langue du lecteur, avec `official` sur chacun.
 
 Le plugin n'exige que `title`, `slug`, `type` et `lang`, plus `status` pour un projet et `translation_key` hors du français ; les autres clés peuvent être omises et valent alors vide ou `false`. Le validateur, lui, exige une fiche complète, comme ci-dessus (`reading_time` excepté). `lang` est obligatoire et vaut la langue du dossier. Les booléens s'écrivent `true` ou `false` (pas `yes`), les dates `AAAA-MM-JJ`, et le parseur refuse toute clé qu'il ne connaît pas.
 
@@ -125,7 +125,7 @@ podman-compose --profile tools run --rm wpcli wp portfolio skills sync /srv/port
 podman-compose --profile tools run --rm wpcli wp portfolio skills sync /srv/portfolio-content/skills.yaml
 ```
 
-La commande est idempotente ; les termes présents dans WordPress mais absents de la grille sont signalés, jamais supprimés.
+La commande est idempotente ; les termes présents dans WordPress mais absents de la grille sont signalés, jamais supprimés. Elle écrit aussi les intitulés allemand et anglais et le drapeau `official` en term metas, et les restaure si un terme les a perdus : après un déploiement du plugin, la relancer une fois.
 
 Les fiches projet (et, le jour venu, les articles) s'importent ensuite avec `wp portfolio import`, qui prend des fichiers ou des dossiers de documents (`<lang>/projects`, `<lang>/pages` : le dossier de langue dit la langue, le dossier de type dit le type) et exige `--user` pour donner un auteur aux posts :
 
@@ -155,7 +155,7 @@ podman run --rm -v "$PWD:/repo:z" -w /repo docker.io/library/php:8.3-cli \
   php plugin/tools/validate-content.php content/skills.yaml content
 ```
 
-Il lit ses listes dans le plugin lui-même (`Validation\ContentValidator` : clés autorisées, types, langues, statuts, forme des slugs, plafond SEO) et vérifie, fichier par fichier puis sur l'arbre entier :
+Il charge d'abord la grille par le chargeur du plugin (`Parsing\SkillsGridLoader` : `official` par référentiel, bloc `i18n` complet, clés inconnues refusées) et s'arrête si elle est refusée ; puis il lit ses listes dans le plugin lui-même (`Validation\ContentValidator` : clés autorisées, types, langues, statuts, forme des slugs, plafond SEO) et vérifie, fichier par fichier puis sur l'arbre entier :
 
 1. les clés du frontmatter et leurs valeurs, dont les codes de compétences de `skills.yaml` ;
 2. que le nom du fichier est le slug ;

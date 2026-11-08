@@ -15,11 +15,13 @@ use Voltz\PortfolioMd\Domain\SkillsGrid;
  * Referentials become top-level terms, competencies child terms. Both are
  * found by their code meta first, then by slug, so that a renamed slug is an
  * in-place update rather than a duplicate. Existing terms are updated in
- * place (name, slug, description, parent, code) so that their ids, and the
- * projects attached to them, are preserved. A term matched by slug that
- * carried another code is reported as re-coded, because its identity
- * changes. Every term of the taxonomy that the grid did not claim is reported
- * as an orphan and left untouched: deleting is a human decision.
+ * place (name, slug, description, parent, code, and for a competency the
+ * wordings of the other languages and whether the French one is official,
+ * lot 4 of ADR-020) so that their ids, and the projects attached to them,
+ * are preserved. A term matched by slug that carried another code is
+ * reported as re-coded, because its identity changes. Every term of the
+ * taxonomy that the grid did not claim is reported as an orphan and left
+ * untouched: deleting is a human decision.
  *
  * A term the store refuses is recorded as failed and the run continues, so
  * that one bad entry never hides what happened to the others; the report
@@ -43,7 +45,7 @@ final class SkillTermSynchronizer
             [$parent, $parentFailed] = $this->syncReferential($referential, $dryRun, $report, $claimed);
 
             foreach ($referential->skills as $skill) {
-                $this->syncSkill($skill, $parent, $parentFailed, $dryRun, $report, $claimed);
+                $this->syncSkill($skill, $referential->official, $parent, $parentFailed, $dryRun, $report, $claimed);
             }
         }
 
@@ -117,7 +119,7 @@ final class SkillTermSynchronizer
     /**
      * @param array<int, true> $claimed
      */
-    private function syncSkill(Skill $skill, ?SkillTermRecord $parent, bool $parentFailed, bool $dryRun, SyncReport $report, array &$claimed): void
+    private function syncSkill(Skill $skill, bool $official, ?SkillTermRecord $parent, bool $parentFailed, bool $dryRun, SyncReport $report, array &$claimed): void
     {
         $label = "skill {$skill->code} \"{$skill->name}\"";
 
@@ -144,7 +146,7 @@ final class SkillTermSynchronizer
 
                     return;
                 }
-                $created = $this->terms->insert($skill->name, $skill->slug, $skill->description, $parent->id, $skill->code);
+                $created = $this->terms->insert($skill->name, $skill->slug, $skill->description, $parent->id, $skill->code, $skill->translations, $official);
                 $claimed[$created->id] = true;
                 $report->created($label);
 
@@ -152,7 +154,7 @@ final class SkillTermSynchronizer
             }
 
             $claimed[$existing->id] = true;
-            $changed = self::changedFields($existing, $skill->name, $skill->slug, $skill->description, $parentId, $skill->code);
+            $changed = self::changedFields($existing, $skill->name, $skill->slug, $skill->description, $parentId, $skill->code, $skill->translations, $official);
             if ($changed === []) {
                 $report->unchanged($label);
 
@@ -166,7 +168,7 @@ final class SkillTermSynchronizer
                 return;
             }
 
-            $this->terms->update($existing->id, $skill->name, $skill->slug, $skill->description, $parent->id, $skill->code);
+            $this->terms->update($existing->id, $skill->name, $skill->slug, $skill->description, $parent->id, $skill->code, $skill->translations, $official);
             $recoded ? $report->recoded($label, (string) $existing->code) : $report->updated($label, $changed);
         } catch (RuntimeException $exception) {
             $report->failed($label, $exception->getMessage());
@@ -174,9 +176,11 @@ final class SkillTermSynchronizer
     }
 
     /**
+     * @param array<string, string> $translations
+     *
      * @return list<string>
      */
-    private static function changedFields(SkillTermRecord $existing, string $name, string $slug, string $description, int $parentId, ?string $code): array
+    private static function changedFields(SkillTermRecord $existing, string $name, string $slug, string $description, int $parentId, ?string $code, array $translations = [], bool $official = false): array
     {
         $changed = [];
         if ($existing->name !== $name) {
@@ -194,7 +198,27 @@ final class SkillTermSynchronizer
         if ($existing->code !== $code) {
             $changed[] = 'code';
         }
+        if (self::sorted($existing->translations) !== self::sorted($translations)) {
+            $changed[] = 'translations';
+        }
+        if ($existing->official !== $official) {
+            $changed[] = 'official';
+        }
 
         return $changed;
+    }
+
+    /**
+     * The same map whatever the order the store or the grid listed the languages in.
+     *
+     * @param array<string, string> $translations
+     *
+     * @return array<string, string>
+     */
+    private static function sorted(array $translations): array
+    {
+        ksort($translations);
+
+        return $translations;
     }
 }

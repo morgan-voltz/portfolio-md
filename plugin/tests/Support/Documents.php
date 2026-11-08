@@ -68,7 +68,10 @@ final class Documents
             'readingTime' => 0,
             'featured' => true,
             'status' => ProjectStatus::EnCours,
-            'skills' => [new DocumentSkill('4-0-2-e01', '4.0.2/E01', 'Concevoir une architecture'), new DocumentSkill('4-0-2-e07', '4.0.2/E07', 'Tester')],
+            'skills' => [
+                new DocumentSkill('4-0-2-e01', '4.0.2/E01', ['fr' => 'Concevoir une architecture', 'de' => 'Eine Architektur entwerfen', 'en' => 'Design an architecture']),
+                new DocumentSkill('4-0-2-e07', '4.0.2/E07', ['fr' => 'Tester', 'de' => 'Testen', 'en' => 'Test']),
+            ],
             'isFilRouge' => true,
             'role' => 'Développeur unique',
             'periodStart' => self::utc('2026-09-01 00:00:00'),

@@ -48,9 +48,10 @@ use WP_Term;
  *   - a page of posts is one query that also primes the term and meta
  *     caches of its posts (WP_Query does so by default); the translation
  *     groups of the page are read in one more, the terms of the members
- *     served in place of a French document in one more, and the codes of
- *     their skill terms in a last one: the per-post reads below hit the
- *     caches, not the base, whatever the page size.
+ *     served in place of a French document in one more, and the metas of
+ *     their skill terms (code, wordings, official flag) in a last one: the
+ *     per-post reads below hit the caches, not the base, whatever the page
+ *     size.
  *
  * A list is anchored on the French documents and every read ends in
  * serve(), which asks Service\GroupResolver which member of each group the
@@ -164,7 +165,7 @@ final class WordPressContentCatalog implements ContentCatalog
 
         $served = array_column($resolved, 'post');
         self::primeTerms($served);
-        self::primeSkillCodes($served);
+        self::primeSkillMetas($served);
 
         return array_map(fn (array $row): PublishedDocument => $this->document($row['post'], $row['translations'], $row['isFallback'], $requested), $resolved);
     }
@@ -302,12 +303,13 @@ final class WordPressContentCatalog implements ContentCatalog
     }
 
     /**
-     * Reads the codes of every skill term of these posts in one query, so
+     * Reads the metas of every skill term of these posts in one query (the
+     * code, the wordings of the other languages, the official flag), so
      * that the per-term reads of document() come from the cache.
      *
      * @param list<WP_Post> $posts
      */
-    private static function primeSkillCodes(array $posts): void
+    private static function primeSkillMetas(array $posts): void
     {
         $termIds = [];
         foreach ($posts as $post) {
@@ -401,6 +403,9 @@ final class WordPressContentCatalog implements ContentCatalog
      * The competencies of a project, in the natural order of their codes
      * (WordPress keeps no order of its own for the terms of a post). A term
      * without a code is a referential, not a competency, and is left out.
+     * Each carries every wording the term holds (its French name, the metas
+     * of the other languages) and the official flag of the French one; the
+     * presenter picks the wording of the language asked (lot 4 of ADR-020).
      *
      * @return list<DocumentSkill>
      */
@@ -408,11 +413,29 @@ final class WordPressContentCatalog implements ContentCatalog
     {
         $skills = [];
         foreach (self::terms($post, TaxonomyRegistrar::SKILL) as $term) {
-            $code = get_term_meta((int) $term->term_id, TaxonomyRegistrar::SKILL_CODE_META, true);
+            $termId = (int) $term->term_id;
+            $code = get_term_meta($termId, TaxonomyRegistrar::SKILL_CODE_META, true);
             if (!is_string($code) || $code === '') {
                 continue;
             }
-            $skills[] = new DocumentSkill($term->slug, $code, $term->name);
+
+            $names = [Language::default()->value => $term->name];
+            foreach (Language::cases() as $language) {
+                if ($language->isDefault()) {
+                    continue;
+                }
+                $wording = get_term_meta($termId, TaxonomyRegistrar::skillNameMeta($language), true);
+                if (is_string($wording) && $wording !== '') {
+                    $names[$language->value] = $wording;
+                }
+            }
+
+            $skills[] = new DocumentSkill(
+                $term->slug,
+                $code,
+                $names,
+                Sanitizer::boolean(get_term_meta($termId, TaxonomyRegistrar::SKILL_OFFICIAL_META, true)),
+            );
         }
 
         usort($skills, static fn (DocumentSkill $a, DocumentSkill $b): int => strnatcmp($a->code, $b->code));

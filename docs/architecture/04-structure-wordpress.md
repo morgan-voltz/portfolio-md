@@ -5,7 +5,7 @@
 **Lectorat** : Morgan à froid, contributeurs futurs, et toute personne qui veut comprendre comment WordPress est organisé pour ce projet.
 **Articulation** : ce document complète `01-plugin-php.md` (qui détaille le plugin de conversion Markdown ↔ WordPress) en se concentrant sur la modélisation côté CMS.
 **Temps de lecture** : environ 12 minutes
-**Dernière mise à jour** : 8 novembre 2026 (la langue dans les routes REST, ADR-021 lot 3 : les deux champs internes de langue conditionnent la visibilité d'un document dans l'API ; le 7 novembre, pont Polylang, ADR-020 lot 2 : types déclarés à Polylang par le plugin, boîte en lecture seule pour les traductions, réconciliation ; langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
+**Dernière mise à jour** : 8 novembre 2026 (libellés par langue, ADR-020 lot 4 : trois term metas de plus sur `skill`, libellés de statut en trois langues ; la langue dans les routes REST, ADR-021 lot 3 : les deux champs internes de langue conditionnent la visibilité d'un document dans l'API ; le 7 novembre, pont Polylang, ADR-020 lot 2 : types déclarés à Polylang par le plugin, boîte en lecture seule pour les traductions, réconciliation ; langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
 
 ---
 
@@ -174,6 +174,8 @@ Cette taxonomie encode l'**état d'avancement** d'un projet. Quatre valeurs uniq
 | `archive` | Archivé | Projet terminé, plus maintenu, conservé à titre de trace |
 | `prototype` | Prototype | Projet exploratoire, non destiné à la production |
 
+Les libellés allemand et anglais ne sont pas des termes : ils vivent dans la table `Domain\ProjectStatus::label(Language)` du plugin (`In Arbeit`, `Stabil`, `Archiviert`, `Prototyp` ; `In progress`, `Stable`, `Archived`, `Prototype`), que l'API publique sert dans la langue demandée (ADR-020, lot 4). Le terme WordPress garde le libellé français.
+
 Ces valeurs sont **fermées** côté convention. Le plugin auto-insère ces quatre termes à l'activation, et il ne devrait pas y en avoir d'autres. WordPress ne fournit pas de mécanisme natif pour interdire la création via l'admin — cette discipline est documentée et sera durcie à l'étape 3 du plan d'implémentation du plugin (capabilities custom ou masquage du formulaire d'ajout).
 
 ### 4.3. `skill` — Compétence académique
@@ -185,9 +187,9 @@ Ces valeurs sont **fermées** côté convention. Le plugin auto-insère ces quat
 | Hiérarchique | **Oui** : un parent par référentiel, un enfant par compétence |
 | Attachée à | `project` uniquement |
 | Public | Oui (archives par référentiel et par compétence) |
-| Term meta | `_portfolio_skill_code` : code officiel complet (ex. `4.0.1/C1.3`), string, exposé en REST |
+| Term metas | `_portfolio_skill_code` : code officiel complet (ex. `4.0.1/C1.3`), string, exposé en REST ; `_portfolio_skill_name_de` et `_portfolio_skill_name_en` : intitulé de la compétence en allemand et en anglais (string, 200 caractères au plus, le français étant le nom du terme) ; `_portfolio_skill_official` : booléen, l'intitulé français est celui de l'école (absent vaut faux). Les trois derniers depuis ADR-020 lot 4, écrits par la synchronisation de la grille, jamais sur un référentiel |
 | Implémentation | `TaxonomyRegistrar::registerSkill()` |
-| Constantes | `TaxonomyRegistrar::SKILL`, `::SKILL_CODE_META`, `::SKILL_REFERENTIALS` |
+| Constantes | `TaxonomyRegistrar::SKILL`, `::SKILL_CODE_META`, `::SKILL_NAME_META_PREFIX` et `::skillNameMeta(Language)`, `::SKILL_OFFICIAL_META`, `::SKILL_REFERENTIALS` |
 | Décisions | ADR-011 (principe), ADR-014 (forme concrète) |
 
 Cette taxonomie répond à l'exigence académique : chaque compétence des référentiels UHA 4.0 doit être rattachée aux projets qui la démontrent, et le jury doit pouvoir consulter la liste inverse (« quels projets prouvent cette compétence ? »). Une taxonomie fournit cette agrégation gratuitement via les archives WordPress ; un champ meta ne le ferait pas.
@@ -199,7 +201,7 @@ Cette taxonomie répond à l'exigence académique : chaque compétence des réf�
 | `4-0-1` | Compétences 4.0.1 |
 | `4-0-2` | Compétences 4.0.2 |
 
-**Termes enfants (compétences)** : synchronisés depuis `content/skills.yaml` par la commande `wp portfolio skills sync` (idempotente : les termes existants sont mis à jour en place, ceux absents de la grille sont signalés, jamais supprimés ; voir `01-plugin-php.md` §9.2). Le pipeline Markdown ne crée pas de compétence : il rattache chaque projet aux termes existants par leur code (`skills: [4.0.1/FR-13, …]`). Le nom du terme est l'intitulé officiel, son slug est fixé par la grille (dérivé du code à la main, par exemple `fr-13-architectures-n-tiers` pour `4.0.1/FR-13`) et unique dans toute la taxonomie, référentiels compris, ce que le chargeur vérifie, et le code complet vit dans le term meta `_portfolio_skill_code`, parce qu'un code comme `4.0.1/FR-13` ne survit pas à `sanitize_title()` : le point et la barre oblique deviennent des tirets (`4-0-1-c1-3`), et le référentiel ne se distingue plus du code. La liste des codes et intitulés est du contenu, pas du code : elle vient du référentiel officiel.
+**Termes enfants (compétences)** : synchronisés depuis `content/skills.yaml` par la commande `wp portfolio skills sync` (idempotente : les termes existants sont mis à jour en place, ceux absents de la grille sont signalés, jamais supprimés ; voir `01-plugin-php.md` §9.2). Le pipeline Markdown ne crée pas de compétence : il rattache chaque projet aux termes existants par leur code (`skills: [4.0.1/FR-13, …]`). Le nom du terme est l'intitulé français, officiel pour 4.0.1 et écrit d'après la consigne du fil rouge pour 4.0.2, ce que le drapeau `official` du référentiel dit dans la grille et que le term meta `_portfolio_skill_official` répète sur chaque compétence ; les intitulés allemand et anglais du bloc `i18n` de la grille vont dans les term metas de langue, et l'API les sert dans la langue du lecteur, jamais comme officiels (ADR-020, lot 4). Son slug est fixé par la grille (dérivé du code à la main, par exemple `fr-13-architectures-n-tiers` pour `4.0.1/FR-13`) et unique dans toute la taxonomie, référentiels compris, ce que le chargeur vérifie, et le code complet vit dans le term meta `_portfolio_skill_code`, parce qu'un code comme `4.0.1/FR-13` ne survit pas à `sanitize_title()` : le point et la barre oblique deviennent des tirets (`4-0-1-c1-3`), et le référentiel ne se distingue plus du code. La liste des codes et intitulés est du contenu, pas du code : elle vient du référentiel officiel.
 
 ### 4.4. Pourquoi pas les `category` et `post_tag` natifs ?
 
@@ -364,7 +366,7 @@ WordPress
 │   │   └── 4 termes auto-insérés .......... TaxonomyRegistrar::ensureProjectStatusTerms
 │   └── skill (sur project, hiérarchique) .. TaxonomyRegistrar::registerSkill
 │       ├── 2 référentiels parents ......... TaxonomyRegistrar::ensureSkillReferentialTerms
-│       └── term meta _portfolio_skill_code
+│       └── term metas _portfolio_skill_code, _portfolio_skill_name_de, _portfolio_skill_name_en, _portfolio_skill_official
 │
 ├── Champs personnalisés (tous préfixés _portfolio_, ADR-013)
 │   ├── communs (4, article + project ; seo_description aussi sur page) ... Meta/CommonMetaRegistrar
@@ -466,5 +468,10 @@ WordPress
 
 - Le modèle de contenu ne change pas. Les deux champs internes `_portfolio_lang` et `_portfolio_translation_key` (section 5.3) deviennent la condition de visibilité d'un document dans l'API publique de lecture, sitemap compris : un post qui n'en stocke pas (importé avant le lot 1b d'ADR-020) n'est plus servi jusqu'à sa réimportation. Après un déploiement du plugin, une synchronisation complète du contenu est donc obligatoire (`01-plugin-php.md` §7.1).
 - Les routes de lecture prennent `language=fr|de|en` et servent les listes ancrées sur les documents français, avec repli signalé ; la langue reste celle que le plugin stocke, jamais celle de Polylang.
+
+**2026-11-08 (libellés par langue, ADR-020 lot 4)**
+
+- Trois term metas de plus sur la taxonomie `skill` (section 4.3) : `_portfolio_skill_name_de`, `_portfolio_skill_name_en` et `_portfolio_skill_official`, écrits par `wp portfolio skills sync` depuis le bloc `i18n` et le drapeau `official` de `content/skills.yaml` ; absents sur un référentiel. Le nom du terme reste l'intitulé français.
+- Les libellés de statut existent en trois langues dans le code du plugin (section 4.2) ; les termes `project_status` gardent leur libellé français. L'API publique sert statut et intitulés dans la langue demandée, avec `official` sur chaque compétence (`01-plugin-php.md` §7.3).
 
 ---

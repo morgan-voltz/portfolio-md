@@ -11,6 +11,15 @@
 #   officielle du fil rouge (export Confluence du 3 septembre 2026). E = étape, O = optionnelle.
 #   À remplacer par les intitulés officiels dès que la feuille de suivi 4.0.2 sera disponible.
 #
+# `official`, par référentiel, dit si les intitulés français sont ceux de l'école : vrai pour 4.0.1,
+# faux pour 4.0.2 tant que sa feuille de suivi manque ; l'API le relaie compétence par compétence.
+#
+# Les langues (ADR-020, lot 4) : `name` est l'intitulé français, celui du terme WordPress ; le bloc
+# `i18n` donne l'intitulé allemand et anglais (`de` et `en`, obligatoires, 200 caractères au plus),
+# stockés dans les term metas `_portfolio_skill_name_de` et `_portfolio_skill_name_en` et servis
+# par l'API dans la langue du lecteur. Ces traductions sont les nôtres, jamais officielles : pas de
+# clé `official` dans `i18n`, le chargeur la refuse, comme toute clé qu'il ne connaît pas.
+#
 # Chaque `referential` devient un terme parent de la taxonomie `skill` (slug imposé par
 # `TaxonomyRegistrar::SKILL_REFERENTIALS`), chaque `skill` un terme enfant : `name` est
 # l'intitulé affiché, `slug` le slug WordPress sous le parent, `code` est stocké dans le
@@ -22,6 +31,7 @@ referentials:
   - code: "4.0.1"
     slug: 4-0-1
     name: "Compétences 4.0.1"
+    official: true
     description: >-
       Première année du parcours UHA 4.0 : construire un site web complet autour de
       données tierces, du HTML/CSS à l'API PHP maison, avec Git, MySQL et un déploiement
@@ -31,125 +41,213 @@ referentials:
       - code: "4.0.1/FR-01"
         slug: fr-01-outils-collaboratifs-de-gestion-de-projet
         name: "Utiliser des outils collaboratifs de gestion de projet"
+        i18n:
+          de: { name: "Kollaborative Projektmanagement-Werkzeuge nutzen" }
+          en: { name: "Use collaborative project-management tools" }
         description: "Étapes Découverte et Versionning du fil rouge : Confluence, Jira, GitLab, branches par tâche."
       - code: "4.0.1/FR-02"
         slug: fr-02-maquettes-graphiques-integrees
         name: "Création et intégration dans un site web de maquettes graphiques permettant la mise à disposition d'informations"
+        i18n:
+          de: { name: "Grafische Entwürfe erstellen und in eine Website integrieren, die Informationen bereitstellt" }
+          en: { name: "Create graphic mock-ups and integrate them into a website that makes information available" }
         description: "Étape Maquette : pages HTML/CSS qui structurent et affichent les informations."
       - code: "4.0.1/FR-03"
         slug: fr-03-langage-procedural
         name: "Appréhender un langage de programmation procédural"
+        i18n:
+          de: { name: "Sich eine prozedurale Programmiersprache aneignen" }
+          en: { name: "Get to grips with a procedural programming language" }
         description: "Étape Lire API : PHP côté serveur pour lire et afficher une API."
       - code: "4.0.1/FR-04"
         slug: fr-04-serveur-php
         name: "Déployer un serveur qui interprète du PHP"
+        i18n:
+          de: { name: "Einen Server bereitstellen, der PHP ausführt" }
+          en: { name: "Deploy a server that interprets PHP" }
         description: "Étape Lire API."
       - code: "4.0.1/FR-05"
         slug: fr-05-commandes-linux
         name: "Connaître les commandes LINUX de base"
+        i18n:
+          de: { name: "Die grundlegenden Linux-Befehle kennen" }
+          en: { name: "Know the basic Linux commands" }
         description: "Étape Linux."
       - code: "4.0.1/FR-06"
         slug: fr-06-mise-en-ligne-technologies-imposees
         name: "Mettre en ligne son site web avec des technologies imposées"
+        i18n:
+          de: { name: "Die eigene Website mit vorgegebenen Technologien veröffentlichen" }
+          en: { name: "Put one's website online with prescribed technologies" }
         description: "Étape Linux : script Bash de déploiement sur le serveur de la salle."
       - code: "4.0.1/FR-07"
         slug: fr-07-dynamiser-un-site-avec-une-api
         name: "Dynamiser un site web en mobilisant une API"
+        i18n:
+          de: { name: "Eine Website durch Einbindung einer API dynamisch gestalten" }
+          en: { name: "Make a website dynamic by drawing on an API" }
         description: "Étape Dynamisation : JavaScript et DOM, deuxième API."
       - code: "4.0.1/FR-08"
         slug: fr-08-langage-procedural-et-fonctionnel
         name: "Appréhender un langage de programmation procédural et fonctionnel"
+        i18n:
+          de: { name: "Sich eine prozedurale und funktionale Programmiersprache aneignen" }
+          en: { name: "Get to grips with a procedural and functional programming language" }
         description: "Étape Dynamisation : JavaScript."
       - code: "4.0.1/FR-09"
         slug: fr-09-construire-des-bases-relationnelles
         name: "Construire des bases de données relationnelles"
+        i18n:
+          de: { name: "Relationale Datenbanken aufbauen" }
+          en: { name: "Build relational databases" }
         description: "Étape BDD : modélisation, clés primaires et étrangères, script SQL."
       - code: "4.0.1/FR-10"
         slug: fr-10-deployer-une-base-relationnelle
         name: "Déployer une base de données relationnelle"
+        i18n:
+          de: { name: "Eine relationale Datenbank bereitstellen" }
+          en: { name: "Deploy a relational database" }
         description: "Étape BDD : MySQL."
       - code: "4.0.1/FR-11"
         slug: fr-11-procedure-logique
         name: "Développer une procédure logique répondant à des problématiques partielles"
+        i18n:
+          de: { name: "Einen logischen Ablauf entwickeln, der Teilprobleme löst" }
+          en: { name: "Develop a logical procedure that addresses sub-problems" }
         description: "Étape Persistance : algorithmique de stockage des données d'API en base."
       - code: "4.0.1/FR-12"
         slug: fr-12-structures-de-donnees
         name: "Savoir appréhender des structures de données"
+        i18n:
+          de: { name: "Datenstrukturen verstehen und handhaben" }
+          en: { name: "Understand and handle data structures" }
         description: "Étape Persistance."
       - code: "4.0.1/FR-13"
         slug: fr-13-architectures-n-tiers
         name: "Développer des architectures n-tiers composées d'une interface utilisateur, d'un serveur et d'une base de données relationnelle"
+        i18n:
+          de: { name: "Mehrschichtige Architekturen aus Benutzeroberfläche, Server und relationaler Datenbank entwickeln" }
+          en: { name: "Develop n-tier architectures made up of a user interface, a server and a relational database" }
         description: "Étape Créer API : API PHP maison consommée par les pages, CRUD."
       - code: "4.0.1/FR-14"
         slug: fr-14-securite-injections-sql
         name: "Être sensibilisé à la sécurité du développement réalisé, notamment avec des injections SQL"
+        i18n:
+          de: { name: "Für die Sicherheit der eigenen Entwicklung sensibilisiert sein, insbesondere gegenüber SQL-Injections" }
+          en: { name: "Be aware of the security of the development carried out, SQL injections in particular" }
         description: "Étape Formulaire."
       - code: "4.0.1/FR-15"
         slug: fr-15-documentation-detaillee
         name: "Produire une documentation détaillée sur le code développé et les tâches réalisées"
+        i18n:
+          de: { name: "Den entwickelten Code und die erledigten Aufgaben ausführlich dokumentieren" }
+          en: { name: "Produce detailed documentation of the code developed and the tasks carried out" }
         description: "Étape Documentation : README de déploiement, documentation technique."
       - code: "4.0.1/FR-16"
         slug: fr-16-framework-front-end-reactif
         name: "Développer une application réactive à l'aide d'un framework de développement front-end"
+        i18n:
+          de: { name: "Eine reaktive Anwendung mit einem Front-End-Framework entwickeln" }
+          en: { name: "Develop a reactive application using a front-end development framework" }
         description: "Objectif optionnel Framework : React."
       # Compétences métier mobilisées sur les projets en équipe
       - code: "4.0.1/PM-01"
         slug: pm-01-collaborer-en-equipe
         name: "Collaborer au sein d'une équipe pour atteindre les objectifs du projet"
+        i18n:
+          de: { name: "Im Team zusammenarbeiten, um die Projektziele zu erreichen" }
+          en: { name: "Collaborate within a team to reach the project goals" }
         description: "Évaluée sur les projets en équipe de la première année."
       - code: "4.0.1/PM-02"
         slug: pm-02-executer-les-taches-dans-les-delais
         name: "Exécuter les tâches attribuées en respectant les délais impartis"
+        i18n:
+          de: { name: "Zugewiesene Aufgaben innerhalb der vorgegebenen Fristen erledigen" }
+          en: { name: "Carry out the assigned tasks within the given deadlines" }
         description: "Évaluée sur les projets en équipe de la première année."
       - code: "4.0.1/PM-03"
         slug: pm-03-framework-agile-scrum
         name: "Appliquer le framework agile SCRUM"
+        i18n:
+          de: { name: "Das agile Framework Scrum anwenden" }
+          en: { name: "Apply the agile Scrum framework" }
         description: "Sprints, backlog Jira, revues de sprint."
       - code: "4.0.1/PM-04"
         slug: pm-04-registres-d-expression-francaise
         name: "Se servir aisément des différents registres d'expression écrite et orale de la langue française"
+        i18n:
+          de: { name: "Die verschiedenen schriftlichen und mündlichen Register der französischen Sprache sicher verwenden" }
+          en: { name: "Use the different written and spoken registers of the French language with ease" }
         description: "Documentation, échanges avec le client et l'équipe."
       - code: "4.0.1/PM-05"
         slug: pm-05-presenter-a-l-oral-avec-support
         name: "Présenter son parcours et ses travaux à l'oral en s'appuyant sur un support visuel"
+        i18n:
+          de: { name: "Den eigenen Werdegang und die eigenen Arbeiten mündlich anhand einer visuellen Präsentation vorstellen" }
+          en: { name: "Present one's background and work orally, supported by a visual aid" }
         description: "Revues de sprint, soutenances."
       - code: "4.0.1/PM-06"
         slug: pm-06-s-auto-evaluer
         name: "S'auto-évaluer à chaque réalisation et étape d'apprentissage"
+        i18n:
+          de: { name: "Sich bei jeder Umsetzung und jedem Lernschritt selbst einschätzen" }
+          en: { name: "Self-assess at each achievement and learning step" }
         description: "Évaluée sur les projets en équipe de la première année."
       - code: "4.0.1/PM-07"
         slug: pm-07-developper-avec-les-langages-web
         name: "Développer des applications en utilisant les langages de programmation web"
+        i18n:
+          de: { name: "Anwendungen mit Web-Programmiersprachen entwickeln" }
+          en: { name: "Develop applications with web programming languages" }
         description: "Évaluée sur les projets en équipe de la première année."
       - code: "4.0.1/PM-08"
         slug: pm-08-pratiques-coherentes-avec-l-equipe
         name: "Adopter des pratiques de développement cohérentes avec la stratégie mise en place par l'équipe de développement"
+        i18n:
+          de: { name: "Entwicklungspraktiken übernehmen, die mit der vom Entwicklungsteam festgelegten Strategie übereinstimmen" }
+          en: { name: "Adopt development practices consistent with the strategy set by the development team" }
         description: "Conventions de commit, découpage des tâches, communication des changements structurants."
       - code: "4.0.1/PM-09"
         slug: pm-09-code-review
         name: "Corriger et adapter son code en fonction des remarques de ses pairs et du chef de projet (code review)"
+        i18n:
+          de: { name: "Den eigenen Code anhand der Rückmeldungen von Kolleginnen, Kollegen und Projektleitung korrigieren und anpassen (Code-Review)" }
+          en: { name: "Correct and adapt one's code based on the feedback of peers and of the project lead (code review)" }
         description: "Évaluée sur les projets en équipe de la première année."
       # Compétences transverses
       - code: "4.0.1/TR-01"
         slug: tr-01-anglais-oral
         name: "Identifier son niveau en langue étrangère (anglais) et communiquer par oral en utilisant un vocabulaire courant"
+        i18n:
+          de: { name: "Das eigene Niveau in der Fremdsprache Englisch einschätzen und sich mündlich mit geläufigem Wortschatz verständigen" }
+          en: { name: "Identify one's level in a foreign language (English) and communicate orally using everyday vocabulary" }
         description: "Test de langue à l'entrée de formation, évaluation d'anglais en fin d'année."
       - code: "4.0.1/TR-02"
         slug: tr-02-mettre-en-valeur-son-travail-en-entretien
         name: "Présenter et mettre en valeur son travail, son expérience lors d'entretiens professionnels"
+        i18n:
+          de: { name: "Die eigene Arbeit und Erfahrung in Bewerbungsgesprächen vorstellen und zur Geltung bringen" }
+          en: { name: "Present and showcase one's work and experience in professional interviews" }
         description: "Entretien individuel."
       - code: "4.0.1/TR-03"
         slug: tr-03-realiser-un-portfolio
         name: "Réaliser un portfolio des projets réalisés et des compétences techniques acquises"
+        i18n:
+          de: { name: "Ein Portfolio der umgesetzten Projekte und der erworbenen technischen Kompetenzen erstellen" }
+          en: { name: "Build a portfolio of the completed projects and the technical skills acquired" }
         description: "Page de portfolio ; ce site en est la version aboutie."
       - code: "4.0.1/TR-04"
         slug: tr-04-dossier-de-candidature
         name: "Réaliser un dossier de candidature professionnelle : CV, lettre de motivation, simulations d'entretiens"
+        i18n:
+          de: { name: "Eine Bewerbungsmappe erstellen: Lebenslauf, Motivationsschreiben, simulierte Vorstellungsgespräche" }
+          en: { name: "Put together a job application file: CV, cover letter, mock interviews" }
         description: "CV et lettre de motivation."
 
   - code: "4.0.2"
     slug: 4-0-2
     name: "Compétences 4.0.2"
+    official: false
     description: >-
       Deuxième année du parcours UHA 4.0 : concevoir et livrer une application et son API
       en programmation orientée objet, de la spécification UML au déploiement, avec tests,
@@ -158,6 +256,9 @@ referentials:
       - code: "4.0.2/E00"
         slug: e00-specifier-un-mvp-en-uml
         name: "Spécifier un MVP avec UML et des user stories"
+        i18n:
+          de: { name: "Ein MVP mit UML und User Stories spezifizieren" }
+          en: { name: "Specify an MVP with UML and user stories" }
         description: >-
           Comprendre la demande, synthétiser usagers et usages dans un diagramme de cas
           d'usage, décomposer en user stories avec critères d'acceptation et cas de test,
@@ -166,101 +267,152 @@ referentials:
       - code: "4.0.2/E01"
         slug: e01-classes-et-objets
         name: "Identifier et créer des classes et leurs objets"
+        i18n:
+          de: { name: "Klassen und ihre Objekte identifizieren und erstellen" }
+          en: { name: "Identify and create classes and their objects" }
         description: >-
           Identifier les classes utiles et leurs propriétés, mettre en place
           l'environnement de développement, instancier les objets depuis un point d'entrée.
       - code: "4.0.2/E02"
         slug: e02-encapsulation
         name: "Encapsuler l'état d'un objet"
+        i18n:
+          de: { name: "Den Zustand eines Objekts kapseln" }
+          en: { name: "Encapsulate the state of an object" }
         description: >-
           Implémenter pour chaque classe les méthodes et propriétés utiles, exposer
           l'état par des accesseurs et rendre impossible l'accès direct aux attributs.
       - code: "4.0.2/E03"
         slug: e03-heritage-et-polymorphisme
         name: "Factoriser par héritage et prouver le polymorphisme"
+        i18n:
+          de: { name: "Gemeinsamkeiten durch Vererbung in eine Oberklasse auslagern und Polymorphie nachweisen" }
+          en: { name: "Factor out through inheritance and demonstrate polymorphism" }
         description: >-
           Introduire une classe mère commune aux formes, y remonter les membres partagés
           et démontrer le polymorphisme à l'exécution.
       - code: "4.0.2/E04"
         slug: e04-diagramme-de-classes-uml
         name: "Modéliser l'architecture en diagramme de classes UML"
+        i18n:
+          de: { name: "Die Architektur als UML-Klassendiagramm modellieren" }
+          en: { name: "Model the architecture as a UML class diagram" }
         description: >-
           Représenter l'architecture du programme en diagramme de classes (PlantUML) et
           l'intégrer à la documentation du projet.
       - code: "4.0.2/E05"
         slug: e05-composition-et-calculs
         name: "Composer des objets et calculer sur la composition"
+        i18n:
+          de: { name: "Objekte zusammensetzen und Berechnungen über die Komposition ausführen" }
+          en: { name: "Compose objects and run calculations on the composition" }
         description: >-
           Calculer aire et périmètre de chaque forme, concevoir une classe de composition
           qui en contient plusieurs et agrège les totaux.
       - code: "4.0.2/E06"
         slug: e06-tests-unitaires
         name: "Valider le comportement par des tests unitaires"
+        i18n:
+          de: { name: "Das Verhalten mit Unit-Tests absichern" }
+          en: { name: "Validate the behaviour with unit tests" }
         description: >-
           Rédiger des tests explicites et complets de la classe de composition et des
           règles métier (xUnit ou équivalent).
       - code: "4.0.2/E07"
         slug: e07-api-documentee
         name: "Exposer le domaine par une API documentée"
+        i18n:
+          de: { name: "Die Domäne über eine dokumentierte API bereitstellen" }
+          en: { name: "Expose the domain through a documented API" }
         description: >-
           Créer une API donnant accès aux éléments d'une composition et à la gestion de
           plusieurs compositions, et la documenter.
       - code: "4.0.2/E08"
         slug: e08-persistance-par-orm
         name: "Persister et restaurer les données avec un ORM"
+        i18n:
+          de: { name: "Daten mit einem ORM speichern und wiederherstellen" }
+          en: { name: "Persist and restore data with an ORM" }
         description: >-
           Sauvegarder les compositions et leurs éléments en base via un ORM (EF Core ou
           équivalent), les restaurer, documenter l'accès aux données.
       - code: "4.0.2/E09"
         slug: e09-deploiement-serveur
         name: "Déployer l'API et sa base sur un serveur"
+        i18n:
+          de: { name: "Die API und ihre Datenbank auf einem Server bereitstellen" }
+          en: { name: "Deploy the API and its database on a server" }
         description: >-
           Héberger l'API et les données dans un SGBD pérenne sur les serveurs disponibles
           et documenter la mise en production.
       - code: "4.0.2/E10"
         slug: e10-serveur-mcp-et-chatbot
         name: "Brancher un LLM sur l'application via un serveur MCP"
+        i18n:
+          de: { name: "Ein LLM über einen MCP-Server an die Anwendung anbinden" }
+          en: { name: "Connect an LLM to the application through an MCP server" }
         description: >-
           Ajouter un serveur MCP permettant à un LLM d'interroger l'application et ses
           données à travers un client MCP, jusqu'à un chatbot.
       - code: "4.0.2/E11"
         slug: e11-interface-utilisateur
         name: "Offrir une interface utilisateur sur l'API"
+        i18n:
+          de: { name: "Eine Benutzeroberfläche für die API anbieten" }
+          en: { name: "Provide a user interface on top of the API" }
         description: >-
           Créer une interface qui exploite l'API et met en forme les fonctionnalités pour
           qu'un utilisateur non aguerri puisse produire des compositions.
       - code: "4.0.2/E12"
         slug: e12-soutenance-et-presentation
         name: "Présenter et défendre un projet technique"
+        i18n:
+          de: { name: "Ein technisches Projekt präsentieren und verteidigen" }
+          en: { name: "Present and defend a technical project" }
         description: >-
           Présenter un concept abordé pendant la formation et soutenir le fil rouge à l'oral.
       - code: "4.0.2/O01"
         slug: o01-formes-3d-et-volumes
         name: "Étendre le modèle à la 3D et aux volumes"
+        i18n:
+          de: { name: "Das Modell auf 3D und Volumen erweitern" }
+          en: { name: "Extend the model to 3D and volumes" }
         description: >-
           Ajouter une notion de 3D aux formes, calculer leur volume et le total des
           volumes d'une composition. Optionnelle.
       - code: "4.0.2/O02"
         slug: o02-design-patterns
         name: "Mettre en œuvre des design patterns"
+        i18n:
+          de: { name: "Design Patterns umsetzen" }
+          en: { name: "Implement design patterns" }
         description: >-
           Implémenter et justifier un ou plusieurs design patterns objets au sein du
           projet. Optionnelle.
       - code: "4.0.2/O03"
         slug: o03-interface-graphique
         name: "Construire une interface graphique riche"
+        i18n:
+          de: { name: "Eine funktionsreiche grafische Benutzeroberfläche bauen" }
+          en: { name: "Build a rich graphical interface" }
         description: >-
           Utiliser une bibliothèque graphique pour une interface attractive de
           l'application. Optionnelle.
       - code: "4.0.2/O04"
         slug: o04-edition-temps-reel
         name: "Permettre l'édition simultanée par plusieurs utilisateurs"
+        i18n:
+          de: { name: "Gleichzeitiges Bearbeiten durch mehrere Benutzer ermöglichen" }
+          en: { name: "Allow simultaneous editing by several users" }
         description: >-
           Faire éditer une même composition par plusieurs utilisateurs en temps réel.
           Optionnelle.
       - code: "4.0.2/O05"
         slug: o05-amelioration-personnelle
         name: "Proposer et livrer une amélioration conséquente"
+        i18n:
+          de: { name: "Eine substanzielle Verbesserung vorschlagen und liefern" }
+          en: { name: "Propose and deliver a substantial improvement" }
         description: >-
           Proposer à l'équipe pédagogique une amélioration substantielle de l'application
           et l'implémenter. Optionnelle.

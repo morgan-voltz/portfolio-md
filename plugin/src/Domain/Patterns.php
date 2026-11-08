@@ -19,6 +19,9 @@ final class Patterns
     /** WordPress truncates a term slug beyond this length (varchar(200)), silently. */
     public const SLUG_MAX_LENGTH = 200;
 
+    /** A term name lives in a varchar(200) too: the wording of a competency, in any language, stays within it. */
+    public const TERM_NAME_MAX_LENGTH = 200;
+
     /** Referential code such as "4.0.1". */
     public const REFERENTIAL_CODE = '/^\d+(?:\.\d+)*$/';
 

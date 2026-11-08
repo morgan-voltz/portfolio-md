@@ -7,6 +7,8 @@ namespace Voltz\PortfolioMd\Tests\Unit\Taxonomies;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Voltz\PortfolioMd\Domain\Language;
+use Voltz\PortfolioMd\Domain\Patterns;
 use Voltz\PortfolioMd\Taxonomies\TaxonomyRegistrar;
 use Voltz\PortfolioMd\Tests\Support\WordPressSpy;
 
@@ -80,6 +82,67 @@ final class TaxonomyRegistrarTest extends TestCase
         self::assertSame([TaxonomyRegistrar::class, 'authorizeEditSkillTerm'], $args['auth_callback']);
         self::assertIsCallable($args['sanitize_callback']);
         self::assertIsCallable($args['auth_callback']);
+    }
+
+    #[Test]
+    public function one_wording_term_meta_per_language_other_than_french_registered_like_the_code(): void
+    {
+        $this->registrar->register();
+
+        self::assertSame('_portfolio_skill_name_de', TaxonomyRegistrar::skillNameMeta(Language::De));
+        self::assertSame('_portfolio_skill_name_en', TaxonomyRegistrar::skillNameMeta(Language::En));
+        self::assertArrayNotHasKey(TaxonomyRegistrar::skillNameMeta(Language::Fr), WordPressSpy::$termMetas['skill'], 'the French wording is the term name, not a meta');
+
+        foreach ([Language::De, Language::En] as $language) {
+            $args = WordPressSpy::$termMetas['skill'][TaxonomyRegistrar::skillNameMeta($language)] ?? null;
+
+            self::assertNotNull($args, $language->value);
+            self::assertSame('string', $args['type']);
+            self::assertTrue($args['single']);
+            self::assertSame('', $args['default']);
+            self::assertTrue($args['show_in_rest']);
+            self::assertSame([TaxonomyRegistrar::class, 'sanitizeSkillName'], $args['sanitize_callback']);
+            self::assertSame([TaxonomyRegistrar::class, 'authorizeEditSkillTerm'], $args['auth_callback']);
+        }
+    }
+
+    #[Test]
+    public function the_official_flag_is_a_boolean_term_meta_false_by_default(): void
+    {
+        $this->registrar->register();
+
+        $args = WordPressSpy::$termMetas['skill'][TaxonomyRegistrar::SKILL_OFFICIAL_META] ?? null;
+
+        self::assertNotNull($args);
+        self::assertSame('boolean', $args['type']);
+        self::assertTrue($args['single']);
+        self::assertFalse($args['default']);
+        self::assertTrue($args['show_in_rest']);
+        self::assertSame([TaxonomyRegistrar::class, 'sanitizeSkillOfficial'], $args['sanitize_callback']);
+        self::assertSame([TaxonomyRegistrar::class, 'authorizeEditSkillTerm'], $args['auth_callback']);
+        self::assertSame(
+            [TaxonomyRegistrar::SKILL_CODE_META, '_portfolio_skill_name_de', '_portfolio_skill_name_en', TaxonomyRegistrar::SKILL_OFFICIAL_META],
+            array_keys(WordPressSpy::$termMetas['skill']),
+        );
+    }
+
+    #[Test]
+    public function a_skill_wording_is_plain_text_within_the_length_of_a_term_name(): void
+    {
+        self::assertSame('Exposer le domaine par une API documentée', TaxonomyRegistrar::sanitizeSkillName(' <em>Exposer le domaine</em> par une API documentée '));
+        self::assertSame(Patterns::TERM_NAME_MAX_LENGTH, mb_strlen(TaxonomyRegistrar::sanitizeSkillName(str_repeat('é', 250))));
+        self::assertSame('', TaxonomyRegistrar::sanitizeSkillName(null));
+    }
+
+    #[Test]
+    public function the_official_flag_reads_the_usual_boolean_forms(): void
+    {
+        self::assertTrue(TaxonomyRegistrar::sanitizeSkillOfficial('1'));
+        self::assertTrue(TaxonomyRegistrar::sanitizeSkillOfficial(true));
+        self::assertFalse(TaxonomyRegistrar::sanitizeSkillOfficial(''));
+        self::assertFalse(TaxonomyRegistrar::sanitizeSkillOfficial('0'));
+        self::assertFalse(TaxonomyRegistrar::sanitizeSkillOfficial(null));
+        self::assertFalse(TaxonomyRegistrar::sanitizeSkillOfficial('maybe'));
     }
 
     #[Test]

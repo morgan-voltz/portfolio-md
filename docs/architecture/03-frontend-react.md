@@ -5,7 +5,7 @@
 **Prérequis** : avoir lu [`00-overview.md`](00-overview.md)
 **Lectorat** : contributeur front, Morgan en phase d'implémentation, relecteur technique
 **Temps de lecture** : environ vingt minutes
-**Dernière mise à jour** : 8 novembre 2026 (la langue dans les clés TanStack Query, le sélecteur de langue et le bandeau de repli, ADR-021 ; version d'origine du 22 avril 2026)
+**Dernière mise à jour** : 8 novembre 2026 (libellés dans la langue de la page et mention des intitulés non officiels, ADR-020 lot 4 ; la langue dans les clés TanStack Query, le sélecteur de langue et le bandeau de repli, ADR-021 ; version d'origine du 22 avril 2026)
 
 ---
 
@@ -127,7 +127,7 @@ La structure de navigation du portfolio est volontairement sobre. Six pages couv
 
 `/competences` est une route additionnelle qui répond à la contrainte académique de rattachement des compétences aux projets. Elle affiche la liste des compétences du référentiel UHA 4.0 et, pour chaque compétence, les projets qui la démontrent. Cette route transforme une exigence formelle du cahier des charges en démonstration structurée qui sert aussi les recruteurs — un visiteur qui veut évaluer tes capacités sur un domaine précis (par exemple l'analyse de problématique complexe ou l'intégration de systèmes hétérogènes) y trouve directement la liste des réalisations pertinentes. La route consomme l'endpoint `GET /api/skills` de l'API C#.
 
-Sur les pages `/projets` et `/projets/:slug`, les composants d'affichage doivent traiter deux informations spécifiques liées à la contrainte académique. Chaque fiche projet affiche la liste des compétences rattachées sous forme de badges (récupérées depuis `skills` du DTO). Le projet marqué `isFilRouge: true` bénéficie d'un traitement visuel distinctif — mise en avant sur la page d'accueil, carte plus imposante sur la liste des projets, éventuel badge « Projet fil rouge » sur sa fiche — qui reflète son statut éditorial particulier dans le cursus.
+Sur les pages `/projets` et `/projets/:slug`, les composants d'affichage doivent traiter deux informations spécifiques liées à la contrainte académique. Chaque fiche projet affiche la liste des compétences rattachées sous forme de badges (récupérées depuis `skills` du DTO). Depuis le lot 4 d'ADR-020, `label` arrive déjà dans la langue de la page, comme `status.label` : le front n'a pas de dictionnaire des intitulés ni des statuts, seulement celui de son interface ; et chaque compétence dit par `official` si son intitulé est celui de l'école. Une fiche affichée en allemand ou en anglais, ou une compétence de 4.0.2 en français, porte donc des intitulés `official: false` : le front le dit une fois, par une note sous la liste (« intitulés traduits, non officiels » ou « intitulés provisoires »), plutôt qu'un marqueur par badge. Le projet marqué `isFilRouge: true` bénéficie d'un traitement visuel distinctif — mise en avant sur la page d'accueil, carte plus imposante sur la liste des projets, éventuel badge « Projet fil rouge » sur sa fiche — qui reflète son statut éditorial particulier dans le cursus.
 
 Les routes sont déclarées dans `App.tsx` via React Router. Chaque route correspond à un composant de `src/routes/` qui compose le layout global et le contenu spécifique.
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Voltz\PortfolioMd\Taxonomies;
 
+use Voltz\PortfolioMd\Domain\Language;
+use Voltz\PortfolioMd\Domain\Patterns;
 use Voltz\PortfolioMd\Meta\Sanitizer;
 use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
 
@@ -63,6 +65,24 @@ final class TaxonomyRegistrar
     public const SKILL_CODE_MAX_LENGTH = 32;
 
     /**
+     * Prefix of the term metas that hold the wording of a competency in a
+     * language other than French (lot 4 of ADR-020): `_portfolio_skill_name_de`,
+     * `_portfolio_skill_name_en`, one per language of Domain\Language, see
+     * skillNameMeta(). The French wording is the name of the term itself.
+     * Written by `wp portfolio skills sync` from the `i18n` block of the
+     * grid, read by the public REST routes to serve the language asked.
+     */
+    public const SKILL_NAME_META_PREFIX = '_portfolio_skill_name_';
+
+    /**
+     * Boolean term meta: the French wording of the competency is the
+     * school's own (the tracking sheet of the referential), not a stand-in
+     * written from the course material. Absent means false; a translation
+     * is never official, so the flag only ever speaks of the French name.
+     */
+    public const SKILL_OFFICIAL_META = '_portfolio_skill_official';
+
+    /**
      * Statuts fermés du post type project, sous forme [slug => libellé].
      *
      * Le slug est l'identifiant technique stocké en base.
@@ -92,6 +112,15 @@ final class TaxonomyRegistrar
         '4-0-1' => 'Compétences 4.0.1',
         '4-0-2' => 'Compétences 4.0.2',
     ];
+
+    /**
+     * The term meta that holds the wording of a competency in $language;
+     * French has none, its wording being the name of the term.
+     */
+    public static function skillNameMeta(Language $language): string
+    {
+        return self::SKILL_NAME_META_PREFIX . $language->value;
+    }
 
     /**
      * Méthode appelée par le hook WordPress 'init'.
@@ -312,6 +341,31 @@ final class TaxonomyRegistrar
             'auth_callback'     => [self::class, 'authorizeEditSkillTerm'],
             'show_in_rest'      => true,
         ]);
+
+        foreach (Language::cases() as $language) {
+            if ($language->isDefault()) {
+                continue;
+            }
+            register_term_meta(self::SKILL, self::skillNameMeta($language), [
+                'type'              => 'string',
+                'single'            => true,
+                'default'           => '',
+                'description'       => "Wording of the competency in \"{$language->value}\", a translation of the French term name, never official.",
+                'sanitize_callback' => [self::class, 'sanitizeSkillName'],
+                'auth_callback'     => [self::class, 'authorizeEditSkillTerm'],
+                'show_in_rest'      => true,
+            ]);
+        }
+
+        register_term_meta(self::SKILL, self::SKILL_OFFICIAL_META, [
+            'type'              => 'boolean',
+            'single'            => true,
+            'default'           => false,
+            'description'       => 'Whether the French name of the competency is the official wording of its UHA 4.0 referential.',
+            'sanitize_callback' => [self::class, 'sanitizeSkillOfficial'],
+            'auth_callback'     => [self::class, 'authorizeEditSkillTerm'],
+            'show_in_rest'      => true,
+        ]);
     }
 
     /**
@@ -324,6 +378,23 @@ final class TaxonomyRegistrar
     public static function sanitizeSkillCode(mixed $value): string
     {
         return Sanitizer::text($value, self::SKILL_CODE_MAX_LENGTH);
+    }
+
+    /**
+     * Wording of a competency: plain text without markup, within the length
+     * of a term name, whatever the language.
+     */
+    public static function sanitizeSkillName(mixed $value): string
+    {
+        return Sanitizer::text($value, Patterns::TERM_NAME_MAX_LENGTH);
+    }
+
+    /**
+     * The official flag: a boolean from its usual textual forms, false otherwise.
+     */
+    public static function sanitizeSkillOfficial(mixed $value): bool
+    {
+        return Sanitizer::boolean($value);
     }
 
     /**

@@ -12,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Rest\DocumentPresenter;
+use Voltz\PortfolioMd\Service\DocumentSkill;
 use Voltz\PortfolioMd\Service\SitemapEntry;
 use Voltz\PortfolioMd\Tests\Support\Documents;
 
@@ -81,8 +82,8 @@ final class DocumentPresenterTest extends TestCase
             'featured' => true,
             'status' => ['slug' => 'en-cours', 'label' => 'En cours'],
             'skills' => [
-                ['slug' => '4-0-2-e01', 'code' => '4.0.2/E01', 'label' => 'Concevoir une architecture'],
-                ['slug' => '4-0-2-e07', 'code' => '4.0.2/E07', 'label' => 'Tester'],
+                ['slug' => '4-0-2-e01', 'code' => '4.0.2/E01', 'label' => 'Concevoir une architecture', 'official' => false],
+                ['slug' => '4-0-2-e07', 'code' => '4.0.2/E07', 'label' => 'Tester', 'official' => false],
             ],
             'is_fil_rouge' => true,
             'role' => 'Développeur unique',
@@ -116,6 +117,67 @@ final class DocumentPresenterTest extends TestCase
             'seo_description' => 'Qui je suis.',
             'markdown' => $page->markdown,
         ], $this->presenter->present($page));
+    }
+
+    #[Test]
+    public function the_labels_of_a_project_follow_the_language_the_reader_asked(): void
+    {
+        $skills = [
+            new DocumentSkill('fr-13', '4.0.1/FR-13', ['fr' => 'Développer des architectures n-tiers', 'de' => 'Mehrschichtige Architekturen entwickeln', 'en' => 'Develop n-tier architectures'], official: true),
+            new DocumentSkill('e07', '4.0.2/E07', ['fr' => 'Exposer le domaine par une API documentée', 'de' => 'Die Domäne über eine dokumentierte API bereitstellen', 'en' => 'Expose the domain through a documented API']),
+        ];
+
+        $french = $this->presenter->present(Documents::project(['skills' => $skills, 'requestedLanguage' => Language::Fr]));
+        $german = $this->presenter->present(Documents::project(['skills' => $skills, 'requestedLanguage' => Language::De]));
+        $english = $this->presenter->present(Documents::project(['skills' => $skills, 'requestedLanguage' => Language::En]));
+
+        self::assertSame(['slug' => 'en-cours', 'label' => 'En cours'], $french['status']);
+        self::assertSame(['slug' => 'en-cours', 'label' => 'In Arbeit'], $german['status']);
+        self::assertSame(['slug' => 'en-cours', 'label' => 'In progress'], $english['status']);
+
+        self::assertSame([
+            ['slug' => 'fr-13', 'code' => '4.0.1/FR-13', 'label' => 'Développer des architectures n-tiers', 'official' => true],
+            ['slug' => 'e07', 'code' => '4.0.2/E07', 'label' => 'Exposer le domaine par une API documentée', 'official' => false],
+        ], $french['skills'], 'in French, the wording of the tracking sheet is official, the stand-in of 4.0.2 is not');
+        self::assertSame([
+            ['slug' => 'fr-13', 'code' => '4.0.1/FR-13', 'label' => 'Mehrschichtige Architekturen entwickeln', 'official' => false],
+            ['slug' => 'e07', 'code' => '4.0.2/E07', 'label' => 'Die Domäne über eine dokumentierte API bereitstellen', 'official' => false],
+        ], $german['skills'], 'a translation is never official');
+        self::assertSame('Develop n-tier architectures', $english['skills'][0]['label']);
+        self::assertFalse($english['skills'][0]['official']);
+    }
+
+    #[Test]
+    public function the_labels_follow_the_requested_language_even_on_a_french_fallback(): void
+    {
+        // A German reader served the French sheet (ADR-021): the document stays French, the vocabulary around it is German.
+        $fallback = Documents::project([
+            'skills' => [new DocumentSkill('fr-13', '4.0.1/FR-13', ['fr' => 'Développer des architectures n-tiers', 'de' => 'Mehrschichtige Architekturen entwickeln'], official: true)],
+            'isFallback' => true,
+            'requestedLanguage' => Language::De,
+        ]);
+
+        $data = $this->presenter->present($fallback);
+
+        self::assertSame('fr', $data['lang']);
+        self::assertTrue($data['is_fallback']);
+        self::assertSame('de', $data['requested_language']);
+        self::assertSame('In Arbeit', $data['status']['label']);
+        self::assertSame('Mehrschichtige Architekturen entwickeln', $data['skills'][0]['label']);
+        self::assertFalse($data['skills'][0]['official']);
+    }
+
+    #[Test]
+    public function a_skill_without_translation_shows_its_french_wording_with_its_own_officiality(): void
+    {
+        $handMade = Documents::project([
+            'skills' => [new DocumentSkill('fr-13', '4.0.1/FR-13', ['fr' => 'Développer des architectures n-tiers'], official: true)],
+            'requestedLanguage' => Language::De,
+        ]);
+
+        $data = $this->presenter->present($handMade);
+
+        self::assertSame(['slug' => 'fr-13', 'code' => '4.0.1/FR-13', 'label' => 'Développer des architectures n-tiers', 'official' => true], $data['skills'][0]);
     }
 
     #[Test]
