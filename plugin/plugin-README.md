@@ -201,6 +201,17 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/rest-smoke.php --user=<your admin login>
 ```
 
+## Template functions (what the theme calls)
+
+Since lot 5c of ADR-022 the plugin exposes two plain functions in the global namespace, loaded by its main file (Composer does not autoload functions), so that a template guards them with `function_exists()` and needs no class of the plugin:
+
+| Function | What it answers |
+|---|---|
+| `portfolio_md_list_with_fallback(string $type, string $language, int $limit = 50)` | the published documents of a kind (`project`, `article`, `page`) as a reader of a language gets them: the same documents, in the same order, as `GET /<collection>?language=<lang>&per_page=<limit>`, each served in that language when its translation group holds it, else along the fallback chain and flagged. A list of `Service\ListItem` (post id, title, excerpt = subtitle else SEO description, permalink of the document served, language served, language asked, fallback flag), no HTML. An unknown language reads as French; an unknown kind or a limit outside 1..100 throws, since a template wrote them. |
+| `portfolio_md_published_languages()` | the languages open to the public, French always and first (`['fr']`, `['fr', 'de']`...): what a switcher may show. |
+
+The child theme (`../theme/portfolio-md-child/`) uses them in `archive-project.php` and in its language switcher. Behind them, `Service\ListWithFallback` over the same `ContentCatalog` as the REST routes, and `Service\PublishedLanguages`. The archive of a kind of document whose language has no document of that kind of its own is `noindex, follow` (Yoast `wpseo_robots`, `ContentCatalog::countOwn()`): the page is then only French cards under a foreign URL.
+
 ## Git door
 
 Since 29 October 2026 a push to the content repository can be brought into WordPress through `POST /wp-json/portfolio/v1/sync` (ADR-019; the contract is in [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) §6.2). The body carries the files the push changed, with their path relative to `content/` (`<lang>/projects/<slug>.md`, `<lang>/pages/<slug>.md`, `<lang>/articles/<slug>.md` with `<lang>` among `fr`, `de` and `en`, and `skills.yaml`), their text or a `deleted` flag, an optional `dry_run` and an optional `commit_sha` for the logs; one to a hundred files per request.
@@ -265,6 +276,13 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
 plugin/tools/opening-check.sh http://localhost:8000
 ```
 
+**List smoke (lot 5c of ADR-022).** `tests/Integration/wp-cli/list-smoke.php` checks the list a template prints against the real stack: the template functions and the rendering functions of the child theme as WordPress loads them, `archive-project.php` found by the template hierarchy, the list equal to the REST list in every language once a French project and its German translation are imported through the Polylang gateway (German first for a German reader, the others as French fallbacks in the French order, everything French for an English reader), the count of own documents, the robots rule of the project archive with every language open, the cards and the badge rendered by the theme; the fixtures are deleted for good and the option restored. `tools/opening-check.sh` reports, for each page, the cards and badges of the archive and the languages of the switcher.
+
+```bash
+podman-compose --profile tools run --rm wpcli wp eval-file \
+  wp-content/plugins/portfolio-md/tests/Integration/wp-cli/list-smoke.php --user=<your admin login>
+```
+
 **Unit suite (PHPUnit 11, no WordPress).** The registrars call WordPress functions, so `tests/bootstrap.php` loads small stand-ins (`tests/Support/wp-stubs.php`) that record registrations in `WordPressSpy` or mimic WordPress closely enough for the covered cases. The suite checks that every meta is registered with the right type, REST visibility and callbacks, and that every sanitizer accepts and rejects what it should. The Markdown pipeline (parser, Gutenberg transformer, import service, conflict rule) is covered there too without any stub, including a full render of every sheet in `content/fr/`.
 
 ```bash
@@ -297,7 +315,7 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/i18n-smoke.php --user=<your admin login>
 ```
 
-`--user` is required for the capability checks. The other smoke scripts (`skills`, `import`, `admin`, `preview`, `rest`, `sync`, `i18n`, `publication`) are listed in their sections above. The official `wp-phpunit` framework will come if the smoke scripts stop being enough.
+`--user` is required for the capability checks. The other smoke scripts (`skills`, `import`, `admin`, `preview`, `rest`, `sync`, `i18n`, `publication`, `list`) are listed in their sections above. The unit suite also loads `../theme/portfolio-md-child/inc/` to test the rendering functions of the child theme (`tests/Unit/Theme/`). The official `wp-phpunit` framework will come if the smoke scripts stop being enough.
 
 **CI script (Python, no network).** `.github/scripts/test_sync_content.py` covers the pure parts of `sync-content.py`: reading the `-z` diff, which paths are documents (the language layout, the stray files left in a type folder without a language folder), the grid first, batches by count and bytes, the summaries. From the repository root:
 
