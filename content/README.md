@@ -20,14 +20,14 @@ content/
 │       ├── cv.md
 │       └── contact.md   # la seule page qui porte une adresse
 ├── de/
-│   ├── projects/        # lot 6 : fiches à traduire, <slug>-de.md
-│   └── pages/           # les quatre pages cœur (brouillons du 8 novembre 2026, à relire)
+│   ├── projects/        # lot 6 : les fiches traduites, <slug>-de.md (les quatre mises en avant depuis le 8 novembre 2026, les autres à suivre)
+│   └── pages/           # les quatre pages cœur (8 novembre 2026)
 │       ├── startseite.md
 │       ├── ueber-mich.md
 │       ├── lebenslauf.md
 │       └── kontakt.md
 └── en/
-    ├── projects/        # lot 6 : fiches à traduire, <slug>-en.md
+    ├── projects/        # lot 6 : les fiches traduites, <slug>-en.md (idem)
     └── pages/           # idem
         ├── home.md
         ├── about.md
@@ -35,7 +35,7 @@ content/
         └── get-in-touch.md
 ```
 
-Tant que les fiches ne sont pas traduites, les pages allemandes et anglaises renvoient aux fiches françaises par la forme explicite `../../fr/projects/<slug>.md` ; une fiche traduite se lie ensuite par `../projects/<slug>-de.md`, et le lien suit.
+Tant qu'une fiche n'est pas traduite, les pages allemandes et anglaises y renvoient par la forme explicite `../../fr/projects/<slug>.md` ; une fiche traduite se lie par `../projects/<slug>-de.md`, et le lien suit (depuis le 8 novembre 2026, les quatre fiches mises en avant, `autofin-control`, `carbon-fr`, `momocad` et `vefta`, existent dans les trois langues).
 
 Le dossier de langue dit la langue, le dossier de type dit le type, le nom du fichier est le slug (`Domain\ContentPath`). Les articles de blog (`type: "article"`) auront leur dossier `articles/` dans chaque langue quand le premier sera écrit. Un fichier `content/<dossier>/<slug>.md`, sans dossier de langue au-dessus, n'est pas un document : la porte Git l'ignore (`skipped`), `wp portfolio import` le refuse et le script de synchronisation l'avertit ; les documents vivent dans `content/<lang>/<dossier>/<slug>.md`.
 
