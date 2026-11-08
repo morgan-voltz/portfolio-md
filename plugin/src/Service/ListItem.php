@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Voltz\PortfolioMd\Service;
 
 use Voltz\PortfolioMd\Domain\Language;
+use Voltz\PortfolioMd\Domain\ProjectStatus;
 
 /**
  * One card of a list the theme renders (ADR-022, point 6): what the served
@@ -16,6 +17,8 @@ use Voltz\PortfolioMd\Domain\Language;
  * why: `lang` is the language of that document, `requestedLanguage` the one
  * the reader asked, and `isFallback` that they differ because the group has
  * no member in the requested language (the badge of ADR-022, point 8).
+ * The status is the one of the project served, null for an article or a
+ * page: the theme prints its label in the language of the page (phase 10).
  */
 final readonly class ListItem
 {
@@ -27,6 +30,7 @@ final readonly class ListItem
         public Language $lang,
         public Language $requestedLanguage,
         public bool $isFallback,
+        public ?ProjectStatus $status = null,
     ) {
     }
 
@@ -44,6 +48,7 @@ final readonly class ListItem
             $document->lang,
             $document->requestedLanguage,
             $document->isFallback,
+            $document->status,
         );
     }
 }
