@@ -20,14 +20,16 @@ final class WordPressPublishedLanguagesStoreTest extends TestCase
     }
 
     #[Test]
-    public function hooks_the_normalization_of_every_write_and_the_sitemap_cache_clearing(): void
+    public function hooks_the_normalization_of_every_write_and_the_sitemap_cache_clearing_on_creation_and_update(): void
     {
-        (new WordPressPublishedLanguagesStore())->register();
+        $store = new WordPressPublishedLanguagesStore();
+        $store->register();
 
-        $hooks = array_map(static fn (array $hook): array => [$hook['type'], $hook['hook']], WordPressSpy::$hooks);
+        $hooks = array_map(static fn (array $hook): array => [$hook['type'], $hook['hook'], $hook['callback']], WordPressSpy::$hooks);
         self::assertSame([
-            ['filter', 'pre_update_option_portfolio_md_published_languages'],
-            ['action', 'update_option_portfolio_md_published_languages'],
+            ['filter', 'pre_update_option_portfolio_md_published_languages', [$store, 'normalize']],
+            ['action', 'add_option_portfolio_md_published_languages', [$store, 'clearSitemapCache']],
+            ['action', 'update_option_portfolio_md_published_languages', [$store, 'clearSitemapCache']],
         ], $hooks);
     }
 
@@ -59,11 +61,27 @@ final class WordPressPublishedLanguagesStoreTest extends TestCase
     }
 
     #[Test]
-    public function clearing_the_sitemap_cache_without_yoast_does_nothing(): void
+    public function clearing_the_sitemap_cache_calls_what_it_was_given_once_per_write(): void
     {
+        $clears = 0;
+        $store = new WordPressPublishedLanguagesStore(static function () use (&$clears): void {
+            $clears++;
+        });
+
+        $store->clearSitemapCache();
+        $store->clearSitemapCache();
+
+        self::assertSame(2, $clears);
+    }
+
+    #[Test]
+    public function the_default_clearing_survives_the_absence_of_yoast(): void
+    {
+        self::assertFalse(class_exists(\WPSEO_Sitemaps_Cache::class), 'the unit suite runs without Yoast');
+
         (new WordPressPublishedLanguagesStore())->clearSitemapCache();
 
-        self::assertFalse(class_exists(\WPSEO_Sitemaps_Cache::class));
+        self::assertTrue(true, 'no error, nothing to clear');
     }
 
     #[Test]
