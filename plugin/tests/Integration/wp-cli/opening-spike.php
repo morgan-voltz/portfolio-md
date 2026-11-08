@@ -62,11 +62,17 @@ $cleanup = static function (array $state) use ($stateKey, $muFile): void {
     $previous = $state['previous'] ?? [];
     update_option('show_on_front', $previous['show_on_front'] ?? 'posts');
     update_option('page_on_front', (int) ($previous['page_on_front'] ?? 0));
+    // The raw theme_mods option, not get_theme_mod(): Polylang filters the latter and answers
+    // ['primary' => 0] even when the option holds no menu location at all.
+    $modsKey = 'theme_mods_' . ($previous['stylesheet'] ?? get_option('stylesheet'));
+    $mods = get_option($modsKey);
+    $mods = is_array($mods) ? $mods : [];
     if (array_key_exists('nav_menu_locations', $previous) && $previous['nav_menu_locations'] !== false) {
-        set_theme_mod('nav_menu_locations', $previous['nav_menu_locations']);
+        $mods['nav_menu_locations'] = $previous['nav_menu_locations'];
     } else {
-        remove_theme_mod('nav_menu_locations');
+        unset($mods['nav_menu_locations']);
     }
+    update_option($modsKey, $mods);
     PLL()->options->set('redirect_lang', (bool) ($previous['redirect_lang'] ?? false));
     PLL()->options->set('nav_menus', is_array($previous['nav_menus'] ?? null) ? $previous['nav_menus'] : []);
     PLL()->options->save();
@@ -99,20 +105,36 @@ if (is_array($state)) {
     $cleanup($state);
 }
 
-$previous = [
-    'show_on_front' => get_option('show_on_front'),
-    'page_on_front' => (int) get_option('page_on_front'),
-    'redirect_lang' => (bool) PLL()->options['redirect_lang'],
-    'nav_menu_locations' => get_theme_mod('nav_menu_locations'),
-    'nav_menus' => PLL()->options['nav_menus'],
-];
-
 $author = get_current_user_id();
 if ($author === 0) {
     WP_CLI::error('Run with --user=<admin login>: the spike posts need an author.');
 }
 
-$insert = static function (string $type, string $slug, string $title, string $lang, string $content) use ($author): int {
+$stylesheet = (string) get_option('stylesheet');
+$rawMods = get_option('theme_mods_' . $stylesheet);
+$previous = [
+    'stylesheet' => $stylesheet,
+    'show_on_front' => get_option('show_on_front'),
+    'page_on_front' => (int) get_option('page_on_front'),
+    'redirect_lang' => (bool) PLL()->options['redirect_lang'],
+    // The raw option: get_theme_mod() is filtered by Polylang (see cleanup).
+    'nav_menu_locations' => is_array($rawMods) && array_key_exists('nav_menu_locations', $rawMods) ? $rawMods['nav_menu_locations'] : false,
+    'nav_menus' => PLL()->options['nav_menus'],
+];
+
+// The state is recorded before the first write and completed as the run goes, so that a
+// run that fails halfway still leaves `cleanup` everything it needs.
+$state = ['posts' => [], 'menus' => [], 'previous' => $previous];
+update_option($stateKey, $state, false);
+$track = static function (string $kind, int $id) use (&$state, $stateKey): void {
+    $state[$kind][] = $id;
+    update_option($stateKey, $state, false);
+};
+
+$insert = static function (string $type, string $slug, string $title, string $lang, string $content) use ($author, $track): int {
+    if (get_page_by_path($slug, OBJECT, $type) instanceof WP_Post) {
+        WP_CLI::error("a {$type} with the slug {$slug} already exists: leftovers of another run, or a real document?");
+    }
     $id = wp_insert_post([
         'post_type' => $type,
         'post_status' => 'publish',
@@ -124,10 +146,11 @@ $insert = static function (string $type, string $slug, string $title, string $la
     if (is_wp_error($id)) {
         WP_CLI::error("could not insert {$slug}: " . $id->get_error_message());
     }
+    $track('posts', (int) $id);
     pll_set_post_language((int) $id, $lang);
     $post = get_post((int) $id);
     if ($post->post_name !== $slug) {
-        WP_CLI::error("WordPress stored the slug {$post->post_name} instead of {$slug}: leftovers?");
+        WP_CLI::error("WordPress stored the slug {$post->post_name} instead of {$slug}: run `cleanup`, then look for a post that squats the slug.");
     }
 
     return (int) $id;
@@ -153,11 +176,12 @@ if ($error->has_errors()) {
 PLL()->options->save();
 WP_CLI::log('reading: static front page = zz-spike-accueil; polylang: redirect_lang = true');
 
-$menu = static function (string $name): int {
+$menu = static function (string $name) use ($track): int {
     $id = wp_create_nav_menu($name);
     if (is_wp_error($id)) {
         WP_CLI::error("could not create the menu {$name}: " . $id->get_error_message());
     }
+    $track('menus', (int) $id);
 
     return (int) $id;
 };
@@ -279,12 +303,6 @@ if (file_put_contents($muFile, $muCode . "\n") === false) {
     WP_CLI::error("could not write {$muFile}");
 }
 WP_CLI::log('must-use plugin written: ' . $muFile . ' (closed languages: de, en)');
-
-update_option($stateKey, [
-    'posts' => [$frHome, $deHome, $frProject, $deProject],
-    'menus' => [$frMenu, $deMenu],
-    'previous' => $previous,
-], false);
 
 PLL()->model->clean_languages_cache();
 if (class_exists('WPSEO_Sitemaps_Cache')) {

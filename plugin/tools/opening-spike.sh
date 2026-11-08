@@ -86,6 +86,7 @@ section "8. Opening de (zz_spike_closed = [en]) and observing the flip"
 wp option update zz_spike_closed '["en"]' --format=json >/dev/null && wp eval 'PLL()->model->clean_languages_cache(); if (class_exists("WPSEO_Sitemaps_Cache")) { WPSEO_Sitemaps_Cache::clear(); }' >/dev/null
 for al in "de-CH,de;q=0.9" "en-US,en;q=0.9"; do printf '   Accept-Language %-16s → %s\n' "$al" "$(status_and_target -H "Accept-Language: $al" "$BASE/")"; done
 printf '   Cookie pll_language=de        → %s\n' "$(status_and_target -H 'Cookie: pll_language=de' "$BASE/")"
+printf '   Cookie pll_language=de + AL de → %s\n' "$(status_and_target -H 'Cookie: pll_language=de' -H 'Accept-Language: de' "$BASE/")"
 for u in /fr/ /de/ /fr/projets/zz-spike-projekt/ /de/projets/zz-spike-projekt-de/ /de/projets/ /fr/a-propos/; do
   printf '   %-32s %s\n' "$u" "$(code "$BASE$u")"; head_tags "$BASE$u"
 done
@@ -93,7 +94,16 @@ printf '   project-sitemap, /de/ URLs: %s\n' "$(sitemap_locs "$BASE/project-site
 printf '   page-sitemap, /de/ URLs: %s\n' "$(sitemap_locs "$BASE/page-sitemap.xml" '/de/')"
 for u in /fr/ /fr/projets/zz-spike-projekt/ /fr/a-propos/; do printf '   switcher on %-24s' "$u"; echo; switcher "$BASE$u"; done
 
-section "9. Closing de again (zz_spike_closed = [de, en]) : the same requests flip back"
+section "8 bis. Opening en as well (zz_spike_closed = []) : an empty language, its archive block and its hreflang"
+wp option update zz_spike_closed '[]' --format=json >/dev/null && wp eval 'PLL()->model->clean_languages_cache(); if (class_exists("WPSEO_Sitemaps_Cache")) { WPSEO_Sitemaps_Cache::clear(); }' >/dev/null
+printf '   Accept-Language en            → %s\n' "$(status_and_target -H 'Accept-Language: en' "$BASE/")"
+printf '   project-sitemap, /en/ URLs: %s\n' "$(sitemap_locs "$BASE/project-sitemap.xml" '/en/')"
+printf '   page-sitemap, /en/ URLs: %s\n' "$(sitemap_locs "$BASE/page-sitemap.xml" '/en/')"
+printf '   /fr/\n'; head_tags "$BASE/fr/"
+printf '   /en/projets/                     %s\n' "$(code "$BASE/en/projets/")"; head_tags "$BASE/en/projets/"
+printf '   switcher on /fr/                '; echo; switcher "$BASE/fr/"
+
+section "9. Closing de and en again (zz_spike_closed = [de, en]) : the same requests flip back"
 wp option update zz_spike_closed '["de","en"]' --format=json >/dev/null && wp eval 'PLL()->model->clean_languages_cache(); if (class_exists("WPSEO_Sitemaps_Cache")) { WPSEO_Sitemaps_Cache::clear(); }' >/dev/null
 printf '   Accept-Language de            → %s\n' "$(status_and_target -H 'Accept-Language: de' "$BASE/")"
 printf '   /fr/projets/zz-spike-projekt/\n'; head_tags "$BASE/fr/projets/zz-spike-projekt/"
