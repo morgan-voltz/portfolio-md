@@ -211,7 +211,10 @@ final class WordPressContentCatalog implements ContentCatalog
         $found = new WP_Query(self::published(ContentType::cases()) + [
             'posts_per_page' => -1,
             'no_found_rows' => true,
-            // The metas of every document in one query: each line reads its language and its key.
+            // The metas of every document in one query: each line reads its language and its key. This
+            // loads every meta of every document, the Markdown source included, so the route costs about
+            // twice what it would without; acceptable at the scale of a portfolio, and the only consumer
+            // is the C# gateway polling it. A targeted read of the two metas is the lever if it grows.
             'update_post_meta_cache' => true,
             'update_post_term_cache' => false,
             'orderby' => ['type' => 'ASC', 'name' => 'ASC'],
@@ -259,8 +262,10 @@ final class WordPressContentCatalog implements ContentCatalog
             'meta_query' => [
                 'relation' => 'AND',
                 ['key' => InternalMetaRegistrar::MD_HASH, 'value' => '', 'compare' => '!='],
+                // A stored language outside the three of the site (a row edited by hand) is invisible like a
+                // missing one, rather than fatal for the whole page: languageOf() can then never throw.
                 $only === null
-                    ? ['key' => InternalMetaRegistrar::LANG, 'value' => '', 'compare' => '!=']
+                    ? ['key' => InternalMetaRegistrar::LANG, 'value' => Language::values(), 'compare' => 'IN']
                     : ['key' => InternalMetaRegistrar::LANG, 'value' => $only->value],
                 $keys === null
                     ? ['key' => InternalMetaRegistrar::TRANSLATION_KEY, 'value' => '', 'compare' => '!=']
@@ -456,8 +461,8 @@ final class WordPressContentCatalog implements ContentCatalog
 
     /**
      * The stored language of a post the query clause already guaranteed to
-     * have one: an empty or unknown value here is a programming error, not a
-     * document to serve.
+     * have among the three of the site: an empty or unknown value here is a
+     * programming error, not a document to serve.
      */
     private static function languageOf(int $postId): Language
     {
