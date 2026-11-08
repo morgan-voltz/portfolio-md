@@ -305,7 +305,7 @@ Le principe de distribution a été posé dans l'overview : chaque fois qu'il ex
 | `skills` (projets) | taxonomie `skill` | Liste de codes (`4.0.1/FR-13`) ; chaque code retrouve son terme via le term meta `_portfolio_skill_code` ; un code absent de la taxonomie fait **échouer** l'import, la grille `content/skills.yaml` étant la source des intitulés (ADR-014, note d'implémentation) |
 | `status` (projets) | taxonomie `project_status` **et** meta `_portfolio_project_status` | Résolu en terme par son slug ; la taxonomie est la source de vérité côté UI, la meta un miroir plat |
 | `subtitle` | meta `_portfolio_subtitle` | Texte court |
-| `seo_description` | meta `_portfolio_seo_description` et meta `_yoast_wpseo_metadesc` | Tronqué à 160 caractères ; recopié tel quel dans la meta de Yoast (ADR-022 point 13, lot 5d), supprimée quand la description est absente : Git seul écrivain, aucune valeur périmée. Sans garde Yoast, une clé de meta est inoffensive sans lui |
+| `seo_description` | meta `_portfolio_seo_description` et meta `_yoast_wpseo_metadesc` | Tronqué à 160 caractères ; recopié tel quel dans la meta de Yoast (ADR-022 point 13, lot 5d), supprimée quand la description est absente ; écrite à chaque import qui écrit le document (pas quand il est inchangé), donc une édition du champ Yoast dans l'admin tient jusqu'au prochain changement du document ou de la version de rendu. Sans garde Yoast, une clé de meta est inoffensive sans lui |
 | `featured` | meta `_portfolio_featured` | Booléen |
 | `reading_time` | meta `_portfolio_reading_time` | Entier, 0 à 240 minutes |
 | `is_fil_rouge` (projets) | meta `_portfolio_project_is_fil_rouge` | Booléen (ADR-011) |
@@ -440,7 +440,7 @@ Le plugin expose plusieurs endpoints sous le namespace `/wp-json/portfolio/v1/`,
 
 Les endpoints publics ne requièrent pas d'authentification. Cette décision simplifie la consommation par l'API C# et reste sans risque parce que le contenu est, par nature, destiné à être lu : ces routes ne servent que ce que le site montre à n'importe qui.
 
-Trois collections, `/articles`, `/projects` et `/pages` (les pages documentées d'ADR-017, À propos et CV ; la page Contact, faite à la main, n'y est pas), chacune avec deux routes.
+Trois collections, `/articles`, `/projects` et `/pages` (les pages documentées : Accueil, À propos, CV et Contact depuis le lot 5d d'ADR-022), chacune avec deux routes.
 
 Les trois collections prennent un paramètre **`language=fr|de|en`** (ADR-021, 8 novembre 2026). Absent, il vaut `fr` ; toute autre valeur, vide ou en majuscules comprise, est refusée par le schéma (400 `rest_invalid_param`). Le plugin ne lit jamais `lang`, le paramètre de Polylang, ni `Accept-Language` : `language` est le seul pilote, et quand les deux arrivent ensemble, `lang` ne change rien. La langue est l'affaire du plugin, par ses deux metas internes (`_portfolio_lang`, `_portfolio_translation_key`), jamais de Polylang : le catalogue passe `lang => ''` à `WP_Query`, ce qui dit à Polylang que la requête est déjà filtrée (`PLL_Query::is_already_filtered`), sinon une requête faite dans une langue du site ne verrait que ses documents. Les taxonomies du plugin (`tech_tag`, `project_status`, `skill`) ne sont pas traduites par Polylang : une fiche allemande pointe vers les mêmes termes que la française.
 
