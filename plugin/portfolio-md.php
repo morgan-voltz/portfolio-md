@@ -1,13 +1,13 @@
 <?php
 /**
  * Plugin Name:       Portfolio MD
- * Plugin URI:        https://voltz.dev
+ * Plugin URI:        https://morganvoltz.dev
  * Description:       Markdown comme format pivot pour les articles et projets du portfolio.
  * Version:           0.1.0
  * Requires PHP:      8.2
  * Requires at least: 6.4
  * Author:            Morgan Voltz
- * Author URI:        https://voltz.dev
+ * Author URI:        https://morganvoltz.dev
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       portfolio-md

@@ -9,12 +9,12 @@
 #
 # <built checkout> is a folder holding plugin/ (built), theme/ and content/ of the commit to deploy
 # (for example `git archive main plugin theme content`, then `composer install --no-dev` and `npm ci && npm run build`
-# in plugin/ and plugin/assets/). Optional: PORTFOLIO_DEPLOY_ROOT (web root, default voltz.dev) and
+# in plugin/ and plugin/assets/). Optional: PORTFOLIO_DEPLOY_ROOT (web root, default morganvoltz.dev) and
 # PORTFOLIO_DEPLOY_CONTENT (content folder, default portfolio-content), both relative to the home.
 set -euo pipefail
 SRC=${1:?usage: PORTFOLIO_DEPLOY_SSH=<user>@<host> $0 <built checkout>}
 : "${PORTFOLIO_DEPLOY_SSH:?set PORTFOLIO_DEPLOY_SSH=<user>@<host> (never written in the repository)}"
-ROOT=${PORTFOLIO_DEPLOY_ROOT:-voltz.dev}
+ROOT=${PORTFOLIO_DEPLOY_ROOT:-morganvoltz.dev}
 CONTENT=${PORTFOLIO_DEPLOY_CONTENT:-portfolio-content}
 for f in "$SRC/plugin/vendor/autoload.php" "$SRC/plugin/assets/dist/admin-editor.js" "$SRC/theme/portfolio-md-child/style.css" "$SRC/content/skills.yaml"; do
   [ -f "$f" ] || { echo "missing $f: build the checkout first (composer install --no-dev, npm ci && npm run build)" >&2; exit 1; }

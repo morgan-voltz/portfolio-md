@@ -12,7 +12,7 @@ Ich suche ein sechsmonatiges Praktikum ab Januar 2027 in der Softwareentwicklung
 
 ## Wo Sie mich erreichen
 
-- E-Mail: [bonjour@voltz.dev](mailto:bonjour@voltz.dev)
+- E-Mail: [bonjour@morganvoltz.dev](mailto:bonjour@morganvoltz.dev)
 - GitHub: [morgan-voltz](https://github.com/morgan-voltz)
 
 ## Was mich interessiert

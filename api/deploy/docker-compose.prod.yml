@@ -36,7 +36,7 @@ services:
       traefik.enable: "true"
       traefik.docker.network: nuvoracode-network
       # The public API.
-      traefik.http.routers.portfolio-api.rule: Host(`api.voltz.dev`)
+      traefik.http.routers.portfolio-api.rule: Host(`api.morganvoltz.dev`)
       traefik.http.routers.portfolio-api.entrypoints: websecure
       traefik.http.routers.portfolio-api.tls.certresolver: letsencrypt
       traefik.http.routers.portfolio-api.service: portfolio-api

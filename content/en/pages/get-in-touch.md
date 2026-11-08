@@ -12,7 +12,7 @@ I am looking for a six-month internship from January 2027, in software developme
 
 ## Where to write to me
 
-- E-mail: [bonjour@voltz.dev](mailto:bonjour@voltz.dev)
+- E-mail: [bonjour@morganvoltz.dev](mailto:bonjour@morganvoltz.dev)
 - GitHub: [morgan-voltz](https://github.com/morgan-voltz)
 
 ## What interests me
