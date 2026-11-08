@@ -39,15 +39,12 @@ final class PolylangPublicationTest extends TestCase
     {
         $this->publication->register();
 
-        $hooks = [];
-        foreach (WordPressSpy::$hooks as $hook) {
-            $hooks[$hook['hook']] = [$hook['type'], $hook['args']];
-        }
+        $hooks = array_map(static fn (array $hook): array => [$hook['type'], $hook['hook'], $hook['callback'], $hook['priority'], $hook['args']], WordPressSpy::$hooks);
         self::assertSame([
-            'pll_languages_for_browser_preferences' => ['filter', 1],
-            'pll_preferred_language' => ['filter', 2],
-            'pll_translation_url' => ['filter', 2],
-            'pll_rel_hreflang_attributes' => ['filter', 1],
+            ['filter', 'pll_languages_for_browser_preferences', [$this->publication, 'browserLanguages'], 10, 1],
+            ['filter', 'pll_preferred_language', [$this->publication, 'preferredLanguage'], 10, 2],
+            ['filter', 'pll_translation_url', [$this->publication, 'translationUrl'], 10, 2],
+            ['filter', 'pll_rel_hreflang_attributes', [$this->publication, 'hreflangs'], 10, 1],
         ], $hooks);
     }
 

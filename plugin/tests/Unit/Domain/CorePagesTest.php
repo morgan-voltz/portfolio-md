@@ -49,6 +49,8 @@ final class CorePagesTest extends TestCase
         self::assertSame('startseite', CorePages::slug(CorePages::HOME, Language::De));
         self::assertSame('home', CorePages::slug(CorePages::HOME, Language::En));
         self::assertSame('ueber-mich', CorePages::slug(CorePages::ABOUT, Language::De));
+        self::assertSame('about', CorePages::slug(CorePages::ABOUT, Language::En));
+        self::assertSame('lebenslauf', CorePages::slug(CorePages::CV, Language::De));
         self::assertSame('resume', CorePages::slug(CorePages::CV, Language::En));
         self::assertSame('get-in-touch', CorePages::slug(CorePages::CONTACT, Language::En));
         self::assertSame('kontakt', CorePages::slug(CorePages::CONTACT, Language::De));

@@ -49,18 +49,16 @@ final class YoastPublicationTest extends TestCase
     #[Test]
     public function hooks_robots_the_sitemap_entries_and_the_archive_blocks_after_polylang(): void
     {
-        $this->publication()->register();
+        $publication = $this->publication();
+        $publication->register();
 
-        $hooks = [];
-        foreach (WordPressSpy::$hooks as $hook) {
-            $hooks[$hook['hook']] = [$hook['type'], $hook['priority'], $hook['args']];
-        }
+        $hooks = array_map(static fn (array $hook): array => [$hook['type'], $hook['hook'], $hook['callback'], $hook['priority'], $hook['args']], WordPressSpy::$hooks);
         self::assertSame([
-            'wpseo_robots' => ['filter', 10, 2],
-            'wpseo_sitemap_entry' => ['filter', 10, 3],
-            'wpseo_sitemap_article_content' => ['filter', 20, 1],
-            'wpseo_sitemap_project_content' => ['filter', 20, 1],
-            'wpseo_sitemap_post_content' => ['filter', 20, 1],
+            ['filter', 'wpseo_robots', [$publication, 'robots'], 10, 2],
+            ['filter', 'wpseo_sitemap_entry', [$publication, 'sitemapEntry'], 10, 3],
+            ['filter', 'wpseo_sitemap_article_content', [$publication, 'stripClosedArchives'], 20, 1],
+            ['filter', 'wpseo_sitemap_project_content', [$publication, 'stripClosedArchives'], 20, 1],
+            ['filter', 'wpseo_sitemap_post_content', [$publication, 'stripClosedArchives'], 20, 1],
         ], $hooks);
     }
 
@@ -118,6 +116,7 @@ final class YoastPublicationTest extends TestCase
         self::assertSame($french, $publication->sitemapEntry($french, 'post', null));
         self::assertSame(['mod' => 'x'], $publication->sitemapEntry(['mod' => 'x'], 'post', null), 'no loc, nothing to judge');
         self::assertSame('not an array', $publication->sitemapEntry('not an array', 'post', null));
+        self::assertSame(['loc' => self::HOME . '/fr/de/x/'], $publication->sitemapEntry(['loc' => self::HOME . '/fr/de/x/'], 'post', null), 'the prefix is matched at the start, not anywhere');
 
         $this->store->value = ['fr', 'de'];
 
