@@ -33,6 +33,14 @@ sitemap_locs() { curl -s "$1" | grep -o '<loc>[^<]*</loc>' | sed 's/<\/*loc>//g'
 # The option as JSON (a line starting with `[`), empty when the option does not exist.
 before=$(wp option get portfolio_md_published_languages --format=json | grep -E '^\[' | head -1)
 echo "published languages before: ${before:-(option absent)}"
+# Put the option back whatever happens, a Ctrl-C in the middle of an observation included.
+restore() {
+  if [ -n "$before" ]; then wp option update portfolio_md_published_languages "$before" --format=json >/dev/null; else wp option delete portfolio_md_published_languages >/dev/null; fi
+  after=$(wp option get portfolio_md_published_languages --format=json | grep -E '^\[' | head -1)
+  echo
+  echo "published languages after: ${after:-(option absent)}"
+}
+trap restore EXIT
 
 observe() {
   section "$1"
@@ -49,8 +57,4 @@ wp portfolio languages publish de --force | sed 's/^/   /'
 observe "2. German open (forced): announced where content exists, indexable, in the sitemap"
 wp portfolio languages unpublish de >/dev/null
 observe "3. German closed again"
-
-if [ -n "$before" ]; then wp option update portfolio_md_published_languages "$before" --format=json >/dev/null; else wp option delete portfolio_md_published_languages >/dev/null; fi
-echo
-after=$(wp option get portfolio_md_published_languages --format=json | grep -E '^\[' | head -1)
-echo "published languages after: ${after:-(option absent)}"
+# The EXIT trap restores the option and prints it.
