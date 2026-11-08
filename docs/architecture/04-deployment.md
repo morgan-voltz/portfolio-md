@@ -115,6 +115,6 @@ Projet Pages relié au dépôt GitHub, dossier racine `frontend/`, commande `npm
 - ~~Le chemin du dépôt sur le serveur o2switch et le login WP-CLI~~ : tranchés le 8 novembre 2026 (runbook, partie 2.3 : la racine du domaine additionnel, un dossier de contenu hors de la racine web, le compte d'administration pour les imports).
 - Le mot de passe d'administration : fixé par Morgan par « Mot de passe oublié » sur le site en ligne, hors dépôt ; rien ici n'en dépend.
 - Le certificat du nom `www` : l'hébergeur ajoute les noms qui résolvent lors de son passage AutoSSL quotidien, que le compte ne peut pas déclencher lui-même ; le nom principal est couvert depuis le premier jour.
-- La porte Git (ADR-019) : le mot de passe d'application et les trois secrets GitHub, puis un premier lancement manuel du workflow ; jusque-là, une version se déploie par `plugin/tools/deploy-o2switch.sh` et `wp portfolio import` (runbook, partie 2.4).
+- ~~La porte Git (ADR-019)~~ : active depuis le 8 novembre 2026 (secrets posés, lancement à blanc passé) ; le contenu suit chaque merge sur `main`, le plugin et le thème se déploient par `plugin/tools/deploy-o2switch.sh` (runbook, partie 2.4).
 - Les images « chiseled » de .NET pour l'API : après quelques semaines de production.
 - Ce document est complété à chaque pas réel : ce qu'on a tapé, ce qu'on a vu.
