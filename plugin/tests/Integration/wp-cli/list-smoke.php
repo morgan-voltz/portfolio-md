@@ -3,8 +3,9 @@
  * Smoke test of the list with fallback and of the archive rule (ADR-022, lot
  * 5c) against the real WordPress, Polylang and Yoast of the local stack, run
  * through WP-CLI: the functions a template calls, the same list as the REST
- * route, the count of own documents, the robots rule on the project archive
- * and the rendering functions of the child theme as WordPress loads them.
+ * route, the count of own documents, the robots rule on the project archive,
+ * the document of a post (phase 10) and the rendering functions of the child
+ * theme as WordPress loads them.
  *
  * From the repository root, with the stack up, the plugin, Polylang and
  * Yoast active and the child theme portfolio-md-child active:
@@ -27,6 +28,7 @@
 
 use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Domain\Language;
+use Voltz\PortfolioMd\Domain\ProjectStatus;
 use Voltz\PortfolioMd\Parsing\FrontmatterParser;
 use Voltz\PortfolioMd\Parsing\ContentRenderer;
 use Voltz\PortfolioMd\Parsing\GutenbergTransformer;
@@ -36,6 +38,7 @@ use Voltz\PortfolioMd\Service\ContentImportService;
 use Voltz\PortfolioMd\Service\ImportOptions;
 use Voltz\PortfolioMd\Service\ImportOutcome;
 use Voltz\PortfolioMd\Service\ListItem;
+use Voltz\PortfolioMd\Service\PublishedDocument;
 use Voltz\PortfolioMd\Service\PublishedLanguages;
 use Voltz\PortfolioMd\Service\SystemClock;
 use Voltz\PortfolioMd\Storage\PolylangLanguageGateway;
@@ -113,8 +116,9 @@ $created = [];
 
 try {
     // 1. The functions a template calls, as the plugin and the theme load them ----------------------------
-    $check('the plugin exposes portfolio_md_list_with_fallback() and portfolio_md_published_languages()', function_exists('portfolio_md_list_with_fallback') && function_exists('portfolio_md_published_languages'));
-    $check('the child theme exposes its rendering functions', function_exists('portfolio_md_child_render_cards') && function_exists('portfolio_md_child_switcher_items') && function_exists('portfolio_md_child_text'));
+    $check('the plugin exposes portfolio_md_list_with_fallback(), portfolio_md_published_languages() and portfolio_md_document()', function_exists('portfolio_md_list_with_fallback') && function_exists('portfolio_md_published_languages') && function_exists('portfolio_md_document'));
+    $check('the child theme exposes its rendering functions', function_exists('portfolio_md_child_render_cards') && function_exists('portfolio_md_child_switcher_items') && function_exists('portfolio_md_child_text') && function_exists('portfolio_md_child_render_project_header') && function_exists('portfolio_md_child_render_project_footer'));
+    $check('the child theme lays the site out without sidebar', apply_filters('generate_sidebar_layout', 'right-sidebar') === 'no-sidebar');
     $template = (string) locate_template('archive-project.php');
     $check('archive-project.php of the child theme is the template of the project archive', str_ends_with($template, '/portfolio-md-child/archive-project.php'), $template);
 
@@ -171,6 +175,12 @@ try {
     $check('an English reader gets the same documents, each flagged unless English', $ids($englishList) === $ids($frenchList) && array_filter($englishList, static fn (ListItem $item): bool => $item->isFallback !== ($item->lang !== Language::En)) === []);
     $check('the German draft is in no list', !in_array((int) $entwurf->postId, [...$ids($frenchList), ...$ids($germanList), ...$ids($englishList)], true));
     $check('the excerpt of a card is its subtitle', $germanList[$at]->excerpt === 'Ein Untertitel' && $frenchList[$at]->excerpt === 'Un sous-titre de fumée');
+    $frenchDocument = portfolio_md_document($frId);
+    $germanDocument = portfolio_md_document($deId);
+    $check('portfolio_md_document() reads the French fixture as its own document, with its status', $frenchDocument instanceof PublishedDocument && $frenchDocument->slug === 'zz-smoke-liste' && $frenchDocument->lang === Language::Fr && !$frenchDocument->isFallback && $frenchDocument->status === ProjectStatus::Prototype && $frenchDocument->subtitle === 'Un sous-titre de fumée', $frenchDocument === null ? 'null' : $frenchDocument->slug . ' ' . $frenchDocument->lang->value);
+    $check('portfolio_md_document() reads the German translation in German, never the French original in its place', $germanDocument instanceof PublishedDocument && $germanDocument->slug === 'zz-smoke-liste-de' && $germanDocument->lang === Language::De && !$germanDocument->isFallback && ($germanDocument->translations['fr'] ?? '') === 'zz-smoke-liste', $germanDocument === null ? 'null' : json_encode($germanDocument->translations));
+    $check('portfolio_md_document() is null for the draft, for an id that is not a post and for a post the plugin does not know', portfolio_md_document((int) $entwurf->postId) === null && portfolio_md_document(0) === null && portfolio_md_document((int) get_option('page_on_front') + 1_000_000) === null);
+    $check('the status of a card is the status of its project', $frenchList[$at]->status === ProjectStatus::Prototype && $germanList[$at]->status === ProjectStatus::Prototype);
     $check('the count of own documents follows the stored language and leaves the draft out', $catalog->countOwn(ContentType::Project, Language::De) === $baseline['de']['project'] + 1 && $catalog->countOwn(ContentType::Project, Language::En) === $baseline['en']['project'] && $catalog->countOwn(ContentType::Project, Language::Fr) === count($frenchList), json_encode([$catalog->countOwn(ContentType::Project, Language::De), $baseline['de']['project']]));
 
     // 6. The theme renders the cards WordPress hands it ----------------------------------------------------
@@ -178,6 +188,10 @@ try {
     $flagged = count(array_filter($germanList, static fn (ListItem $item): bool => $item->isFallback));
     $check('the German archive renders one card per project, the untranslated ones with the badge', substr_count($html, '<article id="post-') === count($germanList) && substr_count($html, 'class="lang-badge"') === $flagged && substr_count($html, 'is-fallback') === $flagged && $flagged === count($germanList) - 1 - $baseline['de']['project']);
     $check('the badge speaks the language of the page', str_contains($html, 'Diese Seite ist nur auf Französisch verfügbar.') && !str_contains($html, 'Cette page'));
+    $prototypes = count(array_filter($germanList, static fn (ListItem $item): bool => $item->status === ProjectStatus::Prototype));
+    $check('the cards wear the status of their project in the language of the page', $prototypes >= 1 && substr_count($html, '<span class="project-status is-prototype">Prototyp</span>') === $prototypes && !str_contains($html, '>Prototype</span>'), "{$prototypes} prototype(s) in the list");
+    $header = $germanDocument instanceof PublishedDocument ? portfolio_md_child_render_project_header($germanDocument, 'de') : '';
+    $check('the theme renders the header of the page of a project from the document the plugin hands it', str_contains($header, '<div class="project-facts" role="group" aria-label="Projektdaten"><dl class="project-facts-list">') && str_contains($header, 'Prototyp') && str_contains($header, 'Ein Untertitel'), $header);
 
     // 7. The archive rule once German owns a project --------------------------------------------------------
     $check('the German project archive is indexable now', $robotsIn('de', $archive('project')) === 'index, follow', $robotsIn('de', $archive('project')));

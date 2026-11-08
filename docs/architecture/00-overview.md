@@ -194,7 +194,7 @@ Le projet est découpé en douze phases indépendantes, conçues pour être atta
 
 **Phase 9** : webhook Git. Un push sur le repo d'articles déclenche une synchronisation automatique dans WordPress. *(Terminée le 29 octobre 2026 : `POST /sync` authentifié par mot de passe d'application, workflow GitHub Actions `sync-content.yml`, ADR-019 ; actif dès que le site sera en ligne et les trois secrets posés.)*
 
-**Phase 10** : thème WordPress sobre et SEO. Child theme configuré, Yoast SEO opérationnel, le site WordPress est prêt pour la soutenance académique.
+**Phase 10** : thème WordPress sobre et SEO. Child theme configuré, Yoast SEO opérationnel, le site WordPress est prêt pour la soutenance académique. *(Terminée le 8 novembre 2026 : le thème enfant, Yoast et la configuration du site avec le lot 5 d'ADR-022 ; la page d'un projet, le statut sur les cartes, les puces et le dessin CSS avec la phase dix proprement dite, décrits dans `theme/theme-README.md`.)*
 
 **Phase 11** : déploiement. Les deux portfolios sont en ligne, accessibles publiquement sous leurs domaines respectifs. *(Cible fixée le 8 novembre 2026 par ADR-023 : `voltz.dev` pour le site, `api.voltz.dev` pour l'API, `app.voltz.dev` pour le front ; rien n'est en ligne encore.)*
 

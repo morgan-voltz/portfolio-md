@@ -170,10 +170,10 @@ final class ChildThemeRenderTest extends TestCase
 
         $html = portfolio_md_child_render_home_projects($items, 'de', 'http://example.test/de/projets/');
 
-        self::assertStringStartsWith('<section class="home-projects" aria-labelledby="home-projects-title"><h2 id="home-projects-title" class="home-projects-title">Neueste Projekte</h2><article id="post-12"', $html);
+        self::assertStringStartsWith('<section class="home-projects" aria-labelledby="home-projects-title"><h2 id="home-projects-title" class="home-projects-title">Neueste Projekte</h2><div class="portfolio-cards"><article id="post-12"', $html);
         self::assertSame(2, substr_count($html, '<article id="post-'));
         self::assertSame(1, substr_count($html, 'class="lang-badge"'), 'the French card wears the badge, the German one does not');
-        self::assertStringEndsWith('<p class="home-projects-more"><a href="http://example.test/de/projets/">Alle Projekte</a></p></section>', $html);
+        self::assertStringEndsWith('</article></div><p class="home-projects-more"><a href="http://example.test/de/projets/">Alle Projekte</a></p></section>', $html, 'the cards sit in the grid of the theme, the archive link after it');
     }
 
     #[Test]
@@ -197,7 +197,7 @@ final class ChildThemeRenderTest extends TestCase
         self::assertSame('anglais', portfolio_md_child_language_name('en', 'fr'));
         self::assertSame('XX', portfolio_md_child_language_name('xx', 'de'));
         foreach (['fr', 'de', 'en'] as $language) {
-            self::assertSame(['projects', 'no_projects', 'languages', 'only_in', 'recent_projects', 'all_projects'], array_keys(portfolio_md_child_strings()[$language]), "every language has every text ({$language})");
+            self::assertSame(array_keys(portfolio_md_child_strings()['fr']), array_keys(portfolio_md_child_strings()[$language]), "every language has every text ({$language})");
             self::assertSame(['fr', 'de', 'en'], array_keys(portfolio_md_child_language_names()[$language]));
         }
     }

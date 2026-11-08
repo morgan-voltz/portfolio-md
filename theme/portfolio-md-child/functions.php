@@ -17,7 +17,10 @@ declare(strict_types=1);
  * archive-project.php, the list of projects with fallback and the badge
  * (points 6 and 8). Lot 5d: the recent projects block under the content of
  * the home page of each language (point 10); the menus per language are
- * configuration, plugin/tools/site-setup.php.
+ * configuration, plugin/tools/site-setup.php. Phase 10: the header and the
+ * footer of the page of a project, on the hooks of GeneratePress's
+ * content-single.php, so that no single-project.php is needed, and the
+ * layout without sidebar.
  */
 
 require_once __DIR__ . '/inc/strings.php';
@@ -34,6 +37,21 @@ function portfolio_md_child_current_language(): string
 
     return is_string($slug) && $slug !== '' ? $slug : 'fr';
 }
+
+/**
+ * The layout (phase 10): no sidebar on any page. The site has nothing to put
+ * in one (no categories, no comments, no recent posts: the content is the
+ * documents and their lists), and WordPress's default widgets would show an
+ * empty "Recent Posts" and "No comments to show" beside every page. The
+ * width this frees goes to the grid of cards; the body text keeps a
+ * readable measure in style.css. A filter of GeneratePress, so that the
+ * Customizer's layout setting cannot bring the sidebar back by accident.
+ */
+function portfolio_md_child_sidebar_layout(): string
+{
+    return 'no-sidebar';
+}
+add_filter('generate_sidebar_layout', 'portfolio_md_child_sidebar_layout');
 
 /**
  * The language switcher (ADR-022, point 5), on the menu bar of GeneratePress,
@@ -89,3 +107,55 @@ function portfolio_md_child_home_projects(): void
     echo portfolio_md_child_render_home_projects(portfolio_md_list_with_fallback('project', $language, 3), $language, is_string($archive) ? $archive : ''); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped while rendered
 }
 add_action('generate_after_content', 'portfolio_md_child_home_projects');
+
+/**
+ * The document of the project being displayed, read once per request from
+ * the plugin's catalog (portfolio_md_document(), the same object the REST
+ * route serves); null outside the single view of a project in the main
+ * loop, without the plugin, or for a post the plugin does not know.
+ *
+ * @return \Voltz\PortfolioMd\Service\PublishedDocument|null
+ */
+function portfolio_md_child_single_project_document(): ?object
+{
+    static $cache = [];
+    if (!is_singular('project') || !is_main_query() || !in_the_loop() || !function_exists('portfolio_md_document')) {
+        return null;
+    }
+    $id = (int) get_the_ID();
+    if (!array_key_exists($id, $cache)) {
+        $cache[$id] = portfolio_md_document($id);
+    }
+
+    return $cache[$id];
+}
+
+/**
+ * The header of the page of a project (phase 10): under the title that
+ * GeneratePress prints in the entry header, the subtitle, the fil rouge
+ * mention and the facts of the frontmatter (status, period, role, client,
+ * repository, demo), in the language of the document, which is the
+ * language of its page.
+ */
+function portfolio_md_child_project_header(): void
+{
+    $document = portfolio_md_child_single_project_document();
+    if ($document !== null) {
+        echo portfolio_md_child_render_project_header($document, $document->lang->value); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped while rendered
+    }
+}
+add_action('generate_after_entry_title', 'portfolio_md_child_project_header');
+
+/**
+ * The footer of the page of a project (phase 10): after its body, the
+ * technologies as bullets without link and the skills it demonstrates with
+ * their labels in the language of the document.
+ */
+function portfolio_md_child_project_footer(): void
+{
+    $document = portfolio_md_child_single_project_document();
+    if ($document !== null) {
+        echo portfolio_md_child_render_project_footer($document, $document->lang->value); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped while rendered
+    }
+}
+add_action('generate_after_entry_content', 'portfolio_md_child_project_footer');
