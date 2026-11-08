@@ -174,7 +174,7 @@ Complete architectural documentation lives in [`docs/architecture/`](docs/archit
 2. [`01-plugin-php.md`](docs/architecture/01-plugin-php.md) — WordPress plugin internals (about 30 minutes)
 3. [`02-api-csharp.md`](docs/architecture/02-api-csharp.md) — C# API and Clean Architecture (about 25 minutes)
 4. [`03-frontend-react.md`](docs/architecture/03-frontend-react.md) — React frontend architecture (about 20 minutes)
-5. [`04-deployment.md`](docs/architecture/04-deployment.md) — where each component runs and how it gets there (proposed with ADR-023, about 10 minutes)
+5. [`04-deployment.md`](docs/architecture/04-deployment.md) — where each component runs and how it gets there (ADR-023, about 10 minutes)
 6. [`99-decisions.md`](docs/architecture/99-decisions.md) — architectural decision records
 
 Pedagogical documentation aimed at junior developers discovering the project lives in [`docs/pedagogie/`](docs/pedagogie/), written in French. Operational guides (WordPress onboarding) live in [`docs/guides/`](docs/guides/).

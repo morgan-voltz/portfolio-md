@@ -4,7 +4,7 @@
 **Rôle** : le document que `00-overview.md` §6 promettait pour la phase onze : où tourne chaque composant, comment on l'y met, quels secrets existent et où ils vivent, dans quel ordre on déploie la première fois
 **Prérequis** : avoir lu `00-overview.md` ; pour WordPress, le runbook `docs/guides/02-exploitation-site-trilingue.md`
 **Lectorat** : Morgan, seul à tenir le clavier en production ; un relecteur qui veut savoir ce qui est en ligne et comment
-**Statut** : Proposé avec ADR-023 (8 novembre 2026) ; complété à chaque pas réel du premier déploiement
+**Statut** : Accepté avec ADR-023 (8 novembre 2026) ; complété à chaque pas réel du premier déploiement
 **Dernière mise à jour** : 8 novembre 2026
 
 Ce dépôt est public : aucun identifiant, aucune adresse IP, aucun nom de serveur, aucun secret n'y figure. Ce document dit **où** chaque chose vit et **comment** on y va, pas **avec quoi** on s'y connecte.
@@ -19,7 +19,7 @@ Ce dépôt est public : aucun identifiant, aucune adresse IP, aucun nom de serve
 | `api.voltz.dev` | API C# `Portfolio.Api` | VPS Kovelt (Hetzner), conteneur derrière Traefik v3 | `/api/*`, `/health/*` ; `/metrics` n'existe que sur le port interne 9090, que rien ne route | Let's Encrypt géré par Traefik |
 | `app.voltz.dev` | Front React | Cloudflare Pages | le portfolio technique, qui ne parle qu'à `api.voltz.dev` | géré par Cloudflare |
 
-Proposé (ADR-023, Morgan tranche) : la zone DNS de `voltz.dev` chez Cloudflare, avec `A voltz.dev` et `CNAME www` vers o2switch (sans proxy), `A api` vers le VPS (sans proxy : Traefik fait le TLS), `CNAME app` vers Cloudflare Pages ; aucun enregistrement `AAAA` tant que le VPS n'est pas testé en IPv6. Le domaine est parké au 8 novembre 2026 ; poser ces enregistrements est le premier pas de la phase onze.
+La zone DNS de `voltz.dev` est chez Cloudflare (ADR-023), avec `A voltz.dev` et `CNAME www` vers o2switch (sans proxy), `A api` vers le VPS (sans proxy : Traefik fait le TLS), `CNAME app` vers Cloudflare Pages ; aucun enregistrement `AAAA` tant que le VPS n'est pas testé en IPv6. Le domaine est parké au 8 novembre 2026 ; poser ces enregistrements est le premier pas de la phase onze.
 
 ## 2. WordPress chez o2switch
 
@@ -98,7 +98,7 @@ Projet Pages relié au dépôt GitHub, dossier racine `frontend/`, commande `npm
 | Mot de passe d'application WordPress de la porte Git | secret GitHub `PORTFOLIO_SYNC_PASSWORD`, créé par `wp user application-password create <login> <nom> --porcelain` | un fichier, un message |
 | `.env` de l'API | `/opt/nuvoracode/portfolio-api/.env`, mode 600 | le dépôt d'infrastructure (config seule), ce dépôt |
 | `GITHUB_TOKEN` de l'action de release | fourni par GitHub à l'exécution | nulle part |
-| Lecture du paquet GHCR depuis le VPS | aucun secret si le paquet est public (proposé) ; sinon un jeton `read:packages` dans la configuration Docker du serveur | le dépôt, l'action |
+| Lecture du paquet GHCR depuis le VPS | aucun secret : le paquet est public (ADR-023) ; s'il devait redevenir privé, un jeton `read:packages` dans la configuration Docker du serveur | le dépôt, l'action |
 | Jeton Cloudflare | l'interface Cloudflare (intégration GitHub de Pages) | le dépôt |
 
 ## 6. Ordre du premier déploiement
@@ -111,7 +111,6 @@ Projet Pages relié au dépôt GitHub, dossier racine `frontend/`, commande `npm
 
 ## 7. Ce qui reste à décider ou à compléter
 
-- Les noms `api` et `app`, l'hébergeur de la zone DNS (Cloudflare proposé), le compte GHCR (`morgan-voltz` proposé) et la visibilité publique du paquet (proposée) : Morgan tranche en acceptant ADR-023.
 - Le proxy et le cache de Cloudflare devant WordPress : après la mise en ligne et la recette des langues, pas avant.
 - Le chemin du dépôt sur le serveur o2switch et le login WP-CLI : au premier déploiement (runbook, partie 2.3).
 - Les images « chiseled » de .NET pour l'API : après quelques semaines de production.

@@ -4,7 +4,7 @@
 **Rôle** : document d'entrée dans l'architecture, porte d'accès aux documents détaillés
 **Lectorat** : contributeur, recruteur, étudiant, Morgan lui-même à froid
 **Temps de lecture** : environ quinze minutes
-**Dernière mise à jour** : 8 novembre 2026 (ADR-022 acceptée, ouverture des langues au public ; lot 5e : runbook `docs/guides/02-exploitation-site-trilingue.md`, répétition de l'ouverture, documents alignés ; lot 5d : pages Accueil et Contact en documents, description SEO recopiée vers Yoast, `site-setup.php` complet (accueil statique, `redirect_lang`, menus par langue), bloc « projets récents » ; lot 5c : liste avec repli, archive des projets, sélecteur et badge du thème enfant, `noindex` d'une archive sans élément propre ; lot 5b : option d'ouverture, filtres Polylang et Yoast d'une langue fermée, commande `wp portfolio languages` ; lot 5a : thème enfant `theme/portfolio-md-child`, script de configuration du site ; ADR-020 lot 4 : libellés de statut et intitulés de compétence dans la langue demandée, grille trilingue ; ADR-021 : la langue dans les routes REST de lecture, lot 3 du site trilingue ; le 7 novembre, ADR-020, site trilingue : modèle de langue, portes, contenu migré vers `content/fr/` et pont Polylang, lot 2 ; phases 5 et 9 terminées le 29 octobre : endpoints REST publics en lecture, webhook Git)
+**Dernière mise à jour** : 8 novembre 2026 (ADR-023 acceptée : cible de déploiement, .NET 10, Traefik, Cloudflare Pages, `04-deployment.md` ; ADR-022 acceptée, ouverture des langues au public ; lot 5e : runbook `docs/guides/02-exploitation-site-trilingue.md`, répétition de l'ouverture, documents alignés ; lot 5d : pages Accueil et Contact en documents, description SEO recopiée vers Yoast, `site-setup.php` complet (accueil statique, `redirect_lang`, menus par langue), bloc « projets récents » ; lot 5c : liste avec repli, archive des projets, sélecteur et badge du thème enfant, `noindex` d'une archive sans élément propre ; lot 5b : option d'ouverture, filtres Polylang et Yoast d'une langue fermée, commande `wp portfolio languages` ; lot 5a : thème enfant `theme/portfolio-md-child`, script de configuration du site ; ADR-020 lot 4 : libellés de statut et intitulés de compétence dans la langue demandée, grille trilingue ; ADR-021 : la langue dans les routes REST de lecture, lot 3 du site trilingue ; le 7 novembre, ADR-020, site trilingue : modèle de langue, portes, contenu migré vers `content/fr/` et pont Polylang, lot 2 ; phases 5 et 9 terminées le 29 octobre : endpoints REST publics en lecture, webhook Git)
 
 ---
 
@@ -46,7 +46,7 @@ Détails complets dans [`01-plugin-php.md`](01-plugin-php.md).
 
 L'API joue trois rôles simultanément. Elle est d'abord une *gateway* entre WordPress et le front React : elle consomme l'API REST du plugin, met en cache les réponses, et expose sa propre API publique dont la forme est stable et contrôlée indépendamment du backend WordPress. Elle est ensuite un *transformer* : elle peut parser le Markdown côté C#, enrichir les données retournées, calculer des champs dérivés. Elle est enfin un *laboratoire d'apprentissage* pour les technologies .NET modernes que Morgan souhaite approfondir.
 
-L'API est écrite en **C# sur .NET 8+** avec ASP.NET Core en Minimal APIs. Elle est organisée en trois projets distincts selon la Clean Architecture : `Portfolio.Api` pour les endpoints HTTP, `Portfolio.Application` pour la logique métier pure, et `Portfolio.Infrastructure` pour les implémentations concrètes (client HTTP vers WordPress, cache, parsing Markdown).
+L'API est écrite en **C# sur .NET 10** avec ASP.NET Core en Minimal APIs. Elle est organisée en trois projets distincts selon la Clean Architecture : `Portfolio.Api` pour les endpoints HTTP, `Portfolio.Application` pour la logique métier pure, et `Portfolio.Infrastructure` pour les implémentations concrètes (client HTTP vers WordPress, cache, parsing Markdown).
 
 Cette structure en trois projets n'est pas choisie pour la complexité du projet tel qu'il existe aujourd'hui — elle serait presque sur-dimensionnée. Elle est choisie pour préparer l'évolution future : la partie `Portfolio.Application`, étant indépendante de toute technologie d'interface, pourra être réutilisée telle quelle par d'éventuels futurs frontends (desktop en Avalonia, mobile en MAUI, CLI). Ce point est développé en section quatre.
 
@@ -162,11 +162,11 @@ Le projet est pensé pour être déployé en production à faible coût, sur des
 
 Le **site WordPress** sera hébergé sur un hébergement mutualisé classique, o2switch (choisi en novembre 2026 ; WordPress 7.1.4 y est disponible, la stack locale est alignée sur cette version), qui garantit la compatibilité PHP/MariaDB et les fonctionnalités WordPress attendues (crons, email sortant, upload de médias). Le coût d'entrée est de quelques euros par mois. Les gestes de déploiement, d'ouverture d'une langue et de recette sont dans `docs/guides/02-exploitation-site-trilingue.md`.
 
-L'**API C#** sera déployée sur un VPS Linux modeste (Hetzner, Scaleway, ou équivalent, pour rester dans l'écosystème européen cohérent avec les valeurs du projet). ASP.NET Core tourne nativement sur Linux via .NET 8, avec un reverse proxy Nginx en frontal pour le HTTPS et le routage. Le coût d'entrée est d'environ cinq à dix euros par mois.
+L'**API C#** sera déployée comme un service de plus sur le VPS Linux (Hetzner, écosystème européen cohérent avec les valeurs du projet) que Morgan exploite déjà pour d'autres services, derrière son reverse proxy Traefik v3 qui fait le HTTPS et le routage (ADR-023, 8 novembre 2026). ASP.NET Core tourne nativement sur Linux via .NET 10, dans un conteneur dont l'image est construite par ce dépôt. Le coût marginal sera nul : la machine existe déjà.
 
-Le **front React** sera déployé sur une plateforme de JAMstack : Netlify, Cloudflare Pages, ou un service équivalent. Le build se fait à partir du repo Git, et le résultat statique est servi via un CDN mondial. Le coût d'entrée est nul dans les tiers gratuits de ces plateformes, largement suffisants pour le trafic d'un portfolio.
+Le **front React** sera déployé sur Cloudflare Pages, sous `app.voltz.dev` (ADR-023). Le build se fait à partir du repo Git, et le résultat statique est servi via un CDN mondial. Le coût d'entrée est nul dans le palier gratuit de Cloudflare Pages, largement suffisant pour le trafic d'un portfolio.
 
-Les détails précis de configuration (DNS, certificats SSL, variables d'environnement, secrets) seront documentés au moment du passage en production, dans un document `04-deployment.md` qui sera ajouté à ce dossier quand la phase onze de la feuille de route sera atteinte.
+Les détails (les trois hôtes et le DNS, la procédure de déploiement de l'API, l'inventaire des secrets et leur place, l'ordre du premier déploiement) sont dans [`04-deployment.md`](04-deployment.md), écrit avec ADR-023 et complété à chaque pas réel du premier déploiement ; ce dépôt public ne contient ni identifiant, ni adresse, ni nom de serveur.
 
 ---
 
@@ -196,7 +196,7 @@ Le projet est découpé en douze phases indépendantes, conçues pour être atta
 
 **Phase 10** : thème WordPress sobre et SEO. Child theme configuré, Yoast SEO opérationnel, le site WordPress est prêt pour la soutenance académique.
 
-**Phase 11** : déploiement. Les deux portfolios sont en ligne, accessibles publiquement sous leurs domaines respectifs.
+**Phase 11** : déploiement. Les deux portfolios sont en ligne, accessibles publiquement sous leurs domaines respectifs. *(Cible fixée le 8 novembre 2026 par ADR-023 : `voltz.dev` pour le site, `api.voltz.dev` pour l'API, `app.voltz.dev` pour le front ; rien n'est en ligne encore.)*
 
 Une phase supplémentaire hypothétique — ajouter un frontend desktop en Avalonia qui consommerait `Portfolio.Application` — est une évolution possible si Morgan souhaite approfondir MVVM et le desktop C#. Elle n'est pas planifiée mais rendue possible par la forme de l'architecture.
 
@@ -222,7 +222,7 @@ Pour consultation rapide, les technologies utilisées dans chaque composant.
 |---|---|
 | Plugin WordPress | PHP 8.2+, Composer, PSR-4, `league/commonmark`, `symfony/yaml`, `scrivo/highlight.php` |
 | WordPress | WordPress 6.x, MariaDB, thème GeneratePress (child theme custom) |
-| API C# | .NET 8, ASP.NET Core Minimal APIs, Markdig, IMemoryCache, HttpClient |
+| API C# | .NET 10, ASP.NET Core Minimal APIs, Markdig, IMemoryCache, HttpClient |
 | Front React | React 18, TypeScript, Vite, React Router, TanStack Query |
 | Outillage | Git, GitHub, Conventional Commits, PHPUnit, xUnit, Vitest |
 | Hébergement | Mutualisé pour WP, VPS Linux pour API, JAMstack pour front |
@@ -239,7 +239,7 @@ Pour approfondir, les documents suivants sont à consulter selon le besoin.
 | [`01-plugin-php.md`](01-plugin-php.md) | Architecture interne du plugin WordPress, pipeline de conversion, API REST exposée, stockage |
 | [`02-api-csharp.md`](02-api-csharp.md) | Structure en trois projets, Clean Architecture, cas d'usage détaillés, évolution multi-frontend |
 | [`03-frontend-react.md`](03-frontend-react.md) | Structure du front, routes, consommation de l'API, enrichissements |
-| [`04-deployment.md`](04-deployment.md) | Un domaine, trois hôtes : où tourne chaque composant, comment on l'y met, les secrets et leur place, l'ordre du premier déploiement (proposé avec ADR-023) |
+| [`04-deployment.md`](04-deployment.md) | Un domaine, trois hôtes : où tourne chaque composant, comment on l'y met, les secrets et leur place, l'ordre du premier déploiement (ADR-023) |
 | [`99-decisions.md`](99-decisions.md) | Journal chronologique des décisions architecturales et de leur justification |
 
 Pour la documentation pédagogique en langage naturel, voir le dossier [`../pedagogie/`](../pedagogie/).
