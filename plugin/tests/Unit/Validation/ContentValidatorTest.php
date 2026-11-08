@@ -399,6 +399,19 @@ final class ContentValidatorTest extends TestCase
     }
 
     #[Test]
+    public function the_contact_page_alone_may_hold_an_address_in_every_language(): void
+    {
+        $this->tree->put('fr/pages/contact.md', ContentTree::pageFrontmatter(['slug' => 'contact', 'title' => 'Contact']), "Un e-mail : [bonjour@example.test](mailto:bonjour@example.test), ou le +33 6 12 34 56 78.\n");
+        $this->tree->put('de/pages/kontakt.md', ContentTree::pageFrontmatter(['slug' => 'kontakt', 'title' => 'Kontakt', 'lang' => 'de', 'translation_key' => 'contact']), "Eine E-Mail: bonjour@example.test.\n");
+        $this->tree->put('fr/pages/cv.md', ContentTree::pageFrontmatter(), "Pas d'adresse ici : bonjour@example.test.\n");
+
+        $report = $this->validate();
+
+        self::assertError($report, 'fr/pages/cv.md', 'donnée de contact détectée');
+        self::assertSame([], array_values(array_filter(array_keys($report->errors), static fn (string $path): bool => str_contains($path, 'contact') || str_contains($path, 'kontakt'))), 'the Contact page and its translation carry the address by design (ADR-022, point 10)');
+    }
+
+    #[Test]
     public function the_content_rules_of_the_body_are_enforced(): void
     {
         $this->tree->put('fr/projects/momocad.md', ContentTree::projectFrontmatter(), "<div>Non</div>\n# Titre répété\n" . ContentTree::projectBody());
