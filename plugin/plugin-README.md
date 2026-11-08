@@ -236,7 +236,7 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/polylang-spike.php cleanup --user=<your admin login>
 ```
 
-**Opening spike (lot 5a of ADR-022).** `tests/Integration/wp-cli/opening-spike.php` sets up what the opening of a language relies on (a French home page with its German translation as the static front page, `redirect_lang`, a project with a German twin, two menus bound through Polylang's `nav_menus`, a Yoast description written by PHP, and a must-use plugin that plays the filters of a closed language) and `tools/opening-spike.sh` observes it over HTTP, opens `de` halfway through and closes it again; `cleanup` reverts everything, previous settings included. Findings: `docs/architecture/spikes/2026-11-08-ouverture-des-langues.md`. It needs the child theme active.
+**Opening spike (lot 5a of ADR-022).** `tests/Integration/wp-cli/opening-spike.php` sets up what the opening of a language relies on (a French home page with its German translation as the static front page, `redirect_lang`, a project with a German twin, two menus bound through Polylang's `nav_menus`, a Yoast description written by PHP, and a must-use plugin that plays the filters of a closed language) and `tools/opening-spike.sh` observes it over HTTP, opens `de` halfway through and closes it again; `cleanup` reverts everything, previous settings included. Findings: `docs/architecture/spikes/2026-11-08-ouverture-des-langues.md`. It needs the child theme active and the real content imported (the page `a-propos`, the sheet `momocad` and the tag `csharp`, which the HTTP observations request).
 
 ```bash
 podman-compose --profile tools run --rm wpcli wp eval-file \

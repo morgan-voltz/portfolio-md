@@ -120,7 +120,7 @@ composer test
 cd assets && npm ci && npm run build
 ```
 
-The plugin source is mounted into the WordPress container via the bind mount declared in `docker-compose.yml`, and so is the child theme (`theme/portfolio-md-child`, activated by `bootstrap.sh`). After `composer install`, activate the plugin from the WP admin (`http://localhost:8000/wp-admin`), then run the site setup once (`wp eval-file wp-content/plugins/portfolio-md/tools/site-setup.php` through the `wpcli` service). The editor bundle (`plugin/assets/dist/`) is not committed: without it the admin falls back to a plain textarea and says how to build it.
+The plugin source is mounted into the WordPress container via the bind mount declared in `docker-compose.yml`, and so is the child theme (`theme/portfolio-md-child`, activated by `bootstrap.sh`). After `composer install`, activate the plugin from the WP admin (`http://localhost:8000/wp-admin`), then run the replayable site setup, `podman-compose --profile tools run --rm wpcli wp eval-file wp-content/plugins/portfolio-md/tools/site-setup.php`, again after a change of active theme or the opening of a language. The editor bundle (`plugin/assets/dist/`) is not committed: without it the admin falls back to a plain textarea and says how to build it.
 
 ### C# API
 
