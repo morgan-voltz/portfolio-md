@@ -92,6 +92,14 @@ final class InMemoryContentCatalog implements ContentCatalog
         return $entries;
     }
 
+    public function countOwn(ContentType $type, Language $language): int
+    {
+        return count(array_filter(
+            $this->documents,
+            static fn (PublishedDocument $document): bool => $document->type === $type && $document->lang === $language,
+        ));
+    }
+
     /** The member of the group of $own that a reader of $requested gets, as the store serves it. */
     private function serve(PublishedDocument $own, Language $requested): PublishedDocument
     {

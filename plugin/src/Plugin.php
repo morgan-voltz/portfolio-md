@@ -147,7 +147,7 @@ final class Plugin
         // others. Filters only they apply: harmless when either is absent.
         $this->publishedLanguagesStore()->register();
         (new PolylangPublication($this->publishedLanguages()))->register();
-        (new YoastPublication($this->publishedLanguages()))->register();
+        (new YoastPublication($this->publishedLanguages(), $this->catalog()))->register();
 
         // Hook 'init' : on enregistre les post types, les taxonomies ET les
         // metas à ce moment, dans l'ordre sûr recommandé par WordPress :

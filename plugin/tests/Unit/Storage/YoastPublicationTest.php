@@ -7,15 +7,20 @@ namespace Voltz\PortfolioMd\Tests\Unit\Storage;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
 use Voltz\PortfolioMd\Service\PublishedLanguages;
 use Voltz\PortfolioMd\Storage\YoastPublication;
+use Voltz\PortfolioMd\Tests\Support\Documents;
+use Voltz\PortfolioMd\Tests\Support\InMemoryContentCatalog;
 use Voltz\PortfolioMd\Tests\Support\InMemoryPublishedLanguagesStore;
 use Voltz\PortfolioMd\Tests\Support\WordPressSpy;
 
 /**
  * What Yoast must not index or list about a closed language (ADR-022,
- * point 4): robots, sitemap entries and the archive blocks of Polylang.
+ * point 4): robots, sitemap entries and the archive blocks of Polylang;
+ * and the archive of a language without documents of its own, which is
+ * served but not indexed (lot 5c).
  */
 #[CoversClass(YoastPublication::class)]
 final class YoastPublicationTest extends TestCase
@@ -24,18 +29,23 @@ final class YoastPublicationTest extends TestCase
     private const ROBOTS = 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1';
 
     private InMemoryPublishedLanguagesStore $store;
+    private InMemoryContentCatalog $catalog;
     private string $currentLanguage = 'fr';
 
     protected function setUp(): void
     {
         WordPressSpy::reset();
         $this->store = new InMemoryPublishedLanguagesStore(['fr']);
+        // The site has French projects: their archive is never the empty one.
+        $this->catalog = new InMemoryContentCatalog();
+        $this->catalog->add(Documents::project());
     }
 
     private function publication(): YoastPublication
     {
         return new YoastPublication(
             new PublishedLanguages($this->store),
+            $this->catalog,
             fn (): string => $this->currentLanguage,
             static fn (string $path): string => self::HOME . $path,
         );
@@ -44,6 +54,55 @@ final class YoastPublicationTest extends TestCase
     private static function presentationOfPost(int $id): object
     {
         return (object) ['model' => (object) ['object_type' => 'post', 'object_sub_type' => 'project', 'object_id' => $id]];
+    }
+
+    private static function presentationOfArchive(string $postType): object
+    {
+        return (object) ['model' => (object) ['object_type' => YoastPublication::POST_TYPE_ARCHIVE, 'object_sub_type' => $postType, 'object_id' => 0]];
+    }
+
+    #[Test]
+    public function the_archive_of_an_open_language_without_documents_of_its_own_is_noindex_follow(): void
+    {
+        $this->store->value = ['fr', 'de'];
+        $this->currentLanguage = 'de';
+
+        self::assertSame('noindex, follow', $this->publication()->robots(self::ROBOTS, self::presentationOfArchive('project')), 'only French cards under /de/projets/');
+        self::assertSame('noindex, follow', $this->publication()->robots(self::ROBOTS, self::presentationOfArchive('article')), 'no article at all');
+
+        $this->catalog->add(Documents::project(['id' => 42, 'slug' => 'momocad-de', 'lang' => Language::De]));
+
+        self::assertSame(self::ROBOTS, $this->publication()->robots(self::ROBOTS, self::presentationOfArchive('project')), 'the rule lifts itself at the first German project');
+        self::assertSame('noindex, follow', $this->publication()->robots(self::ROBOTS, self::presentationOfArchive('article')), 'each kind counts its own documents');
+    }
+
+    #[Test]
+    public function the_french_archive_with_french_documents_keeps_its_directives(): void
+    {
+        self::assertSame(self::ROBOTS, $this->publication()->robots(self::ROBOTS, self::presentationOfArchive('project')));
+    }
+
+    #[Test]
+    public function a_closed_language_is_noindex_before_its_documents_are_counted(): void
+    {
+        $this->currentLanguage = 'de';
+        $this->catalog->add(Documents::project(['id' => 42, 'slug' => 'momocad-de', 'lang' => Language::De]));
+
+        self::assertSame('noindex, follow', $this->publication()->robots(self::ROBOTS, self::presentationOfArchive('project')));
+    }
+
+    #[Test]
+    public function the_count_of_own_documents_only_concerns_the_archives_of_the_kinds_the_plugin_knows(): void
+    {
+        $this->store->value = ['fr', 'de'];
+        $this->currentLanguage = 'de';
+        $noDocument = new InMemoryContentCatalog();
+        $publication = new YoastPublication(new PublishedLanguages($this->store), $noDocument, fn (): string => $this->currentLanguage, static fn (string $path): string => self::HOME . $path);
+
+        self::assertSame(self::ROBOTS, $publication->robots(self::ROBOTS, (object) ['model' => (object) ['object_type' => 'home-page']]), 'the home is not an archive');
+        self::assertSame(self::ROBOTS, $publication->robots(self::ROBOTS, self::presentationOfArchive('product')), 'an archive of a post type the plugin does not serve');
+        self::assertSame(self::ROBOTS, $publication->robots(self::ROBOTS, (object) ['model' => (object) ['object_type' => 'term', 'object_sub_type' => 'tech_tag']]), 'a term archive is not a post type archive');
+        self::assertSame(self::ROBOTS, $publication->robots(self::ROBOTS, (object) ['model' => (object) ['object_type' => YoastPublication::POST_TYPE_ARCHIVE]]), 'no sub type, nothing to count');
     }
 
     #[Test]

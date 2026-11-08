@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Voltz\PortfolioMd\Storage;
 
+use Voltz\PortfolioMd\Domain\ContentType;
 use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
 use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
+use Voltz\PortfolioMd\Service\ContentCatalog;
 use Voltz\PortfolioMd\Service\PublishedLanguages;
 
 /**
@@ -17,7 +19,11 @@ use Voltz\PortfolioMd\Service\PublishedLanguages;
  *     (`_portfolio_lang`); for the home, the archives and the other views it
  *     is the language of the URL of the request, the one Polylang resolved,
  *     which is reading the routing of the request, not deciding the
- *     language of a document;
+ *     language of a document. The archive of a kind of document (the
+ *     `post-type-archive` of Yoast) is `noindex, follow` as well while its
+ *     language has no document of that kind of its own: the page is then
+ *     only French cards under a foreign URL (lot 5c), and the rule lifts
+ *     itself at the first translation;
  *   - wpseo_sitemap_entry: an entry whose URL starts with the prefix of a
  *     closed language is dropped (an empty entry is skipped by Yoast);
  *   - wpseo_sitemap_<type>_content, at priority 20: the per-language
@@ -29,7 +35,11 @@ use Voltz\PortfolioMd\Service\PublishedLanguages;
  */
 final class YoastPublication
 {
+    /** The directives of a view that is served but not indexed: a closed language, or an archive without own documents. */
     public const CLOSED_ROBOTS = 'noindex, follow';
+
+    /** The object type Yoast gives the indexable of a post type archive, its sub type being the post type. */
+    public const POST_TYPE_ARCHIVE = 'post-type-archive';
 
     /** @var list<string> the post types whose sitemap gets Polylang's per-language archive or home blocks */
     public const SITEMAP_TYPES = [PostTypeRegistrar::ARTICLE, PostTypeRegistrar::PROJECT, 'post'];
@@ -41,11 +51,16 @@ final class YoastPublication
     private $homeUrl;
 
     /**
+     * @param ContentCatalog                $catalog         what the site publishes, asked whether a language has documents of its own
      * @param callable(): string|null       $currentLanguage the language of the request; Polylang's when null
      * @param callable(string): string|null $homeUrl         `home_url()` when null
      */
-    public function __construct(private readonly PublishedLanguages $published, ?callable $currentLanguage = null, ?callable $homeUrl = null)
-    {
+    public function __construct(
+        private readonly PublishedLanguages $published,
+        private readonly ContentCatalog $catalog,
+        ?callable $currentLanguage = null,
+        ?callable $homeUrl = null,
+    ) {
         $this->currentLanguage = $currentLanguage ?? static fn (): string => function_exists('pll_current_language') ? (string) pll_current_language() : '';
         $this->homeUrl = $homeUrl ?? static fn (string $path): string => (string) home_url($path);
     }
@@ -66,8 +81,18 @@ final class YoastPublication
     public function robots(mixed $robots, mixed $presentation = null): mixed
     {
         $language = $this->viewLanguage($presentation);
+        if ($language === null) {
+            return $robots;
+        }
+        if (!$this->published->isPublished($language)) {
+            return self::CLOSED_ROBOTS;
+        }
+        $archiveOf = $this->archiveType($presentation);
+        if ($archiveOf !== null && $this->catalog->countOwn($archiveOf, $language) === 0) {
+            return self::CLOSED_ROBOTS;
+        }
 
-        return $language !== null && !$this->published->isPublished($language) ? self::CLOSED_ROBOTS : $robots;
+        return $robots;
     }
 
     /**
@@ -98,9 +123,26 @@ final class YoastPublication
         return $xml;
     }
 
+    /** The kind of document whose archive the view is, when it is one the plugin knows. */
+    private function archiveType(mixed $presentation): ?ContentType
+    {
+        $model = self::model($presentation);
+        if ($model === null || ($model->object_type ?? null) !== self::POST_TYPE_ARCHIVE) {
+            return null;
+        }
+        $subType = $model->object_sub_type ?? null;
+
+        return is_string($subType) ? PostTypeRegistrar::contentTypeOf($subType) : null;
+    }
+
+    private static function model(mixed $presentation): ?object
+    {
+        return is_object($presentation) && isset($presentation->model) && is_object($presentation->model) ? $presentation->model : null;
+    }
+
     private function viewLanguage(mixed $presentation): ?Language
     {
-        $model = is_object($presentation) && isset($presentation->model) && is_object($presentation->model) ? $presentation->model : null;
+        $model = self::model($presentation);
         if ($model !== null && ($model->object_type ?? null) === 'post' && (int) ($model->object_id ?? 0) > 0) {
             $stored = get_post_meta((int) $model->object_id, InternalMetaRegistrar::LANG, true);
             if (is_string($stored) && Language::tryFrom($stored) !== null) {
