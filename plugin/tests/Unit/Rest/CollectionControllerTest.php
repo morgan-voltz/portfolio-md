@@ -279,8 +279,8 @@ final class CollectionControllerTest extends TestCase
     {
         $this->catalog->add(
             Documents::project(['id' => 1, 'slug' => 'tagged-only', 'tags' => [new DocumentTag('rust', 'Rust')], 'skills' => []]),
-            Documents::project(['id' => 2, 'slug' => 'skilled-only', 'tags' => [], 'skills' => [new DocumentSkill('4-0-2-e07', '4.0.2/E07', 'Tester')]]),
-            Documents::project(['id' => 3, 'slug' => 'both', 'tags' => [new DocumentTag('rust', 'Rust')], 'skills' => [new DocumentSkill('4-0-2-e07', '4.0.2/E07', 'Tester')]]),
+            Documents::project(['id' => 2, 'slug' => 'skilled-only', 'tags' => [], 'skills' => [new DocumentSkill('4-0-2-e07', '4.0.2/E07', ['fr' => 'Tester'])]]),
+            Documents::project(['id' => 3, 'slug' => 'both', 'tags' => [new DocumentTag('rust', 'Rust')], 'skills' => [new DocumentSkill('4-0-2-e07', '4.0.2/E07', ['fr' => 'Tester'])]]),
         );
 
         $response = $this->controller(ContentType::Project)->list(self::request(['tag' => 'rust', 'skill' => '4-0-2-e07']));

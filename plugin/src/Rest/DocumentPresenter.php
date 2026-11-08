@@ -30,7 +30,15 @@ use Voltz\PortfolioMd\Service\SitemapEntry;
  *   - instants are ISO 8601 in UTC with a `Z` ("2026-10-26T22:00:00Z"),
  *     calendar days are "YYYY-MM-DD";
  *   - a term is an object: a tag `{slug, name}`, a skill `{slug, code,
- *     label}`, a status `{slug, label}`.
+ *     label, official}`, a status `{slug, label}`;
+ *   - the labels of a status and of a skill are in the language the reader
+ *     asked (`requested_language`), not in the language of the document
+ *     (lot 4 of ADR-020): they are the vocabulary of the page around the
+ *     document, which a French fallback served to a German reader does not
+ *     change; a skill falls back to its French wording when the term has no
+ *     translation, and `official` says whether the wording shown is the
+ *     referential's own, which a translation never is. Tag names stay those
+ *     of the terms.
  */
 final class DocumentPresenter
 {
@@ -73,10 +81,16 @@ final class DocumentPresenter
         }
 
         if ($document->type === ContentType::Project) {
+            $language = $document->requestedLanguage;
             $data += [
-                'status' => $document->status === null ? null : ['slug' => $document->status->value, 'label' => $document->status->label()],
+                'status' => $document->status === null ? null : ['slug' => $document->status->value, 'label' => $document->status->label($language)],
                 'skills' => array_map(
-                    static fn (DocumentSkill $skill): array => ['slug' => $skill->slug, 'code' => $skill->code, 'label' => $skill->label],
+                    static fn (DocumentSkill $skill): array => [
+                        'slug' => $skill->slug,
+                        'code' => $skill->code,
+                        'label' => $skill->label($language),
+                        'official' => $skill->isOfficial($language),
+                    ],
                     $document->skills,
                 ),
                 'is_fil_rouge' => $document->isFilRouge,

@@ -19,16 +19,27 @@ enum ProjectStatus: string
     case Prototype = 'prototype';
 
     /**
-     * Human label shown in the admin and on the site.
+     * The label of each status in each language of the site (lot 4 of
+     * ADR-020): interface vocabulary, so a fixed table in the code rather
+     * than a translation stored in a term, which a synchronization could
+     * leave behind. The French column is what the admin and the taxonomy
+     * terms show.
      */
-    public function label(): string
+    private const LABELS = [
+        'en-cours' => ['fr' => 'En cours', 'de' => 'In Arbeit', 'en' => 'In progress'],
+        'stable' => ['fr' => 'Stable', 'de' => 'Stabil', 'en' => 'Stable'],
+        'archive' => ['fr' => 'Archivé', 'de' => 'Archiviert', 'en' => 'Archived'],
+        'prototype' => ['fr' => 'Prototype', 'de' => 'Prototyp', 'en' => 'Prototype'],
+    ];
+
+    /**
+     * Human label shown in the admin and on the site; French unless a
+     * language is given, which the REST presenter does with the language
+     * of the reader.
+     */
+    public function label(Language $language = Language::Fr): string
     {
-        return match ($this) {
-            self::EnCours => 'En cours',
-            self::Stable => 'Stable',
-            self::Archive => 'Archivé',
-            self::Prototype => 'Prototype',
-        };
+        return self::LABELS[$this->value][$language->value];
     }
 
     /**
