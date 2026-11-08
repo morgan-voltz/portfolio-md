@@ -21,8 +21,11 @@ BASE=${BASE%/}
 for tool in curl python3 podman-compose; do command -v "$tool" >/dev/null || { echo "missing: $tool" >&2; exit 1; }; done
 curl -s -o /dev/null "$BASE/" || { echo "no answer from $BASE" >&2; exit 1; }
 
+HERE=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=lib/observe.sh
-. "$(dirname "$0")/lib/observe.sh"
+. "$HERE/lib/observe.sh"
+cd "$HERE/../.." || exit 1      # podman-compose needs the compose file of the repository root
+wp_answers || { echo "WP-CLI does not answer: is the stack up (podman-compose up -d)?" >&2; exit 1; }
 
 # The option as JSON (a line starting with `[`), empty when the option does not exist.
 before=$(wp option get portfolio_md_published_languages --format=json | grep -E '^\[' | head -1)

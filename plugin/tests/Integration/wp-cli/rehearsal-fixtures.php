@@ -40,6 +40,9 @@ if (!function_exists('PLL')) {
 
 $mode = $args[0] ?? 'setup';
 $slugs = ['zz-rehearsal-project', 'zz-rehearsal-project-de', 'zz-rehearsal-project-en'];
+if ($mode === 'setup' && get_current_user_id() === 0) {
+    WP_CLI::error('Run this script with --user=<admin login>: the fixture posts need an author.');
+}
 
 if ($mode === 'cleanup') {
     $deleted = 0;

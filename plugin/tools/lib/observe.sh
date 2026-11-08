@@ -4,8 +4,13 @@
 # sees on a page (status, redirect, canonical, hreflang, robots, meta description, cards,
 # badges, switcher). Source it after setting BASE; needs curl and podman-compose.
 
-# podman-compose prints the container names and ids and a TTY warning around the real output.
-wp() { podman-compose --profile tools run --rm wpcli wp "$@" 2>/dev/null | grep -v -E '^($|[0-9a-f]{64}$|portfolio-md_|time=)'; }
+# podman-compose prints the container names and ids and a TTY warning around the real output;
+# the errors of WP-CLI (stderr) are kept, so that a failed command is seen, and colours are off
+# so that its "Success:" and "Error:" lines can be matched.
+wp() { podman-compose --profile tools run --rm wpcli wp --no-color "$@" 2>&1 | grep -v -E '^($|[0-9a-f]{64}$|portfolio-md_|time=|.*level=warning)'; }
+# Whether WP-CLI answers at all (stack up, run from the repository root): the option scripts
+# must not take a failed call for "option absent".
+wp_answers() { [ -n "$(wp option get siteurl 2>/dev/null | head -1)" ]; }
 section() { printf '\n── %s\n' "$1"; }
 code()    { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 location(){ curl -s -o /dev/null -D - "$@" | tr -d '\r' | grep -i '^location:' | sed 's/^[^:]*: *//'; }

@@ -10,8 +10,10 @@
 # archive of each language (cards, badges, robots), the sitemaps and the
 # switcher. The languages are opened with --force: the fixtures are not a
 # full grid. The publication option is put back as it was. Only GET requests
-# on the site plus WP-CLI commands. Compare the output with the lot 5e note
-# of ADR-022 (docs/architecture/99-decisions.md).
+# on the site plus WP-CLI commands. The script places itself at the root of
+# the repository (podman-compose needs its compose file) and stops when the
+# fixtures do not import. Compare the output with
+# docs/architecture/spikes/2026-11-08-repetition-ouverture.md.
 #
 #   plugin/tools/opening-rehearsal.sh [base-url] [admin login]   (default http://localhost:8000, morgan)
 #
@@ -22,18 +24,26 @@ BASE=${BASE%/}
 ADMIN=${2:-morgan}
 for tool in curl podman-compose; do command -v "$tool" >/dev/null || { echo "missing: $tool" >&2; exit 1; }; done
 curl -s -o /dev/null "$BASE/" || { echo "no answer from $BASE" >&2; exit 1; }
+HERE=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=lib/observe.sh
-. "$(dirname "$0")/lib/observe.sh"
+. "$HERE/lib/observe.sh"
+cd "$HERE/../.." || exit 1      # podman-compose needs the compose file of the repository root
+wp_answers || { echo "WP-CLI does not answer: is the stack up (podman-compose up -d)?" >&2; exit 1; }
 
 FIXTURES=wp-content/plugins/portfolio-md/tests/Integration/wp-cli/rehearsal-fixtures.php
 before=$(wp option get portfolio_md_published_languages --format=json | grep -E '^\[' | head -1)
 echo "published languages before: ${before:-(option absent)}"
+# Close the languages, delete the fixtures and put the option back, whatever happened; a
+# second Ctrl-C does not interrupt it, and a failed cleanup says what to run by hand.
 restore() {
+  trap '' INT
   echo
   echo "── cleanup"
   wp portfolio languages unpublish en >/dev/null
   wp portfolio languages unpublish de >/dev/null
-  wp eval-file "$FIXTURES" cleanup --user="$ADMIN" | sed 's/^/   /'
+  local out; out=$(wp eval-file "$FIXTURES" cleanup --user="$ADMIN")
+  printf '%s\n' "$out" | sed 's/^/   /'
+  grep -q 'Success: cleanup' <<<"$out" || echo "   the fixtures may still be there: run \`podman-compose --profile tools run --rm wpcli wp eval-file $FIXTURES cleanup --user=$ADMIN\` by hand" >&2
   if [ -n "$before" ]; then wp option update portfolio_md_published_languages "$before" --format=json >/dev/null; else wp option delete portfolio_md_published_languages >/dev/null; fi
   after=$(wp option get portfolio_md_published_languages --format=json | grep -E '^\[' | head -1)
   echo "published languages after: ${after:-(option absent)}"
@@ -41,7 +51,9 @@ restore() {
 trap restore EXIT
 
 echo "── fixtures"
-wp eval-file "$FIXTURES" setup --user="$ADMIN" | sed 's/^/   /'
+setup=$(wp eval-file "$FIXTURES" setup --user="$ADMIN")
+printf '%s\n' "$setup" | sed 's/^/   /'
+grep -q 'Success: setup' <<<"$setup" || { echo "the fixtures did not import (login \"$ADMIN\"? Polylang active? stack up?): nothing to rehearse" >&2; exit 1; }
 wp portfolio languages unpublish de >/dev/null
 wp portfolio languages unpublish en >/dev/null
 
