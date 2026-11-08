@@ -46,6 +46,18 @@ final class DocumentSkillTest extends TestCase
     }
 
     #[Test]
+    public function an_english_reader_never_gets_the_german_wording(): void
+    {
+        $withoutEnglish = new DocumentSkill('e07', '4.0.2/E07', ['fr' => self::NAMES['fr'], 'de' => self::NAMES['de']], official: true);
+
+        self::assertSame(self::NAMES['fr'], $withoutEnglish->label(Language::En), 'the English chain is en, fr: German is not on it');
+        self::assertSame(Language::Fr, $withoutEnglish->wordingLanguage(Language::En));
+        self::assertTrue($withoutEnglish->isOfficial(Language::En), 'the French wording served keeps its officiality');
+        self::assertSame(self::NAMES['de'], $withoutEnglish->label(Language::De));
+        self::assertFalse($withoutEnglish->isOfficial(Language::De));
+    }
+
+    #[Test]
     public function an_empty_wording_counts_as_missing(): void
     {
         $skill = new DocumentSkill('e07', '4.0.2/E07', ['fr' => self::NAMES['fr'], 'de' => '', 'en' => self::NAMES['en']]);

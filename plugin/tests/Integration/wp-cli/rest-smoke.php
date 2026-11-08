@@ -43,6 +43,7 @@ use Voltz\PortfolioMd\Service\ConflictResolver;
 use Voltz\PortfolioMd\Service\ContentImportService;
 use Voltz\PortfolioMd\Service\ImportOptions;
 use Voltz\PortfolioMd\Service\ImportOutcome;
+use Voltz\PortfolioMd\Service\SkillTermRecord;
 use Voltz\PortfolioMd\Service\SystemClock;
 use Voltz\PortfolioMd\Storage\WordPressContentRepository;
 use Voltz\PortfolioMd\Storage\WordPressSkillTermGateway;
@@ -91,15 +92,21 @@ $errorCode = static fn (WP_REST_Response $response): string => (string) (($respo
 $isNull = static fn (array $data, string $key): bool => array_key_exists($key, $data) && $data[$key] === null;
 
 $skillGateway = new WordPressSkillTermGateway();
-$skill = null;
-foreach ($skillGateway->all() as $term) {
-    if ($term->code !== null && $term->parentId !== 0) {
-        $skill = $term;
-        break;
+// One competency of each referential: 4.0.1, whose French wordings are the school's own, and 4.0.2, whose are stand-ins (lot 4 of ADR-020).
+$competencyOf = static function (string $referentialSlug) use ($skillGateway): ?SkillTermRecord {
+    $parent = $skillGateway->findBySlug($referentialSlug, 0);
+    foreach ($skillGateway->all() as $term) {
+        if ($parent !== null && $term->code !== null && $term->parentId === $parent->id) {
+            return $term;
+        }
     }
-}
-if ($skill === null) {
-    WP_CLI::error('No competency term found: run `wp portfolio skills sync` first.');
+
+    return null;
+};
+$skill = $competencyOf('4-0-1');
+$standIn = $competencyOf('4-0-2');
+if ($skill === null || $standIn === null) {
+    WP_CLI::error('No competency term found under 4-0-1 and 4-0-2: run `wp portfolio skills sync` first.');
 }
 
 $service = new ContentImportService(
@@ -148,7 +155,7 @@ demo_url: ""
 client: ""
 is_fil_rouge: false
 tags: [zz-smoke-tag]
-skills: ["{$skill->code}"]
+skills: ["{$standIn->code}", "{$skill->code}"]
 ---
 
 Corps du projet.
@@ -369,7 +376,10 @@ try {
     $check('GET /projects/{slug} answers 200', $response->get_status() === 200 && is_array($data), 'status ' . $response->get_status());
     $check('with the project fields between the common ones and the Markdown', array_keys($data) === ['id', 'type', 'slug', 'lang', 'translation_key', 'translations', 'is_fallback', 'requested_language', 'title', 'link', 'date', 'updated', 'tags', 'subtitle', 'seo_description', 'reading_time', 'featured', 'status', 'skills', 'is_fil_rouge', 'role', 'period_start', 'period_end', 'repo_url', 'demo_url', 'client', 'markdown'], implode(',', array_keys($data)));
     $check('the status is an object {slug, label}', ($data['status'] ?? null) === ['slug' => 'en-cours', 'label' => 'En cours'], json_encode($data['status'] ?? null));
-    $check('the skills are objects {slug, code, label, official} with the official code, the French wording and the flag of their referential', ($data['skills'] ?? null) === [['slug' => $skill->slug, 'code' => $skill->code, 'label' => $skill->name, 'official' => $skill->official]], json_encode($data['skills'] ?? null));
+    $check('the skills are objects {slug, code, label, official} in code order, the French wording of 4.0.1 official (the tracking sheet) and the one of 4.0.2 not (written from the course material)', ($data['skills'] ?? null) === [
+        ['slug' => $skill->slug, 'code' => $skill->code, 'label' => $skill->name, 'official' => true],
+        ['slug' => $standIn->slug, 'code' => $standIn->code, 'label' => $standIn->name, 'official' => false],
+    ], json_encode($data['skills'] ?? null));
     $check('the empty optional fields are null', $isNull($data, 'subtitle') && $isNull($data, 'reading_time') && $isNull($data, 'period_end') && $isNull($data, 'demo_url') && $isNull($data, 'client') && $isNull($data, 'seo_description'), json_encode(array_intersect_key($data, array_flip(['subtitle', 'reading_time', 'period_end', 'demo_url', 'client', 'seo_description']))));
     $check('the filled ones are typed', ($data['is_fil_rouge'] ?? null) === false && ($data['role'] ?? null) === 'Développeur de fumée' && ($data['period_start'] ?? null) === '2026-01-12' && ($data['repo_url'] ?? null) === 'https://example.com/repo' && ($data['featured'] ?? null) === false);
 
@@ -470,7 +480,7 @@ try {
     $check('the German slug asked in French answers the French sheet, no fallback', ($data['slug'] ?? null) === 'zz-smoke-project' && $data['is_fallback'] === false && $data['requested_language'] === 'fr');
     $data = $get('/projects/zz-smoke-project', ['language' => 'en'])->get_data();
     $check('asked in English, the French sheet is served as a fallback', ($data['slug'] ?? null) === 'zz-smoke-project' && $data['lang'] === 'fr' && $data['is_fallback'] === true && $data['requested_language'] === 'en');
-    $check('whose labels follow the language asked, not the language of the sheet: English status and wording', ($data['status']['label'] ?? null) === 'In progress' && ($data['skills'][0]['label'] ?? null) === ($skill->translations['en'] ?? 'no English wording in the taxonomy') && ($data['skills'][0]['official'] ?? null) === false, json_encode([$data['status'] ?? null, $data['skills'][0] ?? null]));
+    $check('whose labels follow the language asked, not the language of the sheet: English status and wordings, none official', ($data['status']['label'] ?? null) === 'In progress' && ($data['skills'][0]['label'] ?? null) === ($skill->translations['en'] ?? 'no English wording in the taxonomy') && ($data['skills'][1]['label'] ?? null) === ($standIn->translations['en'] ?? 'no English wording in the taxonomy') && array_column($data['skills'] ?? [], 'official') === [false, false], json_encode([$data['status'] ?? null, $data['skills'] ?? null]));
     $check('every entry of the German list, fallback or not, carries a German status label', $germanItems !== [] && array_filter($germanItems, static fn (array $item): bool => !in_array($item['status']['label'] ?? null, ['In Arbeit', 'Stabil', 'Archiviert', 'Prototyp'], true)) === [], json_encode(array_column(array_column($germanItems, 'status'), 'label')));
     $data = $get('/projects/zz-smoke-project-2', ['language' => 'de'])->get_data();
     $check('a group of one is served as itself, flagged', ($data['slug'] ?? null) === 'zz-smoke-project-2' && $data['is_fallback'] === true && (array) $data['translations'] === ['fr' => 'zz-smoke-project-2']);
