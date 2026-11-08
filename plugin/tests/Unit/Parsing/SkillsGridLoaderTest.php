@@ -40,11 +40,13 @@ final class SkillsGridLoaderTest extends TestCase
             'code' => '4.0.1',
             'slug' => '4-0-1',
             'name' => 'Compétences 4.0.1',
+            'official' => true,
             'description' => 'Première année.',
             'skills' => [[
                 'code' => '4.0.1/FR-01',
                 'slug' => 'fr-01-outils',
                 'name' => 'Utiliser des outils collaboratifs',
+                'i18n' => ['de' => ['name' => 'Kollaborative Werkzeuge nutzen'], 'en' => ['name' => 'Use collaborative tools']],
                 'description' => 'Étape Découverte.',
             ]],
         ]]];
@@ -63,6 +65,18 @@ final class SkillsGridLoaderTest extends TestCase
         self::assertSame('4.0.1/FR-13', $grid->findSkill('4.0.1/FR-13')?->code);
         self::assertSame('4.0.2', $grid->referentialOf('4.0.2/E07')?->code);
         self::assertNull($grid->findSkill('4.0.9/X-99'));
+    }
+
+    #[Test]
+    public function the_real_grid_words_every_skill_in_german_and_english(): void
+    {
+        $grid = $this->loader->load(self::GRID_FILE);
+
+        foreach ($grid->allSkills() as $skill) {
+            self::assertSame(['de', 'en'], array_keys($skill->translations), $skill->code);
+            self::assertNotSame($skill->name, $skill->translations['de'], "{$skill->code}: the German wording is the French one");
+            self::assertNotSame($skill->name, $skill->translations['en'], "{$skill->code}: the English wording is the French one");
+        }
     }
 
     #[Test]
@@ -108,8 +122,29 @@ final class SkillsGridLoaderTest extends TestCase
         $grid = $this->loader->fromArray(self::grid());
 
         self::assertSame('4.0.1', $grid->referentials[0]->code);
+        self::assertTrue($grid->referentials[0]->official);
         self::assertSame('fr-01-outils', $grid->referentials[0]->skills[0]->slug);
+        self::assertSame('Utiliser des outils collaboratifs', $grid->referentials[0]->skills[0]->name);
+        self::assertSame(['de' => 'Kollaborative Werkzeuge nutzen', 'en' => 'Use collaborative tools'], $grid->referentials[0]->skills[0]->translations);
         self::assertSame(1, $grid->countSkills());
+    }
+
+    #[Test]
+    public function the_wordings_come_in_the_order_of_the_languages_of_the_site_whatever_the_file_order(): void
+    {
+        $grid = $this->loader->fromArray(self::grid(['referentials' => [0 => ['skills' => [0 => [
+            'i18n' => ['en' => ['name' => 'Use collaborative tools'], 'de' => ['name' => 'Kollaborative Werkzeuge nutzen']],
+        ]]]]]));
+
+        self::assertSame(['de', 'en'], array_keys($grid->referentials[0]->skills[0]->translations));
+    }
+
+    #[Test]
+    public function a_stand_in_referential_is_not_official(): void
+    {
+        $grid = $this->loader->fromArray(self::grid(['referentials' => [0 => ['official' => false]]]));
+
+        self::assertFalse($grid->referentials[0]->official);
     }
 
     #[Test]
@@ -132,13 +167,37 @@ final class SkillsGridLoaderTest extends TestCase
         yield 'skill slug shape' => [['referentials' => [0 => ['skills' => [0 => ['slug' => 'FR 01']]]]], 'is not a slug'];
         yield 'skill slug too long for WordPress' => [['referentials' => [0 => ['skills' => [0 => ['slug' => str_repeat('a', 201)]]]]], 'at most 200'];
         yield 'missing name' => [['referentials' => [0 => ['skills' => [0 => ['name' => '']]]]], '"name" must be a non-empty string'];
+        yield 'missing official flag' => [['referentials' => [0 => ['official' => null]]], 'referential 4.0.1: "official" must be true or false'];
+        yield 'official flag as a string' => [['referentials' => [0 => ['official' => 'yes']]], '"official" must be true or false'];
+        yield 'unknown referential key' => [['referentials' => [0 => ['offical' => true]]], 'referential 4.0.1: unknown key(s) "offical" (allowed: code, slug, name, description, official, skills)'];
+        yield 'unknown skill key' => [['referentials' => [0 => ['skills' => [0 => ['nmae' => 'x']]]]], 'skill 4.0.1/FR-01: unknown key(s) "nmae" (allowed: code, slug, name, description, i18n)'];
+        yield 'missing i18n block' => [['referentials' => [0 => ['skills' => [0 => ['i18n' => null]]]]], 'skill 4.0.1/FR-01: "i18n" must be a mapping with the languages de, en'];
+        yield 'i18n lacking a language' => [['referentials' => [0 => ['skills' => [0 => ['i18n' => ['en' => null]]]]]], 'skill 4.0.1/FR-01: "i18n" lacks the language "en"'];
+        yield 'i18n with a language the site does not have' => [['referentials' => [0 => ['skills' => [0 => ['i18n' => ['es' => ['name' => 'Usar herramientas']]]]]]], 'skill 4.0.1/FR-01, i18n: unknown key(s) "es" (allowed: de, en)'];
+        yield 'i18n with French, which is the name itself' => [['referentials' => [0 => ['skills' => [0 => ['i18n' => ['fr' => ['name' => 'Utiliser des outils']]]]]]], 'unknown key(s) "fr"'];
+        yield 'translated wording declared official' => [['referentials' => [0 => ['skills' => [0 => ['i18n' => ['de' => ['official' => true]]]]]]], 'skill 4.0.1/FR-01: a translated wording is never official (ADR-020), remove "official" from i18n.de'];
+        yield 'translated wording declared unofficial, still a key too many' => [['referentials' => [0 => ['skills' => [0 => ['i18n' => ['en' => ['official' => false]]]]]]], 'a translated wording is never official'];
+        yield 'unknown key in a wording' => [['referentials' => [0 => ['skills' => [0 => ['i18n' => ['de' => ['description' => 'x']]]]]]], 'skill 4.0.1/FR-01, i18n.de: unknown key(s) "description" (allowed: name)'];
+        yield 'empty translated wording' => [['referentials' => [0 => ['skills' => [0 => ['i18n' => ['en' => ['name' => ' ']]]]]]], 'skill 4.0.1/FR-01, i18n.en: "name" must be a non-empty string'];
+        yield 'wording as a bare string instead of a mapping' => [['referentials' => [0 => ['skills' => [0 => ['i18n' => ['de' => 'Kollaborative Werkzeuge nutzen']]]]]], '"i18n" lacks the language "de"'];
+        yield 'French wording too long for a term name' => [['referentials' => [0 => ['skills' => [0 => ['name' => str_repeat('é', 201)]]]]], 'skill 4.0.1/FR-01: "name" exceeds 200 characters'];
+        yield 'translated wording too long for a term name' => [['referentials' => [0 => ['skills' => [0 => ['i18n' => ['de' => ['name' => str_repeat('ä', 201)]]]]]]], 'skill 4.0.1/FR-01, i18n.de: "name" exceeds 200 characters'];
+        yield 'referential name too long for a term name' => [['referentials' => [0 => ['name' => str_repeat('x', 201)]]], 'referential 4.0.1: "name" exceeds 200 characters'];
+    }
+
+    #[Test]
+    public function a_wording_of_exactly_the_length_of_a_term_name_passes(): void
+    {
+        $grid = $this->loader->fromArray(self::grid(['referentials' => [0 => ['skills' => [0 => ['i18n' => ['de' => ['name' => str_repeat('ä', 200)]]]]]]]));
+
+        self::assertSame(200, mb_strlen($grid->referentials[0]->skills[0]->translations['de']));
     }
 
     #[Test]
     public function rejects_duplicate_codes_across_the_grid(): void
     {
         $grid = self::grid();
-        $grid['referentials'][0]['skills'][] = ['code' => '4.0.1/FR-01', 'slug' => 'other', 'name' => 'n', 'description' => 'd'];
+        $grid['referentials'][0]['skills'][] = ['code' => '4.0.1/FR-01', 'slug' => 'other', 'name' => 'n', 'description' => 'd', 'i18n' => ['de' => ['name' => 'n'], 'en' => ['name' => 'n']]];
 
         $this->expectException(InvalidSkillsGridException::class);
         $this->expectExceptionMessage('used twice');
@@ -151,8 +210,8 @@ final class SkillsGridLoaderTest extends TestCase
     {
         $grid = self::grid();
         $grid['referentials'][] = [
-            'code' => '4.0.2', 'slug' => '4-0-2', 'name' => 'Compétences 4.0.2', 'description' => 'Deuxième année.',
-            'skills' => [['code' => '4.0.2/E01', 'slug' => 'fr-01-outils', 'name' => 'n', 'description' => 'd']],
+            'code' => '4.0.2', 'slug' => '4-0-2', 'name' => 'Compétences 4.0.2', 'description' => 'Deuxième année.', 'official' => false,
+            'skills' => [['code' => '4.0.2/E01', 'slug' => 'fr-01-outils', 'name' => 'n', 'description' => 'd', 'i18n' => ['de' => ['name' => 'n'], 'en' => ['name' => 'n']]]],
         ];
 
         $this->expectException(InvalidSkillsGridException::class);

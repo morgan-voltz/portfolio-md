@@ -6,7 +6,10 @@
  * The rules live in Voltz\PortfolioMd\Validation\ContentValidator, which
  * reads its lists (keys, kinds, languages, statuses, slug shape, SEO length)
  * from the plugin itself: this script only reads the arguments, prints the
- * report and sets the exit code.
+ * report and sets the exit code. The grid goes through the plugin's own
+ * loader first (Parsing\SkillsGridLoader), so that a grid the plugin would
+ * refuse (a missing translation, an unknown key, lot 4 of ADR-020) fails
+ * here too, before any document is checked.
  *
  * From the repository root, without PHP on the host:
  *
@@ -20,7 +23,9 @@ declare(strict_types=1);
 
 require __DIR__ . '/../vendor/autoload.php';
 
-use Symfony\Component\Yaml\Yaml;
+use Voltz\PortfolioMd\Domain\InvalidSkillsGridException;
+use Voltz\PortfolioMd\Domain\Skill;
+use Voltz\PortfolioMd\Parsing\SkillsGridLoader;
 use Voltz\PortfolioMd\Validation\ContentValidator;
 
 if ($argc !== 3) {
@@ -37,8 +42,15 @@ if (!is_dir($argv[2])) {
     exit(2);
 }
 
-$grid = Yaml::parseFile($argv[1]);
-$report = (new ContentValidator(ContentValidator::skillCodes(is_array($grid) ? $grid : [])))->validate($argv[2]);
+try {
+    $grid = (new SkillsGridLoader())->load($argv[1]);
+} catch (InvalidSkillsGridException $exception) {
+    echo "FAIL {$argv[1]}\n     - {$exception->getMessage()}\n";
+    exit(1);
+}
+echo "OK   {$argv[1]} (" . count($grid->referentials) . ' référentiels, ' . $grid->countSkills() . " compétences, intitulés en fr, de, en)\n";
+
+$report = (new ContentValidator(array_map(static fn (Skill $skill): string => $skill->code, $grid->allSkills())))->validate($argv[2]);
 
 $files = 0;
 $failed = 0;

@@ -24,9 +24,12 @@ final class InMemorySkillTermGateway implements SkillTermGateway
     /** @var list<string> */
     public array $writes = [];
 
-    public function seed(string $name, string $slug, string $description, int $parentId, ?string $code): SkillTermRecord
+    /**
+     * @param array<string, string> $translations
+     */
+    public function seed(string $name, string $slug, string $description, int $parentId, ?string $code, array $translations = [], bool $official = false): SkillTermRecord
     {
-        return $this->store($this->nextId++, $name, $slug, $description, $parentId, $code);
+        return $this->store($this->nextId++, $name, $slug, $description, $parentId, $code, $translations, $official);
     }
 
     public function findByCode(string $code): ?SkillTermRecord
@@ -51,7 +54,7 @@ final class InMemorySkillTermGateway implements SkillTermGateway
         return null;
     }
 
-    public function insert(string $name, string $slug, string $description, int $parentId, ?string $code): SkillTermRecord
+    public function insert(string $name, string $slug, string $description, int $parentId, ?string $code, array $translations = [], bool $official = false): SkillTermRecord
     {
         foreach ($this->terms as $term) {
             if ($term->slug === $slug) {
@@ -60,10 +63,10 @@ final class InMemorySkillTermGateway implements SkillTermGateway
         }
         $this->writes[] = "insert {$slug}";
 
-        return $this->store($this->nextId++, $name, $slug, $description, $parentId, $code);
+        return $this->store($this->nextId++, $name, $slug, $description, $parentId, $code, $translations, $official);
     }
 
-    public function update(int $termId, string $name, string $slug, string $description, int $parentId, ?string $code): SkillTermRecord
+    public function update(int $termId, string $name, string $slug, string $description, int $parentId, ?string $code, array $translations = [], bool $official = false): SkillTermRecord
     {
         if (!isset($this->terms[$termId])) {
             throw new RuntimeException("term {$termId} does not exist");
@@ -75,7 +78,7 @@ final class InMemorySkillTermGateway implements SkillTermGateway
         }
         $this->writes[] = "update {$termId}";
 
-        return $this->store($termId, $name, $slug, $description, $parentId, $code);
+        return $this->store($termId, $name, $slug, $description, $parentId, $code, $translations, $official);
     }
 
     public function all(): array
@@ -83,9 +86,13 @@ final class InMemorySkillTermGateway implements SkillTermGateway
         return array_values($this->terms);
     }
 
-    private function store(int $id, string $name, string $slug, string $description, int $parentId, ?string $code): SkillTermRecord
+    /**
+     * @param array<string, string> $translations
+     */
+    private function store(int $id, string $name, string $slug, string $description, int $parentId, ?string $code, array $translations, bool $official): SkillTermRecord
     {
-        $record = new SkillTermRecord($id, $name, $slug, $description, $parentId, $code);
+        // Like the store: nothing is kept for an empty wording.
+        $record = new SkillTermRecord($id, $name, $slug, $description, $parentId, $code, array_filter($translations, static fn (string $wording): bool => $wording !== ''), $official);
         $this->terms[$id] = $record;
 
         return $record;

@@ -47,15 +47,22 @@ final class ContentSyncServiceTest extends TestCase
       - code: "4.0.2"
         slug: 4-0-2
         name: "Compétences 4.0.2"
+        official: false
         description: "Deuxième année."
         skills:
           - code: "4.0.2/E00"
             slug: e00
             name: "Compétence e00"
+            i18n:
+              de: { name: "Kompetenz e00" }
+              en: { name: "Competency e00" }
             description: "Décrire."
           - code: "4.0.2/E01"
             slug: e01
             name: "Compétence e01"
+            i18n:
+              de: { name: "Kompetenz e01" }
+              en: { name: "Competency e01" }
             description: "Décrire."
     YAML;
 
@@ -70,7 +77,7 @@ final class ContentSyncServiceTest extends TestCase
         $this->skills = new InMemorySkillTermGateway();
         $referential = $this->skills->seed('Compétences 4.0.2', '4-0-2', 'Deuxième année.', 0, '4.0.2');
         foreach (['4.0.2/E00' => 'e00', '4.0.2/E01' => 'e01'] as $code => $slug) {
-            $this->skills->seed("Compétence {$slug}", $slug, 'Décrire.', $referential->id, $code);
+            $this->skills->seed("Compétence {$slug}", $slug, 'Décrire.', $referential->id, $code, ['de' => "Kompetenz {$slug}", 'en' => "Competency {$slug}"]);
         }
 
         $this->import = new ContentImportService(
@@ -191,7 +198,7 @@ final class ContentSyncServiceTest extends TestCase
     #[Test]
     public function the_grid_goes_first_so_that_a_document_may_cite_a_code_the_push_introduces(): void
     {
-        $grid = str_replace("            description: \"Décrire.\"\n    YAML", '', self::GRID) . "\n      - code: \"4.0.2/E02\"\n        slug: e02\n        name: \"Compétence e02\"\n        description: \"Décrire.\"\n";
+        $grid = self::GRID . "\n      - code: \"4.0.2/E02\"\n        slug: e02\n        name: \"Compétence e02\"\n        i18n:\n          de: { name: \"Kompetenz e02\" }\n          en: { name: \"Competency e02\" }\n        description: \"Décrire.\"\n";
 
         $report = $this->service->synchronize([
             new SyncFile('fr/projects/projet.md', self::project(skills: ['4.0.2/E02'])),

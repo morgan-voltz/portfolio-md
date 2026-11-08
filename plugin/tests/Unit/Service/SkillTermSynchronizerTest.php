@@ -40,10 +40,10 @@ final class SkillTermSynchronizerTest extends TestCase
             new Referential('4.0.1', '4-0-1', 'Compétences 4.0.1', 'Première année.', [
                 new Skill('4.0.1/FR-01', 'fr-01-outils', 'Utiliser des outils collaboratifs', 'Découverte.'),
                 new Skill('4.0.1/FR-02', 'fr-02-maquettes', 'Créer des maquettes', 'Maquette.'),
-            ]),
+            ], true),
             new Referential('4.0.2', '4-0-2', 'Compétences 4.0.2', 'Deuxième année.', [
                 new Skill('4.0.2/E07', 'e07-api', 'Exposer une API', 'Étape 7.'),
-            ]),
+            ], false),
         ]);
     }
 
@@ -92,10 +92,10 @@ final class SkillTermSynchronizerTest extends TestCase
             new Referential('4.0.1', '4-0-1', 'Compétences 4.0.1', 'Première année.', [
                 new Skill('4.0.1/FR-01', 'fr-01-gestion-de-projet', 'Utiliser des outils collaboratifs de gestion de projet', 'Découverte et Versionning.'),
                 new Skill('4.0.1/FR-02', 'fr-02-maquettes', 'Créer des maquettes', 'Maquette.'),
-            ]),
+            ], true),
             new Referential('4.0.2', '4-0-2', 'Compétences 4.0.2', 'Deuxième année.', [
                 new Skill('4.0.2/E07', 'e07-api', 'Exposer une API', 'Étape 7.'),
-            ]),
+            ], false),
         ]);
 
         $report = $this->synchronizer->synchronize($changed);
@@ -118,10 +118,10 @@ final class SkillTermSynchronizerTest extends TestCase
             new Referential('4.0.1', 'competences-4-0-1', 'Compétences 4.0.1', 'Première année.', [
                 new Skill('4.0.1/FR-01', 'fr-01-outils', 'Utiliser des outils collaboratifs', 'Découverte.'),
                 new Skill('4.0.1/FR-02', 'fr-02-maquettes', 'Créer des maquettes', 'Maquette.'),
-            ]),
+            ], true),
             new Referential('4.0.2', '4-0-2', 'Compétences 4.0.2', 'Deuxième année.', [
                 new Skill('4.0.2/E07', 'e07-api', 'Exposer une API', 'Étape 7.'),
-            ]),
+            ], false),
         ]);
 
         $report = $this->synchronizer->synchronize($renamed);
@@ -224,18 +224,18 @@ final class SkillTermSynchronizerTest extends TestCase
                 return $this->inner->findBySlug($slug, $parentId);
             }
 
-            public function insert(string $name, string $slug, string $description, int $parentId, ?string $code): SkillTermRecord
+            public function insert(string $name, string $slug, string $description, int $parentId, ?string $code, array $translations = [], bool $official = false): SkillTermRecord
             {
                 if ($slug === 'fr-02-maquettes') {
                     throw new RuntimeException('refused by the store');
                 }
 
-                return $this->inner->insert($name, $slug, $description, $parentId, $code);
+                return $this->inner->insert($name, $slug, $description, $parentId, $code, $translations, $official);
             }
 
-            public function update(int $termId, string $name, string $slug, string $description, int $parentId, ?string $code): SkillTermRecord
+            public function update(int $termId, string $name, string $slug, string $description, int $parentId, ?string $code, array $translations = [], bool $official = false): SkillTermRecord
             {
-                return $this->inner->update($termId, $name, $slug, $description, $parentId, $code);
+                return $this->inner->update($termId, $name, $slug, $description, $parentId, $code, $translations, $official);
             }
 
             public function all(): array
@@ -264,10 +264,10 @@ final class SkillTermSynchronizerTest extends TestCase
             new Referential('4.0.1', '4-0-1', 'Compétences 4.0.1', 'Première année.', [
                 new Skill('4.0.1/FR-01', 'fr-02-maquettes', 'Utiliser des outils collaboratifs', 'Découverte.'),
                 new Skill('4.0.1/FR-02', 'fr-02-maquettes-bis', 'Créer des maquettes', 'Maquette.'),
-            ]),
+            ], true),
             new Referential('4.0.2', '4-0-2', 'Compétences 4.0.2', 'Deuxième année.', [
                 new Skill('4.0.2/E07', 'e07-api', 'Exposer une API', 'Étape 7.'),
-            ]),
+            ], false),
         ]);
 
         $report = $this->synchronizer->synchronize($collision);
@@ -296,18 +296,18 @@ final class SkillTermSynchronizerTest extends TestCase
                 return $this->inner->findBySlug($slug, $parentId);
             }
 
-            public function insert(string $name, string $slug, string $description, int $parentId, ?string $code): SkillTermRecord
+            public function insert(string $name, string $slug, string $description, int $parentId, ?string $code, array $translations = [], bool $official = false): SkillTermRecord
             {
                 if ($slug === '4-0-1') {
                     throw new RuntimeException('refused by the store');
                 }
 
-                return $this->inner->insert($name, $slug, $description, $parentId, $code);
+                return $this->inner->insert($name, $slug, $description, $parentId, $code, $translations, $official);
             }
 
-            public function update(int $termId, string $name, string $slug, string $description, int $parentId, ?string $code): SkillTermRecord
+            public function update(int $termId, string $name, string $slug, string $description, int $parentId, ?string $code, array $translations = [], bool $official = false): SkillTermRecord
             {
-                return $this->inner->update($termId, $name, $slug, $description, $parentId, $code);
+                return $this->inner->update($termId, $name, $slug, $description, $parentId, $code, $translations, $official);
             }
 
             public function all(): array
@@ -337,6 +337,84 @@ final class SkillTermSynchronizerTest extends TestCase
         self::assertSame('4.0.1', $this->terms->findBySlug('4-0-1', 0)?->code);
     }
 
+    /**
+     * The grid of lot 4: the French wordings of 4.0.1 are official, every skill
+     * carries its German and English wordings.
+     */
+    private static function translatedGrid(string $germanWording = 'Kollaborative Werkzeuge nutzen', bool $official = true): SkillsGrid
+    {
+        return new SkillsGrid([
+            new Referential('4.0.1', '4-0-1', 'Compétences 4.0.1', 'Première année.', [
+                new Skill('4.0.1/FR-01', 'fr-01-outils', 'Utiliser des outils collaboratifs', 'Découverte.', ['de' => $germanWording, 'en' => 'Use collaborative tools']),
+            ], $official),
+            new Referential('4.0.2', '4-0-2', 'Compétences 4.0.2', 'Deuxième année.', [
+                new Skill('4.0.2/E07', 'e07-api', 'Exposer une API', 'Étape 7.', ['de' => 'Eine API bereitstellen', 'en' => 'Expose an API']),
+            ], false),
+        ]);
+    }
+
+    #[Test]
+    public function writes_the_wordings_and_the_official_flag_of_a_skill_and_none_for_a_referential(): void
+    {
+        $this->synchronizer->synchronize(self::translatedGrid());
+
+        $official = $this->terms->findByCode('4.0.1/FR-01');
+        $standIn = $this->terms->findByCode('4.0.2/E07');
+        $referential = $this->terms->findByCode('4.0.1');
+
+        self::assertSame(['de' => 'Kollaborative Werkzeuge nutzen', 'en' => 'Use collaborative tools'], $official?->translations);
+        self::assertTrue($official?->official, 'the French wording of 4.0.1 is the school\'s own');
+        self::assertSame(['de' => 'Eine API bereitstellen', 'en' => 'Expose an API'], $standIn?->translations);
+        self::assertFalse($standIn?->official, 'the stand-in wordings of 4.0.2 are not');
+        self::assertSame([], $referential?->translations);
+        self::assertFalse($referential?->official, 'a referential carries neither');
+    }
+
+    #[Test]
+    public function a_changed_wording_or_flag_is_an_update_in_place_that_names_what_changed(): void
+    {
+        $this->synchronizer->synchronize(self::translatedGrid());
+        $before = $this->terms->findByCode('4.0.1/FR-01');
+
+        $reworded = $this->synchronizer->synchronize(self::translatedGrid(germanWording: 'Kollaborative Projektmanagement-Werkzeuge nutzen'));
+        $after = $this->terms->findByCode('4.0.1/FR-01');
+
+        self::assertSame(1, $reworded->updatedCount());
+        self::assertStringContainsString('updated skill 4.0.1/FR-01 "Utiliser des outils collaboratifs" (translations)', $reworded->lines()[0]);
+        self::assertSame($before?->id, $after?->id);
+        self::assertSame('Kollaborative Projektmanagement-Werkzeuge nutzen', $after?->translations['de'] ?? null);
+
+        $unflagged = $this->synchronizer->synchronize(self::translatedGrid(germanWording: 'Kollaborative Projektmanagement-Werkzeuge nutzen', official: false));
+
+        self::assertSame(1, $unflagged->updatedCount());
+        self::assertStringContainsString('(official)', $unflagged->lines()[0]);
+        self::assertFalse($this->terms->findByCode('4.0.1/FR-01')?->official);
+    }
+
+    #[Test]
+    public function the_wordings_compare_whatever_the_order_the_store_lists_the_languages_in(): void
+    {
+        $parent = $this->terms->seed('Compétences 4.0.1', '4-0-1', 'Première année.', 0, '4.0.1');
+        $this->terms->seed('Utiliser des outils collaboratifs', 'fr-01-outils', 'Découverte.', $parent->id, '4.0.1/FR-01', ['en' => 'Use collaborative tools', 'de' => 'Kollaborative Werkzeuge nutzen'], true);
+
+        $report = $this->synchronizer->synchronize(self::translatedGrid());
+
+        self::assertSame(0, $report->updatedCount(), 'same wordings, other order: nothing to write');
+        self::assertSame(2, $report->unchangedCount());
+    }
+
+    #[Test]
+    public function a_term_that_lost_its_wordings_gets_them_back(): void
+    {
+        $parent = $this->terms->seed('Compétences 4.0.1', '4-0-1', 'Première année.', 0, '4.0.1');
+        $this->terms->seed('Utiliser des outils collaboratifs', 'fr-01-outils', 'Découverte.', $parent->id, '4.0.1/FR-01');
+
+        $report = $this->synchronizer->synchronize(self::translatedGrid());
+
+        self::assertStringContainsString('updated skill 4.0.1/FR-01 "Utiliser des outils collaboratifs" (translations, official)', implode("\n", $report->lines()));
+        self::assertSame(['de' => 'Kollaborative Werkzeuge nutzen', 'en' => 'Use collaborative tools'], $this->terms->findByCode('4.0.1/FR-01')?->translations);
+    }
+
     #[Test]
     public function synchronizes_the_real_grid_twice_without_drift(): void
     {
@@ -348,5 +426,13 @@ final class SkillTermSynchronizerTest extends TestCase
         self::assertSame(count($grid->referentials) + $grid->countSkills(), $first->createdCount());
         self::assertSame(0, $second->createdCount() + $second->updatedCount() + $second->recodedCount() + $second->orphanCount() + $second->failedCount());
         self::assertCount(count($grid->referentials) + $grid->countSkills(), $this->terms->all());
+
+        foreach ($grid->referentials as $referential) {
+            foreach ($referential->skills as $skill) {
+                $term = $this->terms->findByCode($skill->code);
+                self::assertSame(['de', 'en'], array_keys($term?->translations ?? []), $skill->code);
+                self::assertSame($referential->official, $term?->official, $skill->code);
+            }
+        }
     }
 }
