@@ -71,7 +71,7 @@ final class InMemoryContentCatalog implements ContentCatalog
     public function sitemap(): array
     {
         $entries = array_map(
-            static fn (PublishedDocument $document): SitemapEntry => new SitemapEntry($document->type, $document->slug, $document->updated),
+            static fn (PublishedDocument $document): SitemapEntry => new SitemapEntry($document->type, $document->slug, $document->updated, $document->lang, $document->translationKey),
             $this->documents,
         );
         // By collection then by slug, as the store orders them.

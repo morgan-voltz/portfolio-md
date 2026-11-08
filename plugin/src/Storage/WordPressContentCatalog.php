@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use LogicException;
 use Voltz\PortfolioMd\Domain\ContentType;
+use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Domain\ProjectStatus;
 use Voltz\PortfolioMd\Meta\CommonMetaRegistrar;
 use Voltz\PortfolioMd\Meta\InternalMetaRegistrar;
@@ -31,13 +32,17 @@ use WP_Term;
  * read side of 01-plugin-php.md §7, the mirror of WordPressContentRepository
  * (§4.4 and §4.5), which writes what this class reads.
  *
- * Three rules keep it safe to expose and cheap to call:
+ * Four rules keep it safe to expose and cheap to call:
  *   - only published posts without password are read (`post_status`
  *     publish, `has_password` false): drafts, pending, private, scheduled
  *     and trashed posts never leave the store, whoever asks;
  *   - only posts that hold a document are read (`_portfolio_md_hash` set,
  *     ADR-005): a post made by hand in the admin has no Markdown to serve,
  *     and the native page type is full of such posts;
+ *   - only posts that store a language and a translation key are read
+ *     (ADR-021): a post imported before the plugin stored them is invisible
+ *     until it is imported again, which is why a deployment of the plugin
+ *     is followed by a full synchronization;
  *   - a page of posts is one query that also primes the term and meta
  *     caches of its posts (WP_Query does so by default), and the codes of
  *     their skill terms are primed in one more: the per-post reads below hit
@@ -87,7 +92,13 @@ final class WordPressContentCatalog implements ContentCatalog
             $total = self::count($args);
         }
 
-        return new CatalogPage(array_map($this->document(...), $posts), $total, $query->page, $query->perPage);
+        return new CatalogPage(array_map($this->ownDocument(...), $posts), $total, $query->page, $query->perPage);
+    }
+
+    /** A document as its own only translation, asked in French: what the routes serve until they take a language. */
+    private function ownDocument(WP_Post $post): PublishedDocument
+    {
+        return $this->document($post, [self::languageOf((int) $post->ID)->value => $post->post_name], false, Language::default());
     }
 
     /**
@@ -113,7 +124,7 @@ final class WordPressContentCatalog implements ContentCatalog
 
         self::primeSkillCodes($posts);
 
-        return $this->document($posts[0]);
+        return $this->ownDocument($posts[0]);
     }
 
     public function sitemap(): array
@@ -121,7 +132,8 @@ final class WordPressContentCatalog implements ContentCatalog
         $found = new WP_Query(self::published(ContentType::cases()) + [
             'posts_per_page' => -1,
             'no_found_rows' => true,
-            'update_post_meta_cache' => false,
+            // The metas of every document in one query: each line reads its language and its key.
+            'update_post_meta_cache' => true,
             'update_post_term_cache' => false,
             'orderby' => ['type' => 'ASC', 'name' => 'ASC'],
         ]);
@@ -132,7 +144,8 @@ final class WordPressContentCatalog implements ContentCatalog
             if ($type === null) {
                 continue;
             }
-            $entries[] = new SitemapEntry($type, $post->post_name, self::instant($post, 'modified'));
+            $id = (int) $post->ID;
+            $entries[] = new SitemapEntry($type, $post->post_name, self::instant($post, 'modified'), self::languageOf($id), self::translationKeyOf($id));
         }
 
         return $entries;
@@ -140,13 +153,18 @@ final class WordPressContentCatalog implements ContentCatalog
 
     /**
      * The query arguments shared by every read: the posts of these kinds
-     * that the site shows to anyone and that hold a document.
+     * that the site shows to anyone, that hold a document and that store
+     * their language and their translation key (ADR-021). The language or
+     * the keys may be narrowed; the three meta clauses are built here, in
+     * one place, so that no read can forget one.
      *
-     * @param list<ContentType> $types
+     * @param list<ContentType>  $types
+     * @param ?Language          $only  the only language wanted, every language when null
+     * @param ?list<string>      $keys  the only translation keys wanted, every key when null
      *
      * @return array<string, mixed>
      */
-    private static function published(array $types): array
+    private static function published(array $types, ?Language $only = null, ?array $keys = null): array
     {
         $postTypes = array_map(PostTypeRegistrar::postTypeOf(...), $types);
 
@@ -155,15 +173,20 @@ final class WordPressContentCatalog implements ContentCatalog
             'post_status' => 'publish',
             'has_password' => false,
             'ignore_sticky_posts' => true,
-            // Every language, until ADR-021 gives the routes a language parameter (lot 3): 'lang' => ''
-            // tells Polylang the query is already filtered, so a request made in one language of the
-            // site still serves every document.
+            // The language is the plugin's business (the meta clause below), never Polylang's: 'lang' => ''
+            // tells it the query is already filtered, so a request made in one language of the site
+            // still reaches every document.
             'lang' => '',
-            'meta_query' => [[
-                'key' => InternalMetaRegistrar::MD_HASH,
-                'value' => '',
-                'compare' => '!=',
-            ]],
+            'meta_query' => [
+                'relation' => 'AND',
+                ['key' => InternalMetaRegistrar::MD_HASH, 'value' => '', 'compare' => '!='],
+                $only === null
+                    ? ['key' => InternalMetaRegistrar::LANG, 'value' => '', 'compare' => '!=']
+                    : ['key' => InternalMetaRegistrar::LANG, 'value' => $only->value],
+                $keys === null
+                    ? ['key' => InternalMetaRegistrar::TRANSLATION_KEY, 'value' => '', 'compare' => '!=']
+                    : ['key' => InternalMetaRegistrar::TRANSLATION_KEY, 'value' => $keys, 'compare' => 'IN'],
+            ],
         ];
     }
 
@@ -198,7 +221,11 @@ final class WordPressContentCatalog implements ContentCatalog
         }
     }
 
-    private function document(WP_Post $post): PublishedDocument
+    /**
+     * @param array<string, string> $translations language value => slug of every published member of the
+     *                                            group of the post, the post's own included (ADR-021)
+     */
+    private function document(WP_Post $post, array $translations, bool $isFallback, Language $requested): PublishedDocument
     {
         $id = (int) $post->ID;
         $type = PostTypeRegistrar::contentTypeOf($post->post_type)
@@ -213,7 +240,12 @@ final class WordPressContentCatalog implements ContentCatalog
             'date' => self::instant($post, 'date'),
             'updated' => self::instant($post, 'modified'),
             'markdown' => self::text($id, InternalMetaRegistrar::MD_SOURCE),
+            'lang' => self::languageOf($id),
+            'translationKey' => self::translationKeyOf($id),
             'seoDescription' => self::text($id, CommonMetaRegistrar::SEO_DESCRIPTION),
+            'translations' => $translations,
+            'isFallback' => $isFallback,
+            'requestedLanguage' => $requested,
         ];
 
         if ($type !== ContentType::Page) {
@@ -322,6 +354,30 @@ final class WordPressContentCatalog implements ContentCatalog
         $value = get_post_meta($postId, $key, true);
 
         return is_string($value) ? $value : '';
+    }
+
+    /**
+     * The stored language of a post the query clause already guaranteed to
+     * have one: an empty or unknown value here is a programming error, not a
+     * document to serve.
+     */
+    private static function languageOf(int $postId): Language
+    {
+        $stored = self::text($postId, InternalMetaRegistrar::LANG);
+
+        return Language::tryFrom($stored)
+            ?? throw new LogicException("Post {$postId} stores the language \"{$stored}\", which the catalog never queries.");
+    }
+
+    /** The stored translation key of a post the query clause already guaranteed to have one. */
+    private static function translationKeyOf(int $postId): string
+    {
+        $key = self::text($postId, InternalMetaRegistrar::TRANSLATION_KEY);
+        if ($key === '') {
+            throw new LogicException("Post {$postId} stores no translation key, which the catalog never queries.");
+        }
+
+        return $key;
     }
 
     /** A calendar day stored as "YYYY-MM-DD", or null when the meta is empty or malformed. */

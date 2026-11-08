@@ -288,7 +288,7 @@ try {
     $response = $get('/articles/zz-smoke-article');
     $data = $response->get_data();
     $check('GET /articles/{slug} answers 200', $response->get_status() === 200 && is_array($data), 'status ' . $response->get_status());
-    $check('with the keys of the contract, in order, the Markdown last', array_keys($data) === ['id', 'type', 'slug', 'title', 'link', 'date', 'updated', 'tags', 'subtitle', 'seo_description', 'reading_time', 'featured', 'markdown'], implode(',', array_keys($data)));
+    $check('with the keys of the contract, in order, the Markdown last', array_keys($data) === ['id', 'type', 'slug', 'lang', 'translation_key', 'translations', 'is_fallback', 'requested_language', 'title', 'link', 'date', 'updated', 'tags', 'subtitle', 'seo_description', 'reading_time', 'featured', 'markdown'], implode(',', array_keys($data)));
     $check('the id, type, slug and title are the post\'s', ($data['id'] ?? null) === $articleId && ($data['type'] ?? null) === 'article' && ($data['slug'] ?? null) === 'zz-smoke-article' && ($data['title'] ?? null) === 'Article de fumée (lecture)');
     $check('the link is the permalink', ($data['link'] ?? null) === get_permalink($articleId), (string) ($data['link'] ?? ''));
     $expectedDate = get_post_datetime($articleId, 'date', 'gmt');
@@ -303,7 +303,7 @@ try {
     $response = $get('/projects/zz-smoke-project');
     $data = $response->get_data();
     $check('GET /projects/{slug} answers 200', $response->get_status() === 200 && is_array($data), 'status ' . $response->get_status());
-    $check('with the project fields between the common ones and the Markdown', array_keys($data) === ['id', 'type', 'slug', 'title', 'link', 'date', 'updated', 'tags', 'subtitle', 'seo_description', 'reading_time', 'featured', 'status', 'skills', 'is_fil_rouge', 'role', 'period_start', 'period_end', 'repo_url', 'demo_url', 'client', 'markdown'], implode(',', array_keys($data)));
+    $check('with the project fields between the common ones and the Markdown', array_keys($data) === ['id', 'type', 'slug', 'lang', 'translation_key', 'translations', 'is_fallback', 'requested_language', 'title', 'link', 'date', 'updated', 'tags', 'subtitle', 'seo_description', 'reading_time', 'featured', 'status', 'skills', 'is_fil_rouge', 'role', 'period_start', 'period_end', 'repo_url', 'demo_url', 'client', 'markdown'], implode(',', array_keys($data)));
     $check('the status is an object {slug, label}', ($data['status'] ?? null) === ['slug' => 'en-cours', 'label' => 'En cours'], json_encode($data['status'] ?? null));
     $check('the skills are objects {slug, code, label} with the official code', ($data['skills'] ?? null) === [['slug' => $skill->slug, 'code' => $skill->code, 'label' => $skill->name]], json_encode($data['skills'] ?? null));
     $check('the empty optional fields are null', $isNull($data, 'subtitle') && $isNull($data, 'reading_time') && $isNull($data, 'period_end') && $isNull($data, 'demo_url') && $isNull($data, 'client') && $isNull($data, 'seo_description'), json_encode(array_intersect_key($data, array_flip(['subtitle', 'reading_time', 'period_end', 'demo_url', 'client', 'seo_description']))));
@@ -311,7 +311,7 @@ try {
 
     $response = $get('/pages/zz-smoke-page');
     $data = $response->get_data();
-    $check('GET /pages/{slug} answers 200 with the common fields only', $response->get_status() === 200 && array_keys($data) === ['id', 'type', 'slug', 'title', 'link', 'date', 'updated', 'seo_description', 'markdown'], implode(',', array_keys((array) $data)));
+    $check('GET /pages/{slug} answers 200 with the common fields only', $response->get_status() === 200 && array_keys($data) === ['id', 'type', 'slug', 'lang', 'translation_key', 'translations', 'is_fallback', 'requested_language', 'title', 'link', 'date', 'updated', 'seo_description', 'markdown'], implode(',', array_keys((array) $data)));
     $check('and the page\'s values', ($data['id'] ?? null) === $pageId && ($data['type'] ?? null) === 'page' && ($data['seo_description'] ?? null) === 'Description de la page de fumée.' && ($data['markdown'] ?? null) === $page);
     $check('GET /pages lists the documented page and not the hand-made one', in_array('zz-smoke-page', $slugsOf($get('/pages', ['per_page' => '100'])), true) && !in_array('zz-smoke-handmade-page', $slugsOf($get('/pages', ['per_page' => '100'])), true));
 
@@ -335,7 +335,7 @@ try {
     $entries = static fn (string $collection): array => array_column($data[$collection] ?? [], 'updated', 'slug');
     $check('the article, the project and the page are in their lists', isset($entries('articles')['zz-smoke-article'], $entries('projects')['zz-smoke-project'], $entries('pages')['zz-smoke-page']));
     $check('the draft, the protected and the hand-made posts are not', !isset($entries('articles')['zz-smoke-draft'], $entries('articles')['zz-smoke-secret'], $entries('articles')['zz-smoke-handmade'], $entries('pages')['zz-smoke-handmade-page']));
-    $check('each line is {slug, updated}', array_keys($data['articles'][0] ?? []) === ['slug', 'updated']);
+    $check('each line is {slug, updated, lang, translation_key}', array_keys($data['articles'][0] ?? []) === ['slug', 'updated', 'lang', 'translation_key']);
     $projectSlugs = array_keys($entries('projects'));
     $sortedSlugs = $projectSlugs;
     sort($sortedSlugs, SORT_STRING);

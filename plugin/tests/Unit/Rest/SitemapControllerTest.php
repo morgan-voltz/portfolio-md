@@ -49,8 +49,8 @@ final class SitemapControllerTest extends TestCase
         $data = $this->controller->handle(new WP_REST_Request('GET', '/portfolio/v1/sitemap'))->get_data();
 
         self::assertSame([
-            ['slug' => 'atlas', 'updated' => '2026-10-20T08:00:00Z'],
-            ['slug' => 'vefta', 'updated' => '2026-10-27T13:14:00Z'],
+            ['slug' => 'atlas', 'updated' => '2026-10-20T08:00:00Z', 'lang' => 'fr', 'translation_key' => 'atlas'],
+            ['slug' => 'vefta', 'updated' => '2026-10-27T13:14:00Z', 'lang' => 'fr', 'translation_key' => 'vefta'],
         ], $data['projects']);
     }
 
@@ -63,9 +63,9 @@ final class SitemapControllerTest extends TestCase
 
         self::assertSame(200, $response->get_status());
         self::assertSame([
-            'articles' => [['slug' => 'rust-ownership-intuition', 'updated' => '2026-04-22T10:30:00Z']],
-            'projects' => [['slug' => 'momocad', 'updated' => '2026-10-27T13:13:00Z']],
-            'pages' => [['slug' => 'a-propos', 'updated' => '2026-10-27T12:07:00Z']],
+            'articles' => [['slug' => 'rust-ownership-intuition', 'updated' => '2026-04-22T10:30:00Z', 'lang' => 'fr', 'translation_key' => 'rust-ownership-intuition']],
+            'projects' => [['slug' => 'momocad', 'updated' => '2026-10-27T13:13:00Z', 'lang' => 'fr', 'translation_key' => 'momocad']],
+            'pages' => [['slug' => 'a-propos', 'updated' => '2026-10-27T12:07:00Z', 'lang' => 'fr', 'translation_key' => 'a-propos']],
         ], $response->get_data());
     }
 }
