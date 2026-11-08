@@ -1,0 +1,10 @@
+# Build context of api/deploy/Dockerfile: keep the host's build output and local
+# files out of the image layers (the SDK stage restores and builds for itself).
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+deploy/
+.env
+.env.*
+!.env.example
