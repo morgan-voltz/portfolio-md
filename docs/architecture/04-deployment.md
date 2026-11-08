@@ -4,7 +4,7 @@
 **Rôle** : le document que `00-overview.md` §6 promettait pour la phase onze : où tourne chaque composant, comment on l'y met, quels secrets existent et où ils vivent, dans quel ordre on déploie la première fois
 **Prérequis** : avoir lu `00-overview.md` ; pour WordPress, le runbook `docs/guides/02-exploitation-site-trilingue.md`
 **Lectorat** : Morgan, seul à tenir le clavier en production ; un relecteur qui veut savoir ce qui est en ligne et comment
-**Statut** : Accepté avec ADR-023 (8 novembre 2026) ; complété à chaque pas réel du premier déploiement (WordPress installé le 8 novembre 2026, en attente du DNS)
+**Statut** : Accepté avec ADR-023 (8 novembre 2026) ; complété à chaque pas réel du premier déploiement. **Le site WordPress est en ligne depuis le 8 novembre 2026** sur `https://morganvoltz.dev` ; l'API et le front suivront leurs phases
 **Dernière mise à jour** : 8 novembre 2026
 
 Ce dépôt est public : aucun identifiant, aucune adresse IP, aucun nom de serveur, aucun secret n'y figure. Ce document dit **où** chaque chose vit et **comment** on y va, pas **avec quoi** on s'y connecte.
@@ -19,11 +19,11 @@ Ce dépôt est public : aucun identifiant, aucune adresse IP, aucun nom de serve
 | `api.morganvoltz.dev` | API C# `Portfolio.Api` | VPS Kovelt (Hetzner), conteneur derrière Traefik v3 | `/api/*`, `/health/*` ; `/metrics` n'existe que sur le port interne 9090, que rien ne route | Let's Encrypt géré par Traefik |
 | `app.morganvoltz.dev` | Front React | Cloudflare Pages | le portfolio technique, qui ne parle qu'à `api.morganvoltz.dev` | géré par Cloudflare |
 
-La zone DNS de `morganvoltz.dev` est chez Cloudflare (ADR-023), avec `A morganvoltz.dev` et `CNAME www` vers o2switch (sans proxy), `A api` vers le VPS (sans proxy : Traefik fait le TLS), `CNAME app` vers Cloudflare Pages ; aucun enregistrement `AAAA` tant que le VPS n'est pas testé en IPv6. Le domaine est parké au 8 novembre 2026 ; poser ces enregistrements est le premier pas de la phase onze.
+La zone DNS de `morganvoltz.dev` est chez Cloudflare (ADR-023), avec `A morganvoltz.dev` et `CNAME www` vers o2switch (sans proxy), `A api` vers le VPS (sans proxy : Traefik fait le TLS), `CNAME app` vers Cloudflare Pages ; aucun enregistrement `AAAA` tant que le VPS n'est pas testé en IPv6. Les enregistrements `A morganvoltz.dev` et `CNAME www` sont posés depuis le soir du 8 novembre 2026 ; `A api` et `CNAME app` viendront avec leurs phases.
 
 ## 2. WordPress chez o2switch
 
-**Fait le 8 novembre 2026** : WordPress 7.1.4 installé par WP-CLI dans le dossier racine du domaine additionnel, les trois langues, la grille, les 54 documents (langues allemande et anglaise fermées), la configuration du site ; le certificat et la recette attendent le DNS. Tout est dans le runbook `docs/guides/02-exploitation-site-trilingue.md`, partie 2 : prérequis (PHP 8.5, la version d'o2switch confirmée le 8 novembre 2026, le plugin exigeant 8.2 ou plus, la stack locale alignée le même jour ; sous cette version Yoast 28.8 journalise six dépréciations par page, sans effet, runbook partie 5 ; WordPress 7.1.4, Polylang 3.9.1, Yoast 28.8, GeneratePress 3.6.1, WP-CLI par SSH), dépôt du plugin **construit** (`composer install --no-dev`, bundle de l'éditeur) et du thème enfant, langues, grille et contenu, `site-setup.php`, test de fumée Yoast, recette, puis ouverture d'une langue quand sa grille est verte. `WP_ENVIRONMENT_TYPE` reste `production` : Yoast ne persiste ses indexables qu'ainsi.
+**Fait le 8 novembre 2026** : WordPress 7.1.4 installé par WP-CLI dans le dossier racine du domaine additionnel, les trois langues, la grille, les 54 documents (langues allemande et anglaise fermées), la configuration du site ; le DNS posé le soir même, le certificat émis automatiquement par l'hébergeur dans l'heure, la recette de la partie 4 du runbook passée : le site est **en ligne**, en français, les deux autres langues servies mais `noindex` jusqu'à leur ouverture. Tout est dans le runbook `docs/guides/02-exploitation-site-trilingue.md`, partie 2 : prérequis (PHP 8.5, la version d'o2switch confirmée le 8 novembre 2026, le plugin exigeant 8.2 ou plus, la stack locale alignée le même jour ; sous cette version Yoast 28.8 journalise six dépréciations par page, sans effet, runbook partie 5 ; WordPress 7.1.4, Polylang 3.9.1, Yoast 28.8, GeneratePress 3.6.1, WP-CLI par SSH), dépôt du plugin **construit** (`composer install --no-dev`, bundle de l'éditeur) et du thème enfant, langues, grille et contenu, `site-setup.php`, test de fumée Yoast, recette, puis ouverture d'une langue quand sa grille est verte. `WP_ENVIRONMENT_TYPE` reste `production` : Yoast ne persiste ses indexables qu'ainsi.
 
 La porte Git (ADR-019) s'active avec trois secrets GitHub, `PORTFOLIO_SYNC_URL`, `PORTFOLIO_SYNC_USER`, `PORTFOLIO_SYNC_PASSWORD` (un mot de passe d'application WordPress, affiché une fois, collé directement dans le secret) ; le premier import passe par un lancement manuel du workflow, ensuite chaque push sur `main` qui touche `content/` synchronise la différence.
 
@@ -103,8 +103,8 @@ Projet Pages relié au dépôt GitHub, dossier racine `frontend/`, commande `npm
 
 ## 6. Ordre du premier déploiement
 
-1. La zone DNS chez Cloudflare et ses quatre enregistrements (§1). *(À faire ; les deux premiers enregistrements suffisent au site.)*
-2. WordPress : runbook partie 2, puis recette partie 4 sur `https://morganvoltz.dev`. *(Installation faite le 8 novembre 2026, avant le DNS : WP-CLI n'a pas besoin que le nom résolve ; AutoSSL et la recette, si.)*
+1. La zone DNS chez Cloudflare et ses quatre enregistrements (§1). *(Fait le 8 novembre 2026 pour les deux enregistrements du site ; le domaine étant enregistré chez Cloudflare, la zone y était d'emblée. `api` et `app` viendront avec leurs phases.)*
+2. WordPress : runbook partie 2, puis recette partie 4 sur `https://morganvoltz.dev`. *(Fait le 8 novembre 2026 : installation avant le DNS, WP-CLI n'ayant pas besoin que le nom résolve, puis certificat et recette une fois le nom posé.)*
 3. L'API, quand la phase six existe : tag `api-v0.1.0`, image, dossier du service, `.env`, premier `up -d`, vérifications du §3.3, moniteur Uptime Kuma.
 4. Le front, quand la phase sept existe : projet Pages, variable, domaine.
 5. L'ouverture des langues, une à la fois, quand leur grille est verte (runbook partie 3).
@@ -113,6 +113,8 @@ Projet Pages relié au dépôt GitHub, dossier racine `frontend/`, commande `npm
 
 - Le proxy et le cache de Cloudflare devant WordPress : après la mise en ligne et la recette des langues, pas avant.
 - ~~Le chemin du dépôt sur le serveur o2switch et le login WP-CLI~~ : tranchés le 8 novembre 2026 (runbook, partie 2.3 : la racine du domaine additionnel, un dossier de contenu hors de la racine web, le compte d'administration pour les imports).
-- La version de PHP du vhost dans MultiPHP Manager, à régler explicitement sur 8.5 ; le certificat AutoSSL et le mot de passe d'administration, dès que le DNS pointe.
+- Le mot de passe d'administration : fixé par Morgan par « Mot de passe oublié » sur le site en ligne, hors dépôt ; rien ici n'en dépend.
+- Le certificat du nom `www` : l'hébergeur ajoute les noms qui résolvent lors de son passage AutoSSL quotidien, que le compte ne peut pas déclencher lui-même ; le nom principal est couvert depuis le premier jour.
+- La porte Git (ADR-019) : le mot de passe d'application et les trois secrets GitHub, puis un premier lancement manuel du workflow ; jusque-là, une version se déploie par `plugin/tools/deploy-o2switch.sh` et `wp portfolio import` (runbook, partie 2.4).
 - Les images « chiseled » de .NET pour l'API : après quelques semaines de production.
 - Ce document est complété à chaque pas réel : ce qu'on a tapé, ce qu'on a vu.
