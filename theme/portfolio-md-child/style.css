@@ -1,11 +1,11 @@
 /*
 Theme Name: Portfolio MD
 Theme URI: https://github.com/morgan-voltz/portfolio-md
-Description: Child theme of GeneratePress for the WordPress portfolio (ADR-022): the language switcher, the lists with fallback and the FR badge of a trilingual site whose content comes from the portfolio-md plugin.
+Description: Child theme of GeneratePress for the WordPress portfolio (ADR-022, phase 10): the language switcher, the lists with fallback and the FR badge of a trilingual site whose content comes from the portfolio-md plugin, the page of a project with its facts, tags and skills, and the sober design of the site.
 Author: Morgan Voltz
 Author URI: https://github.com/morgan-voltz
 Template: generatepress
-Version: 0.2.0
+Version: 0.3.0
 Requires at least: 7.0
 Requires PHP: 8.2
 License: MIT
@@ -16,12 +16,63 @@ Text Domain: portfolio-md-child
 /*
  * GeneratePress enqueues this stylesheet itself after its own
  * (inc/general.php, filter generate_load_child_theme_stylesheet): nothing
- * to enqueue in functions.php. Sober rules only; the real design is phase 10.
+ * to enqueue in functions.php.
+ *
+ * The design (phase 10) leans on GeneratePress: its global colours
+ * (--contrast, --contrast-2, --base, --base-2, --base-3, --accent, set by
+ * the Customizer, with their defaults as fallbacks here), its typography and
+ * its containers. The theme adds its own few tokens and the rules of what it
+ * renders: the switcher, the badge, the grid of cards, the status pill, the
+ * facts, tags and skills of a project page, the recent projects panel of the
+ * home. Status colours are the only colours of the theme's own.
  */
 
-/* The language switcher (ADR-022, point 5): one menu bar item per open language;
-   the current one is an anchor without href, so GeneratePress's own menu bar
-   rules (padding, line height from the Customizer) apply to it as to the links. */
+:root {
+	--pm-text-muted: var(--contrast-2, #575760);
+	/* --base is a background token of GeneratePress (#f0f0f0): too close to its
+	   surfaces for a border. The line is a lightened --contrast-3 instead. */
+	--pm-line: #d8d8de;
+	--pm-surface: var(--base-2, #f7f8f9);
+	--pm-surface-raised: var(--base-3, #ffffff);
+	--pm-accent: var(--accent, #1e73be);
+	--pm-radius: 0.4rem;
+	--pm-status-en-cours: var(--accent, #1e73be);
+	--pm-status-stable: #2e7d32;
+	--pm-status-archive: #6b6b76;
+	--pm-status-prototype: #b26a00;
+}
+
+@supports (color: color-mix(in srgb, red 50%, transparent)) {
+	:root {
+		--pm-line: color-mix(in srgb, var(--contrast-3, #b2b2be) 55%, transparent);
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * The layout (phase 10): one column (functions.php filters
+ * generate_sidebar_layout to no-sidebar), the content of GeneratePress held
+ * to a comfortable width, and the body text of a page or a project kept to a
+ * readable measure while the grids of cards use the whole width.
+ * ------------------------------------------------------------------------- */
+
+.site-content {
+	max-width: 64rem;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.single .entry-content,
+.page .entry-content,
+.project-header {
+	max-width: 46em;
+}
+
+/* ---------------------------------------------------------------------------
+ * The language switcher (ADR-022, point 5): one menu bar item per open language;
+ * the current one is an anchor without href, so GeneratePress's own menu bar
+ * rules (padding, line height from the Customizer) apply to it as to the links.
+ * ------------------------------------------------------------------------- */
+
 .lang-switcher {
 	display: inline-flex;
 	align-items: center;
@@ -51,25 +102,277 @@ Text Domain: portfolio-md-child
 	text-transform: uppercase;
 }
 
+/* ---------------------------------------------------------------------------
+ * The cards (points 6 and 8; phase 10): a grid that fills the width with
+ * cards of at least 17rem, every card as tall as its row, title, status,
+ * then the subtitle. The markup is the one GeneratePress gives a post, so
+ * its Customizer colours apply.
+ * ------------------------------------------------------------------------- */
+
+.portfolio-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(17rem, 100%), 1fr));
+	gap: 1.25rem;
+	margin-bottom: 1.25rem;
+}
+
+.portfolio-cards .portfolio-card {
+	min-width: 0;
+	margin: 0;
+	height: 100%;
+}
+
+.portfolio-card .inside-article {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	border: 1px solid var(--pm-line);
+	border-radius: var(--pm-radius);
+}
+
+.portfolio-card .inside-article > .entry-header {
+	margin-bottom: 0.75em;
+}
+
+.portfolio-card .entry-title {
+	font-size: 1.25em;
+	margin-bottom: 0.35em;
+}
+
+.portfolio-card .project-card-status {
+	margin: 0;
+}
+
+/* GeneratePress gives a summary that is not first 2em of top margin; the status
+   pill above it already sets the rhythm. */
+.portfolio-card .entry-summary:not(:first-child) {
+	margin-top: 0;
+}
+
+.portfolio-card .entry-summary {
+	color: var(--pm-text-muted);
+}
+
 .portfolio-card .entry-summary p:last-child {
 	margin-bottom: 0;
 }
 
-/* The recent projects block of the home page (point 10): cards nested in the page. */
-.home-projects {
-	margin-top: 2em;
+.portfolio-cards .no-results {
+	grid-column: 1 / -1;
 }
 
-.home-projects .portfolio-card {
-	margin-top: 1em;
+/* ---------------------------------------------------------------------------
+ * The status of a project (phase 10): a pill with a coloured dot, the label in
+ * the language of the page. Four statuses, four colours; the text keeps the
+ * colour of the page.
+ * ------------------------------------------------------------------------- */
+
+.project-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45em;
+	padding: 0.1em 0.7em 0.1em 0.55em;
+	border: 1px solid var(--pm-line);
+	border-radius: 999px;
+	background: var(--pm-surface);
+	font-size: 0.85em;
+	font-weight: 600;
+	line-height: 1.6;
+	white-space: nowrap;
+}
+
+.project-status::before {
+	content: "";
+	width: 0.6em;
+	height: 0.6em;
+	border-radius: 50%;
+	background: var(--pm-text-muted);
+}
+
+.project-status.is-en-cours::before {
+	background: var(--pm-status-en-cours);
+}
+
+.project-status.is-stable::before {
+	background: var(--pm-status-stable);
+}
+
+.project-status.is-archive::before {
+	background: var(--pm-status-archive);
+}
+
+.project-status.is-prototype::before {
+	background: var(--pm-status-prototype);
+}
+
+/* ---------------------------------------------------------------------------
+ * The page of a project (phase 10): the deck under the title, the fil rouge
+ * mention, the facts as a two-column definition list (one column on a narrow
+ * screen), then, after the body, the technologies as pills and the skills as
+ * a list with their codes.
+ * ------------------------------------------------------------------------- */
+
+.project-header {
+	margin-top: 0.5em;
+}
+
+.project-deck {
+	max-width: 42em;
+	margin: 0 0 0.75em;
+	font-size: 1.15em;
+	line-height: 1.5;
+	color: var(--pm-text-muted);
+}
+
+.project-fil-rouge {
+	margin: 0 0 1em;
+	font-size: 0.8em;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--pm-accent);
+}
+
+.project-facts {
+	margin: 0 0 1.5em;
+	padding: 1em 1.25em;
+	border: 1px solid var(--pm-line);
+	border-radius: var(--pm-radius);
+	background: var(--pm-surface);
+	font-size: 0.95em;
+}
+
+.project-facts-list {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+	gap: 0.75em 2em;
+	margin: 0;
+}
+
+.project-fact {
+	display: grid;
+	grid-template-columns: 7.5em 1fr;
+	gap: 0 1em;
+	align-items: baseline;
+	min-width: 0;
+}
+
+.project-fact dt {
+	margin: 0;
+	font-weight: 600;
+	color: var(--pm-text-muted);
+}
+
+.project-fact dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.project-footer {
+	margin-top: 2.5em;
+	padding-top: 1.5em;
+	border-top: 1px solid var(--pm-line);
+}
+
+.project-footer h2 {
+	font-size: 1.1em;
+	margin: 0 0 0.75em;
+}
+
+.project-footer section + section {
+	margin-top: 1.75em;
+}
+
+.tech-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5em;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.tech-tag {
+	margin: 0;
+	padding: 0.15em 0.7em;
+	border: 1px solid var(--pm-line);
+	border-radius: var(--pm-radius);
+	background: var(--pm-surface);
+	font-size: 0.9em;
+}
+
+.skills {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.skill {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0 0.6em;
+	margin: 0;
+	padding: 0.45em 0;
+	border-top: 1px solid var(--pm-line);
+}
+
+.skill:last-child {
+	border-bottom: 1px solid var(--pm-line);
+}
+
+.skill-code {
+	font-family: ui-monospace, "Cascadia Mono", "Fira Code", Menlo, Consolas, monospace;
+	font-size: 0.85em;
+	color: var(--pm-text-muted);
+}
+
+.skill-text {
+	min-width: 0;
+}
+
+.skill-provisional {
+	color: var(--pm-text-muted);
+	cursor: help;
+}
+
+.skills-note {
+	margin: 0.75em 0 0;
+	font-size: 0.9em;
+	color: var(--pm-text-muted);
+}
+
+@media (max-width: 600px) {
+	.project-fact {
+		grid-template-columns: 1fr;
+		gap: 0.1em;
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * The recent projects panel of the home page (point 10): the same grid of
+ * cards, set apart from the Markdown body by a rule, and the link to the
+ * archive underneath.
+ * ------------------------------------------------------------------------- */
+
+.home-projects {
+	margin-top: 2.5em;
+	padding-top: 1.5em;
+	border-top: 1px solid var(--pm-line);
+}
+
+.home-projects-title {
+	font-size: 1.35em;
+	margin-bottom: 1em;
 }
 
 .home-projects .portfolio-card .inside-article {
-	padding: 0;
+	padding: 1.25em;
+	background: var(--pm-surface-raised);
 }
 
 .home-projects-more {
-	margin-top: 1em;
+	margin: 0;
+	font-weight: 600;
 }
 
 /* WordPress's own hidden-text class, as GeneratePress defines it, in case a parent update drops it. */

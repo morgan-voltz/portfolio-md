@@ -9,9 +9,10 @@
  * #primary, main#main, its hooks (before and after the main content, the
  * archive title and the loop, after the primary content area), sidebars,
  * footer. The title comes from the theme, in the language of the page,
- * instead of the_archive_title() and its "Archives:" prefix. No pagination:
- * the whole portfolio fits in one page, and functions.php aligns the page
- * size of the loop on it so that no second page exists.
+ * instead of the_archive_title() and its "Archives:" prefix. The cards sit
+ * in the grid of the theme (phase 10). No pagination: the whole portfolio
+ * fits in one page, and functions.php aligns the page size of the loop on
+ * it so that no second page exists.
  *
  * @package Portfolio_MD_Child
  */
@@ -37,11 +38,13 @@ get_header(); ?>
 			<?php
 			do_action('generate_before_loop', 'archive');
 
+			echo '<div class="portfolio-cards">';
 			// phpcs:ignore WordPress.Security.EscapeOutput -- escaped while rendered
 			echo portfolio_md_child_render_cards(
 				function_exists('portfolio_md_list_with_fallback') ? portfolio_md_list_with_fallback('project', $portfolio_md_language) : [],
 				$portfolio_md_language
 			);
+			echo '</div>';
 
 			do_action('generate_after_loop', 'archive');
 
