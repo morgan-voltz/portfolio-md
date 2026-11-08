@@ -37,6 +37,9 @@ final class InMemoryContentCatalog implements ContentCatalog
     /** @var list<array{type: ContentType, slug: string, language: Language}> */
     public array $findCalls = [];
 
+    /** @var list<array{type: ContentType, language: Language}> */
+    public array $countOwnCalls = [];
+
     public function add(PublishedDocument ...$documents): void
     {
         foreach ($documents as $document) {
@@ -94,6 +97,8 @@ final class InMemoryContentCatalog implements ContentCatalog
 
     public function countOwn(ContentType $type, Language $language): int
     {
+        $this->countOwnCalls[] = ['type' => $type, 'language' => $language];
+
         return count(array_filter(
             $this->documents,
             static fn (PublishedDocument $document): bool => $document->type === $type && $document->lang === $language,

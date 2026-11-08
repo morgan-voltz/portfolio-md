@@ -31,6 +31,7 @@ final class YoastPublicationTest extends TestCase
     private InMemoryPublishedLanguagesStore $store;
     private InMemoryContentCatalog $catalog;
     private string $currentLanguage = 'fr';
+    private string $currentFilter = 'wpseo_sitemap_project_content';
 
     protected function setUp(): void
     {
@@ -48,6 +49,7 @@ final class YoastPublicationTest extends TestCase
             $this->catalog,
             fn (): string => $this->currentLanguage,
             static fn (string $path): string => self::HOME . $path,
+            fn (): string => $this->currentFilter,
         );
     }
 
@@ -89,6 +91,7 @@ final class YoastPublicationTest extends TestCase
         $this->catalog->add(Documents::project(['id' => 42, 'slug' => 'momocad-de', 'lang' => Language::De]));
 
         self::assertSame('noindex, follow', $this->publication()->robots(self::ROBOTS, self::presentationOfArchive('project')));
+        self::assertSame([], $this->catalog->countOwnCalls, 'a closed language is decided without asking the catalog');
     }
 
     #[Test]
@@ -115,9 +118,9 @@ final class YoastPublicationTest extends TestCase
         self::assertSame([
             ['filter', 'wpseo_robots', [$publication, 'robots'], 10, 2],
             ['filter', 'wpseo_sitemap_entry', [$publication, 'sitemapEntry'], 10, 3],
-            ['filter', 'wpseo_sitemap_article_content', [$publication, 'stripClosedArchives'], 20, 1],
-            ['filter', 'wpseo_sitemap_project_content', [$publication, 'stripClosedArchives'], 20, 1],
-            ['filter', 'wpseo_sitemap_post_content', [$publication, 'stripClosedArchives'], 20, 1],
+            ['filter', 'wpseo_sitemap_article_content', [$publication, 'stripUnindexedArchives'], 20, 1],
+            ['filter', 'wpseo_sitemap_project_content', [$publication, 'stripUnindexedArchives'], 20, 1],
+            ['filter', 'wpseo_sitemap_post_content', [$publication, 'stripUnindexedArchives'], 20, 1],
         ], $hooks);
     }
 
@@ -193,14 +196,57 @@ final class YoastPublicationTest extends TestCase
     #[Test]
     public function the_archive_blocks_of_closed_languages_are_removed_from_the_sitemap_xml(): void
     {
-        $block = static fn (string $loc): string => "<url>\n\t<loc>{$loc}</loc>\n\t<lastmod>2026-11-08T00:00:00+00:00</lastmod>\n\t<changefreq>daily</changefreq>\n\t<priority>1</priority>\n</url>\n";
+        $block = static fn (string $loc): string => "<url>\n\t<loc>{$loc}</loc>\n\t<changefreq>weekly</changefreq>\n</url>\n";
         $xml = $block(self::HOME . '/de/projets/') . $block(self::HOME . '/en/projets/') . $block(self::HOME . '/fr/projets/');
 
-        self::assertSame($block(self::HOME . '/fr/projets/'), $this->publication()->stripClosedArchives($xml));
+        self::assertSame($block(self::HOME . '/fr/projets/'), $this->publication()->stripUnindexedArchives($xml), 'German and English closed: their blocks go');
+
+        $this->store->value = ['fr', 'de'];
+        $this->catalog->add(Documents::project(['id' => 42, 'slug' => 'momocad-de', 'lang' => Language::De]));
+
+        self::assertSame($block(self::HOME . '/de/projets/') . $block(self::HOME . '/fr/projets/'), $this->publication()->stripUnindexedArchives($xml), 'German open with a project of its own: its block stays, English goes');
+        self::assertSame('', $this->publication()->stripUnindexedArchives(''), 'nothing appended, nothing to strip');
+        self::assertSame('not xml', $this->publication()->stripUnindexedArchives('not xml'));
+    }
+
+    #[Test]
+    public function the_archive_block_of_an_open_language_without_documents_of_its_own_leaves_the_sitemap_too(): void
+    {
+        $block = static fn (string $loc): string => "<url><loc>{$loc}</loc><changefreq>weekly</changefreq></url>\n";
+        $this->store->value = ['fr', 'de', 'en'];
+        $xml = $block(self::HOME . '/de/projets/') . $block(self::HOME . '/de/projets/zz/') . $block(self::HOME . '/en/projets/') . $block(self::HOME . '/fr/projets/');
+
+        self::assertSame($block(self::HOME . '/de/projets/zz/') . $block(self::HOME . '/fr/projets/'), $this->publication()->stripUnindexedArchives($xml), 'open without own project: the archive block goes, exactly it, the French one stays');
+
+        $this->catalog->add(Documents::project(['id' => 42, 'slug' => 'momocad-de', 'lang' => Language::De]));
+
+        self::assertSame($block(self::HOME . '/de/projets/') . $block(self::HOME . '/de/projets/zz/') . $block(self::HOME . '/fr/projets/'), $this->publication()->stripUnindexedArchives($xml), 'the first German project brings the block back');
+
+        $this->currentFilter = 'wpseo_sitemap_article_content';
+        $articles = $block(self::HOME . '/de/articles/') . $block(self::HOME . '/fr/articles/');
+
+        self::assertSame('', $this->publication()->stripUnindexedArchives($articles), 'no article at all: every archive of articles goes, the French one included');
+
+        $this->catalog->add(Documents::article());
+
+        self::assertSame($block(self::HOME . '/fr/articles/'), $this->publication()->stripUnindexedArchives($articles), 'each kind counts its own documents');
+
+        $this->currentFilter = 'wpseo_sitemap_post_content';
+
+        self::assertSame($xml, $this->publication()->stripUnindexedArchives($xml), 'the sitemap of a kind the plugin does not serve only loses closed languages');
+    }
+
+    #[Test]
+    public function a_nofollow_the_site_owner_set_survives_the_noindex(): void
+    {
+        $this->currentLanguage = 'de';
+
+        self::assertSame('noindex, nofollow', $this->publication()->robots('index, nofollow, max-snippet:-1', (object) ['model' => (object) ['object_type' => 'home-page']]), 'closed language');
 
         $this->store->value = ['fr', 'de'];
 
-        self::assertSame($block(self::HOME . '/de/projets/') . $block(self::HOME . '/fr/projets/'), $this->publication()->stripClosedArchives($xml));
-        self::assertSame('', $this->publication()->stripClosedArchives(''));
+        self::assertSame('noindex, nofollow', $this->publication()->robots('index, nofollow', self::presentationOfArchive('project')), 'archive without own document');
+        self::assertSame('noindex, follow', $this->publication()->robots('index, follow', self::presentationOfArchive('project')));
+        self::assertSame('noindex, follow', $this->publication()->robots(null, self::presentationOfArchive('project')), 'anything but a string reads as follow');
     }
 }
