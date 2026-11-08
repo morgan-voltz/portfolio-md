@@ -1,0 +1,54 @@
+# Production compose of the Portfolio.Api service on the Kovelt VPS (ADR-023,
+# phase 11 skeleton). Lives at /opt/nuvoracode/portfolio-api/docker-compose.yml
+# on the server, next to a .env in mode 600 that is never committed; this copy
+# is the reference, versioned here and in the Kovelt infra repository.
+#
+# Conventions of the VPS: one folder per service, the image pinned by tag and
+# digest, Traefik v3 routing by labels on the external network, no port
+# published on the host, no new privileges, restart unless stopped.
+
+services:
+  portfolio-api:
+    # Pinned by tag AND digest at each deployment (never a moving tag); the
+    # placeholder below fails `docker compose config` on purpose until replaced:
+    #   docker pull ghcr.io/morgan-voltz/portfolio-api:X.Y.Z
+    #   docker inspect ghcr.io/morgan-voltz/portfolio-api:X.Y.Z --format '{{index .RepoDigests 0}}'
+    image: ghcr.io/morgan-voltz/portfolio-api:X.Y.Z@sha256:REPLACE_WITH_THE_DIGEST_OF_THE_PULLED_TAG
+    container_name: portfolio-api
+    restart: unless-stopped
+    env_file: .env                      # PORTFOLIO__* settings, 600, never in Git
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080;9090"          # 8080 the API (Traefik), 9090 /metrics (Prometheus, internal only)
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"  # the rate limiter and the logs see the client, not Traefik
+    networks:
+      - nuvoracode-network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    mem_limit: 256m
+    pids_limit: 256
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: nuvoracode-network
+      # The public API.
+      traefik.http.routers.portfolio-api.rule: Host(`api.voltz.dev`)
+      traefik.http.routers.portfolio-api.entrypoints: websecure
+      traefik.http.routers.portfolio-api.tls.certresolver: letsencrypt
+      traefik.http.routers.portfolio-api.service: portfolio-api
+      traefik.http.services.portfolio-api.loadbalancer.server.port: "8080"
+      # Traefik probes the readiness route and stops routing to an unhealthy container
+      # (with one replica that means 503 while WordPress was never reached: accepted).
+      traefik.http.services.portfolio-api.loadbalancer.healthcheck.path: /health/ready
+      traefik.http.services.portfolio-api.loadbalancer.healthcheck.interval: 30s
+      # /metrics lives on port 9090 only, which no label routes: the Prometheus of the VPS
+      # scrapes portfolio-api:9090 on the internal network, the public hostname never
+      # serves it, whatever the case of the path.
+
+networks:
+  nuvoracode-network:
+    external: true

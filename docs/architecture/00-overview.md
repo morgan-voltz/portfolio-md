@@ -239,6 +239,7 @@ Pour approfondir, les documents suivants sont à consulter selon le besoin.
 | [`01-plugin-php.md`](01-plugin-php.md) | Architecture interne du plugin WordPress, pipeline de conversion, API REST exposée, stockage |
 | [`02-api-csharp.md`](02-api-csharp.md) | Structure en trois projets, Clean Architecture, cas d'usage détaillés, évolution multi-frontend |
 | [`03-frontend-react.md`](03-frontend-react.md) | Structure du front, routes, consommation de l'API, enrichissements |
+| [`04-deployment.md`](04-deployment.md) | Un domaine, trois hôtes : où tourne chaque composant, comment on l'y met, les secrets et leur place, l'ordre du premier déploiement (proposé avec ADR-023) |
 | [`99-decisions.md`](99-decisions.md) | Journal chronologique des décisions architecturales et de leur justification |
 
 Pour la documentation pédagogique en langage naturel, voir le dossier [`../pedagogie/`](../pedagogie/).
