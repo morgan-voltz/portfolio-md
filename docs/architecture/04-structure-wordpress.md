@@ -189,7 +189,7 @@ Ces valeurs sont **fermées** côté convention. Le plugin auto-insère ces quat
 | Public | Oui (archives par référentiel et par compétence) |
 | Term metas | `_portfolio_skill_code` : code officiel complet (ex. `4.0.1/C1.3`), string, exposé en REST ; `_portfolio_skill_name_de` et `_portfolio_skill_name_en` : intitulé de la compétence en allemand et en anglais (string, 200 caractères au plus, le français étant le nom du terme) ; `_portfolio_skill_official` : booléen, l'intitulé français est celui de l'école (absent vaut faux). Les trois derniers depuis ADR-020 lot 4, écrits par la synchronisation de la grille, jamais sur un référentiel |
 | Implémentation | `TaxonomyRegistrar::registerSkill()` |
-| Constantes | `TaxonomyRegistrar::SKILL`, `::SKILL_CODE_META`, `::SKILL_REFERENTIALS` |
+| Constantes | `TaxonomyRegistrar::SKILL`, `::SKILL_CODE_META`, `::SKILL_NAME_META_PREFIX` et `::skillNameMeta(Language)`, `::SKILL_OFFICIAL_META`, `::SKILL_REFERENTIALS` |
 | Décisions | ADR-011 (principe), ADR-014 (forme concrète) |
 
 Cette taxonomie répond à l'exigence académique : chaque compétence des référentiels UHA 4.0 doit être rattachée aux projets qui la démontrent, et le jury doit pouvoir consulter la liste inverse (« quels projets prouvent cette compétence ? »). Une taxonomie fournit cette agrégation gratuitement via les archives WordPress ; un champ meta ne le ferait pas.
@@ -366,7 +366,7 @@ WordPress
 │   │   └── 4 termes auto-insérés .......... TaxonomyRegistrar::ensureProjectStatusTerms
 │   └── skill (sur project, hiérarchique) .. TaxonomyRegistrar::registerSkill
 │       ├── 2 référentiels parents ......... TaxonomyRegistrar::ensureSkillReferentialTerms
-│       └── term meta _portfolio_skill_code
+│       └── term metas _portfolio_skill_code, _portfolio_skill_name_de, _portfolio_skill_name_en, _portfolio_skill_official
 │
 ├── Champs personnalisés (tous préfixés _portfolio_, ADR-013)
 │   ├── communs (4, article + project ; seo_description aussi sur page) ... Meta/CommonMetaRegistrar
