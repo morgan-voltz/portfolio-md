@@ -57,4 +57,12 @@ interface ContentCatalog
      * @return list<SitemapEntry>
      */
     public function sitemap(): array;
+
+    /**
+     * How many published documents of this kind are stored in this language
+     * itself, fallbacks aside. Zero tells the archive of a language apart
+     * from a page of foreign cards (ADR-022, point 4): such an archive is
+     * not indexed until the first translation.
+     */
+    public function countOwn(ContentType $type, Language $language): int;
 }

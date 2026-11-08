@@ -37,6 +37,9 @@ final class InMemoryContentCatalog implements ContentCatalog
     /** @var list<array{type: ContentType, slug: string, language: Language}> */
     public array $findCalls = [];
 
+    /** @var list<array{type: ContentType, language: Language}> */
+    public array $countOwnCalls = [];
+
     public function add(PublishedDocument ...$documents): void
     {
         foreach ($documents as $document) {
@@ -90,6 +93,16 @@ final class InMemoryContentCatalog implements ContentCatalog
         usort($entries, static fn (SitemapEntry $a, SitemapEntry $b): int => [$a->type->collection(), $a->slug] <=> [$b->type->collection(), $b->slug]);
 
         return $entries;
+    }
+
+    public function countOwn(ContentType $type, Language $language): int
+    {
+        $this->countOwnCalls[] = ['type' => $type, 'language' => $language];
+
+        return count(array_filter(
+            $this->documents,
+            static fn (PublishedDocument $document): bool => $document->type === $type && $document->lang === $language,
+        ));
     }
 
     /** The member of the group of $own that a reader of $requested gets, as the store serves it. */

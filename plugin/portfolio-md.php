@@ -39,6 +39,11 @@ if (!file_exists($autoload)) {
 }
 require_once $autoload;
 
+// The functions a theme calls (ADR-022): plain functions in the global namespace,
+// which Composer does not autoload. Loaded here so that a template can guard them
+// with function_exists() without knowing any class of the plugin.
+require_once __DIR__ . '/src/template-functions.php';
+
 // Instancie et démarre le plugin.
 // La classe Plugin est la composition root : elle orchestre tout le reste.
 (new \Voltz\PortfolioMd\Plugin(__FILE__))->boot();

@@ -105,6 +105,11 @@ final class WordPressContentCatalog implements ContentCatalog
         return new CatalogPage($this->serve($type, $anchors, $query->language), $total, $query->page, $query->perPage);
     }
 
+    public function countOwn(ContentType $type, Language $language): int
+    {
+        return self::count(self::published([$type], $language) + ['posts_per_page' => 1]);
+    }
+
     /**
      * How many posts the arguments match, whatever page they asked for.
      *

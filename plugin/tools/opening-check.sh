@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Acceptance checks of the opening of a language (ADR-022, point 16), as an
 # anonymous visitor and a robot see it: with German closed, then opened with
-# `wp portfolio languages publish de --force`, then closed again. Only GET
+# `wp portfolio languages publish de --force`, then closed again. Since lot 5c
+# each page also reports what the theme renders: cards and badges of the
+# project archive, languages of the switcher. Only GET
 # requests on the site plus the two commands; the option is put back as it
 # was. Run from the repository root with the stack up; prints observations,
 # compare them with the expectations in docs/architecture/01-plugin-php.md §7.1.
@@ -42,11 +44,21 @@ restore() {
 }
 trap restore EXIT
 
+# What the theme renders on a page (lot 5c): the cards of the project archive and
+# their badges, and the languages of the switcher (empty with a single open language).
+theme_tags() {
+  local body; body=$(curl -s "$1")
+  printf '      cards: %s, badges: %s, switcher: %s\n' \
+    "$(printf '%s' "$body" | grep -o '<article id="post-' | wc -l)" \
+    "$(printf '%s' "$body" | grep -o 'class="lang-badge"' | wc -l)" \
+    "$(printf '%s' "$body" | grep -o '<span class="lang-switcher"[^>]*>.*' | head -1 | grep -o 'lang-item[^"]*"><\(a[^>]*\|span[^>]*\) lang="[a-z]*"' | sed 's/.*lang="\([a-z]*\)"/\1/; s/^/[/; s/$/]/' | tr '\n' ' ' | sed 's/ $//')"
+}
+
 observe() {
   section "$1"
   printf '   Accept-Language de on /          → %s\n' "$(status_and_target -H 'Accept-Language: de' "$BASE/")"
   printf '   Cookie pll_language=de on /      → %s\n' "$(status_and_target -H 'Cookie: pll_language=de' "$BASE/")"
-  for u in /fr/ /de/ /fr/projets/ /de/projets/ /fr/projets/momocad/; do printf '   %-28s %s\n' "$u" "$(code "$BASE$u")"; head_tags "$BASE$u"; done
+  for u in /fr/ /de/ /fr/projets/ /de/projets/ /fr/projets/momocad/ /fr/projets/page/2/; do printf '   %-28s %s\n' "$u" "$(code "$BASE$u")"; head_tags "$BASE$u"; theme_tags "$BASE$u"; done
   printf '   project-sitemap, /de/ URLs: %s\n' "$(sitemap_locs "$BASE/project-sitemap.xml" '/de/')"
   printf '   page-sitemap, /de/ URLs: %s\n' "$(sitemap_locs "$BASE/page-sitemap.xml" '/de/')"
 }
