@@ -5,7 +5,7 @@
 **Lectorat** : Morgan à froid, contributeurs futurs, et toute personne qui veut comprendre comment WordPress est organisé pour ce projet.
 **Articulation** : ce document complète `01-plugin-php.md` (qui détaille le plugin de conversion Markdown ↔ WordPress) en se concentrant sur la modélisation côté CMS.
 **Temps de lecture** : environ 12 minutes
-**Dernière mise à jour** : 8 novembre 2026 (ouverture des langues, ADR-022 lot 5d : pages Accueil et Contact en documents, accueil statique et menus par langue, description SEO recopiée vers Yoast ; lot 5c : archive des projets avec repli et sélecteur ; lot 5b : l'option `portfolio_md_published_languages`, une langue fermée servie mais `noindex` et hors sitemap ; lot 5a : archives des trois taxonomies en `noindex` et hors sitemap ; libellés par langue, ADR-020 lot 4 : trois term metas de plus sur `skill`, libellés de statut en trois langues ; la langue dans les routes REST, ADR-021 lot 3 : les deux champs internes de langue conditionnent la visibilité d'un document dans l'API ; le 7 novembre, pont Polylang, ADR-020 lot 2 : types déclarés à Polylang par le plugin, boîte en lecture seule pour les traductions, réconciliation ; langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
+**Dernière mise à jour** : 8 novembre 2026 (ouverture des langues, ADR-022 lot 5e : arborescence par langue (section 2), taxonomies non traduites (section 4) ; lot 5d : pages Accueil et Contact en documents, accueil statique et menus par langue, description SEO recopiée vers Yoast ; lot 5c : archive des projets avec repli et sélecteur ; lot 5b : l'option `portfolio_md_published_languages`, une langue fermée servie mais `noindex` et hors sitemap ; lot 5a : archives des trois taxonomies en `noindex` et hors sitemap ; libellés par langue, ADR-020 lot 4 : trois term metas de plus sur `skill`, libellés de statut en trois langues ; la langue dans les routes REST, ADR-021 lot 3 : les deux champs internes de langue conditionnent la visibilité d'un document dans l'API ; le 7 novembre, pont Polylang, ADR-020 lot 2 : types déclarés à Polylang par le plugin, boîte en lecture seule pour les traductions, réconciliation ; langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
 
 ---
 
@@ -53,7 +53,7 @@ Le site public se compose de **cinq pages principales**, exposées dans la navig
 /de/… /en/…              Même arborescence par langue, avec les slugs de la langue (startseite, ueber-mich, lebenslauf, kontakt ; home, about, resume, get-in-touch)
 /tag/:slug/              Archives des taxonomies : sans préfixe de langue, noindex, hors sitemap, contenu selon la langue du visiteur
 /statut/:slug/           idem
-/competences/:slug/      idem
+/competences/:referentiel/:slug/   idem (taxonomie hiérarchique : le référentiel est aussi une archive)
 ```
 
 Une langue **fermée** (option de publication, ADR-022) garde toute son arborescence, servie en 200 mais `noindex` et annoncée nulle part ; l'ouvrir ne change aucune URL.
