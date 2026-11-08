@@ -88,6 +88,9 @@ services:
       #   3. Pas besoin de lien symbolique, qui pose des problèmes de
       #      permissions et de portabilité selon les OS.
       - ./plugin:/var/www/html/wp-content/plugins/portfolio-md:z
+      # Le thème enfant du projet (ADR-022), monté de la même façon à son
+      # emplacement final dans wp-content/themes/.
+      - ./theme/portfolio-md-child:/var/www/html/wp-content/themes/portfolio-md-child:z
 
   # ─── WP-CLI ───────────────────────────────────────────
   # Service éphémère pour exécuter des commandes WP-CLI sur l'installation.
@@ -117,6 +120,8 @@ services:
       # On monte aussi le plugin pour que WP-CLI puisse l'activer/désactiver,
       # lister ses post types, etc.
       - ./plugin:/var/www/html/wp-content/plugins/portfolio-md:z
+      # Et le thème enfant, pour `wp theme activate portfolio-md-child`.
+      - ./theme/portfolio-md-child:/var/www/html/wp-content/themes/portfolio-md-child:z
       # Le contenu Markdown du site (content/), en lecture seule, pour les
       # commandes d'import : `wp portfolio skills sync /srv/portfolio-content/skills.yaml`.
       - ./content:/srv/portfolio-content:ro,z

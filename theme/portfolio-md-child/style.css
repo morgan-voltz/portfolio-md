@@ -1,0 +1,21 @@
+/*
+Theme Name: Portfolio MD
+Theme URI: https://github.com/morgan-voltz/portfolio-md
+Description: Child theme of GeneratePress for the WordPress portfolio (ADR-022): the language switcher, the lists with fallback and the FR badge of a trilingual site whose content comes from the portfolio-md plugin.
+Author: Morgan Voltz
+Author URI: https://github.com/morgan-voltz
+Template: generatepress
+Version: 0.1.0
+Requires at least: 7.0
+Requires PHP: 8.2
+License: MIT
+License URI: https://opensource.org/licenses/MIT
+Text Domain: portfolio-md-child
+*/
+
+/*
+ * GeneratePress enqueues this stylesheet itself after its own
+ * (inc/general.php, filter generate_load_child_theme_stylesheet): nothing
+ * to enqueue in functions.php. The rules of the theme come with lots 5c
+ * and 5d (badge, switcher, cards); the real design is phase 10.
+ */

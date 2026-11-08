@@ -18,6 +18,8 @@ The **pivot format** is GitHub Flavored Markdown with YAML frontmatter. It is th
 
 The **WordPress plugin** (`plugin/`) accepts Markdown input, stores both the raw Markdown and a derived Gutenberg HTML representation, and exposes a custom read-only REST API that serves the published documents, Markdown source included (`/wp-json/portfolio/v1/`). Written in PHP 8.2+ with PSR-4 autoloading via Composer, and organized in layers inspired by Clean Architecture.
 
+The **WordPress theme** (`theme/portfolio-md-child`) is a child of GeneratePress that renders what the plugin stores and what Polylang routes: the language switcher, the project list with fallback and the FR badge of the trilingual site (ADR-022). It is mounted into the containers like the plugin and has no build step; the design itself comes later in the roadmap.
+
 The **C# API** (`api/`) acts as a gateway between WordPress and the React frontend. Built on .NET 10 with ASP.NET Core Minimal APIs, it is structured in three projects following the Clean Architecture pattern: `Portfolio.Application` (pure business logic), `Portfolio.Infrastructure` (concrete implementations), and `Portfolio.Api` (HTTP surface). The structure is deliberately prepared for future reuse by additional frontends (desktop, mobile, CLI) without duplicating business logic.
 
 The **React frontend** (`frontend/`) is the technical portfolio surface. Stack: Vite, React 18, TypeScript, React Router, TanStack Query, Tailwind CSS. It consumes the C# API exclusively and has no direct knowledge of WordPress. SEO is not a concern here since the parallel WordPress site handles it.
@@ -118,7 +120,7 @@ composer test
 cd assets && npm ci && npm run build
 ```
 
-The plugin source is mounted into the WordPress container via the bind mount declared in `docker-compose.yml`. After `composer install`, activate the plugin from the WP admin (`http://localhost:8000/wp-admin`). The editor bundle (`plugin/assets/dist/`) is not committed: without it the admin falls back to a plain textarea and says how to build it.
+The plugin source is mounted into the WordPress container via the bind mount declared in `docker-compose.yml`, and so is the child theme (`theme/portfolio-md-child`, activated by `bootstrap.sh`). After `composer install`, activate the plugin from the WP admin (`http://localhost:8000/wp-admin`), then run the site setup once (`wp eval-file wp-content/plugins/portfolio-md/tools/site-setup.php` through the `wpcli` service). The editor bundle (`plugin/assets/dist/`) is not committed: without it the admin falls back to a plain textarea and says how to build it.
 
 ### C# API
 
