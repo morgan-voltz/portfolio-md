@@ -97,13 +97,28 @@ final class PublishedLanguagesTest extends TestCase
         $store = new InMemoryPublishedLanguagesStore(['fr', 'de']);
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('fr');
+        $this->expectExceptionMessage('The language of the site, fr, cannot be closed.');
 
         try {
             (new PublishedLanguages($store))->unpublish(Language::Fr);
         } finally {
             self::assertSame([], $store->writes, 'nothing is written');
         }
+    }
+
+    #[Test]
+    public function the_closed_languages_of_a_fallback_chain_are_those_a_reader_could_be_served_unannounced(): void
+    {
+        $store = new InMemoryPublishedLanguagesStore(['fr']);
+        $languages = new PublishedLanguages($store);
+
+        self::assertSame([Language::En], $languages->closedFallbacks(Language::De), 'a German reader falls back on English before French');
+        self::assertSame([], $languages->closedFallbacks(Language::En), 'an English reader falls back on French only, which is always open');
+        self::assertSame([], $languages->closedFallbacks(Language::Fr));
+
+        $store->value = ['fr', 'en'];
+
+        self::assertSame([], $languages->closedFallbacks(Language::De), 'English open: nothing unannounced on the German chain');
     }
 
     #[Test]

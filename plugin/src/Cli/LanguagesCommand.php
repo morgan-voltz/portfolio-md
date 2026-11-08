@@ -114,10 +114,8 @@ final class LanguagesCommand
             WP_CLI::error("{$language->value} is not ready: " . implode(', ', $report->missing()) . '. Fill the grid, or use --force to open it anyway.');
         }
 
-        foreach ($language->fallbackChain() as $step) {
-            if ($step !== $language && !$step->isDefault() && !$this->published->isPublished($step)) {
-                WP_CLI::warning("{$step->value} is closed: a reader of {$language->value} may receive {$step->value} documents through the fallback chain, unannounced.");
-            }
+        foreach ($this->published->closedFallbacks($language) as $step) {
+            WP_CLI::warning("{$step->value} is closed: a reader of {$language->value} may receive {$step->value} documents through the fallback chain, unannounced.");
         }
 
         $this->published->publish($language);

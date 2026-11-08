@@ -18,19 +18,31 @@ final class PolylangMenuBindings implements MenuBindings
 {
     public const LOCATION = 'primary';
 
+    /** @var callable(): mixed */
+    private $navMenus;
+
+    /** @var callable(): string */
+    private $stylesheet;
+
+    /**
+     * @param callable(): mixed|null  $navMenus   Polylang's `nav_menus` option as stored (theme => location => language => menu id); Polylang's own when null, nothing without it
+     * @param callable(): string|null $stylesheet the slug of the active theme; `get_option('stylesheet')` when null
+     */
+    public function __construct(?callable $navMenus = null, ?callable $stylesheet = null)
+    {
+        $this->navMenus = $navMenus ?? static fn (): mixed => function_exists('PLL') && is_object(PLL()) && isset(PLL()->options) ? PLL()->options['nav_menus'] : null;
+        $this->stylesheet = $stylesheet ?? static fn (): string => (string) get_option('stylesheet');
+    }
+
     public function hasMenu(Language $language): bool
     {
-        if (!function_exists('PLL') || !is_object(PLL()) || !isset(PLL()->options)) {
-            return false;
-        }
-
-        $navMenus = PLL()->options['nav_menus'];
+        $navMenus = ($this->navMenus)();
         if (!is_array($navMenus)) {
             return false;
         }
 
-        $menu = $navMenus[(string) get_option('stylesheet')][self::LOCATION][$language->value] ?? 0;
+        $menu = $navMenus[($this->stylesheet)()][self::LOCATION][$language->value] ?? 0;
 
-        return (int) $menu > 0;
+        return is_numeric($menu) && (int) $menu > 0;
     }
 }

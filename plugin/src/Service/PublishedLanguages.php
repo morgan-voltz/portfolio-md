@@ -57,6 +57,27 @@ final class PublishedLanguages
         return in_array($language, $this->all(), true);
     }
 
+    /**
+     * The closed languages a reader of $language could be served along the
+     * fallback chain (ADR-021), the language itself and the language of
+     * the site excepted: opening `de` while `en` is closed hands German
+     * readers English documents nobody announced (ADR-022, point 2). A
+     * warning to give, not a refusal.
+     *
+     * @return list<Language>
+     */
+    public function closedFallbacks(Language $language): array
+    {
+        $closed = [];
+        foreach ($language->fallbackChain() as $step) {
+            if ($step !== $language && !$step->isDefault() && !$this->isPublished($step)) {
+                $closed[] = $step;
+            }
+        }
+
+        return $closed;
+    }
+
     /** Opens a language; opening an open language changes nothing. */
     public function publish(Language $language): void
     {
