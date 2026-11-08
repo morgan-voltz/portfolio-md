@@ -56,6 +56,8 @@ STATUSES = ("created", "updated", "unchanged", "conflict", "failed", "deleted", 
 MAX_FILES_PER_REQUEST = 100  # SyncController::MAX_FILES
 DEFAULT_BATCH_FILES = 50
 DEFAULT_BATCH_BYTES = 4_000_000  # half of PHP's default post_max_size (8M on the official image)
+USER_AGENT = "portfolio-md-sync/1.0 (+https://github.com/morgan-voltz/portfolio-md)"
+RETRIES = 5  # attempts on a 5xx or a connection error; the waits between them are backoff()
 
 
 def is_document(relative: str) -> bool:
@@ -204,15 +206,41 @@ def batches(files: list[dict], max_files: int, max_bytes: int) -> Iterator[list[
         yield batch
 
 
-def post(url: str, user: str, password: str, body: dict, retries: int = 3) -> tuple[int, dict | str]:
-    """POST the body; retry connection errors and 5xx only (a 4xx is deterministic)."""
+def backoff(attempt: int) -> float:
+    """Seconds to wait after a failed attempt: 5, 15, 45, then 90 at most. The firewall of
+    the host answers a JavaScript challenge to a runner for a minute or two before letting
+    it through again; a few seconds of patience were not enough on 8 November 2026."""
+    return min(90.0, 5.0 * 3 ** (attempt - 1))
+
+
+def challenge(payload: dict | str) -> str | None:
+    """The one line to say when the host's firewall answered its challenge page instead
+    of the site (Tiger Protect at o2switch: an HTML page titled "Security check" posting
+    to /o2s-cgi/security-challenge), so that the log does not fill with its markup."""
+    if not isinstance(payload, str):
+        return None
+    text = payload.lower()
+    if "<html" in text and "security-challenge" in text:
+        return "the host's firewall answered a JavaScript challenge page instead of the site (Tiger Protect)"
+    return None
+
+
+def post(url: str, user: str, password: str, body: dict, retries: int = RETRIES) -> tuple[int, dict | str]:
+    """POST the body; retry connection errors and 5xx only (a 4xx is deterministic), waiting
+    backoff() seconds between attempts, so that a transient challenge of the host's firewall
+    is outlasted rather than reported."""
     data = json.dumps(body, ensure_ascii=False).encode("utf-8")
     token = base64.b64encode(f"{user}:{password}".encode("utf-8")).decode("ascii")
     request = urllib.request.Request(
         url,
         data=data,
         method="POST",
-        headers={"Content-Type": "application/json; charset=utf-8", "Authorization": f"Basic {token}", "Accept": "application/json"},
+        headers={
+            "Content-Type": "application/json; charset=utf-8",
+            "Authorization": f"Basic {token}",
+            "Accept": "application/json",
+            "User-Agent": USER_AGENT,
+        },
     )
     attempt = 0
     while True:
@@ -222,13 +250,21 @@ def post(url: str, user: str, password: str, body: dict, retries: int = 3) -> tu
                 return response.status, decode(response.read())
         except urllib.error.HTTPError as error:
             payload = decode(error.read())
+            try:
+                error.close()  # the error carries the response body; release it once read
+            except Exception:  # noqa: BLE001 - nothing to do if the body is already gone
+                pass
             if error.code >= 500 and attempt < retries:
-                time.sleep(2 ** attempt)
+                hint = challenge(payload)
+                # flush: under Actions stdout is a pipe, and a buffered line would show only at the end of the waits
+                print(one_line(f"WAIT   HTTP {error.code}{', ' + hint if hint else ''}; attempt {attempt} of {retries}, next in {backoff(attempt):.0f} s"), flush=True)
+                time.sleep(backoff(attempt))
                 continue
             return error.code, payload
         except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
             if attempt < retries:
-                time.sleep(2 ** attempt)
+                print(one_line(f"WAIT   no answer ({error}); attempt {attempt} of {retries}, next in {backoff(attempt):.0f} s"), flush=True)
+                time.sleep(backoff(attempt))
                 continue
             return 0, f"no answer from {url}: {error}"
 
@@ -318,7 +354,15 @@ def main() -> int:
         else:
             failed_batches += 1
             print(f"ERROR  batch {number} ({len(batch)} file(s)): HTTP {status}")
-            print(payload if isinstance(payload, str) else json.dumps(payload, ensure_ascii=False, indent=2))
+            hint = challenge(payload)
+            if hint and status >= 500:
+                # the only case post() retried: five attempts over the whole backoff schedule
+                print(f"       {hint}, {RETRIES} attempts over about {sum(backoff(a) for a in range(1, RETRIES)):.0f} s: it usually clears within a minute or two, run the job again")
+            elif hint:
+                print(f"       {hint}, at the first attempt (HTTP {status}, not retried); the page follows")
+                print(payload)
+            else:
+                print(payload if isinstance(payload, str) else json.dumps(payload, ensure_ascii=False, indent=2))
             if status == 413:
                 print("       the request body is larger than the server accepts: lower --batch-bytes or raise PHP's post_max_size")
 
