@@ -116,6 +116,9 @@ final class Plugin
     /** The reader of that option, shared by the Polylang and Yoast adapters and the languages command. */
     private ?PublishedLanguages $publishedLanguages = null;
 
+    /** The public read side, shared by the REST routes, the languages command and the Yoast adapter (ADR-022, point 6). */
+    private ?WordPressContentCatalog $catalog = null;
+
     public function __construct(string $pluginFile)
     {
         $this->pluginFile = $pluginFile;
@@ -188,7 +191,7 @@ final class Plugin
     public function registerRoutes(): void
     {
         $preview = new PreviewService(new FrontmatterParser(), $this->renderer(), new WordPressSkillTermGateway());
-        $catalog = new WordPressContentCatalog();
+        $catalog = $this->catalog();
         $presenter = new DocumentPresenter();
         $sync = new ContentSyncService(
             $this->importService(),
@@ -256,6 +259,11 @@ final class Plugin
         return $this->publishedLanguagesStore ??= new WordPressPublishedLanguagesStore();
     }
 
+    private function catalog(): WordPressContentCatalog
+    {
+        return $this->catalog ??= new WordPressContentCatalog();
+    }
+
     private function publishedLanguages(): PublishedLanguages
     {
         return $this->publishedLanguages ??= new PublishedLanguages($this->publishedLanguagesStore());
@@ -301,7 +309,7 @@ final class Plugin
         // same one the REST routes serve, so that "ready" means "what the site would serve".
         \WP_CLI::add_command('portfolio languages', new LanguagesCommand(
             $this->publishedLanguages(),
-            new LanguageReadiness(new WordPressContentCatalog(), new PolylangMenuBindings()),
+            new LanguageReadiness($this->catalog(), new PolylangMenuBindings()),
         ));
     }
 
