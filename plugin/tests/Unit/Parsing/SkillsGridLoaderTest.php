@@ -132,11 +132,18 @@ final class SkillsGridLoaderTest extends TestCase
     #[Test]
     public function the_wordings_come_in_the_order_of_the_languages_of_the_site_whatever_the_file_order(): void
     {
-        $grid = $this->loader->fromArray(self::grid(['referentials' => [0 => ['skills' => [0 => [
-            'i18n' => ['en' => ['name' => 'Use collaborative tools'], 'de' => ['name' => 'Kollaborative Werkzeuge nutzen']],
-        ]]]]]));
+        // Assigned whole, not merged: array_replace_recursive() would keep the de, en order of the fixture.
+        $raw = self::grid();
+        $raw['referentials'][0]['skills'][0]['i18n'] = ['en' => ['name' => 'Use collaborative tools'], 'de' => ['name' => 'Kollaborative Werkzeuge nutzen']];
+        self::assertSame(['en', 'de'], array_keys($raw['referentials'][0]['skills'][0]['i18n']), 'the file really lists English first');
+
+        $grid = $this->loader->fromArray($raw);
 
         self::assertSame(['de', 'en'], array_keys($grid->referentials[0]->skills[0]->translations));
+
+        $fromYaml = $this->loader->fromYaml("referentials:\n  - code: \"4.0.1\"\n    slug: 4-0-1\n    name: \"Compétences 4.0.1\"\n    official: true\n    description: \"Première année.\"\n    skills:\n      - code: \"4.0.1/FR-01\"\n        slug: fr-01-outils\n        name: \"Utiliser des outils collaboratifs\"\n        i18n:\n          en: { name: \"Use collaborative tools\" }\n          de: { name: \"Kollaborative Werkzeuge nutzen\" }\n        description: \"Étape Découverte.\"\n");
+
+        self::assertSame(['de', 'en'], array_keys($fromYaml->referentials[0]->skills[0]->translations));
     }
 
     #[Test]
