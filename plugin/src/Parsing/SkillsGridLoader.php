@@ -38,6 +38,14 @@ final class SkillsGridLoader
     private const WORDING_KEYS = ['name'];
 
     /**
+     * What WordPress would change in a wording before storing it: markup or
+     * a lone angle bracket, an ampersand (kses encodes it in a term name), a
+     * control character (line breaks and tabs included), a %xx octet, a
+     * double space. ASCII only, so UTF-8 text is never caught by accident.
+     */
+    private const REWRITTEN_BY_WORDPRESS = '/[<>&]|[\x00-\x1F\x7F]|%[0-9A-Fa-f]{2}| {2}/';
+
+    /**
      * @throws InvalidSkillsGridException
      */
     public function load(string $path): SkillsGrid
@@ -211,8 +219,15 @@ final class SkillsGridLoader
     }
 
     /**
-     * A wording a term can hold: a non-empty string within the length of a
-     * term name, whatever the language.
+     * A wording a term can hold as it is: a non-empty string within the
+     * length of a term name, and plain text on one line, because WordPress
+     * passes a term name and a term meta through sanitize_text_field()
+     * before storing them (markup stripped, a lone `<` escaped, line breaks
+     * and runs of whitespace collapsed, `%xx` octets removed), and a term
+     * name through kses as well (`&` encoded). A wording it would rewrite is
+     * refused here, so that the grid and the taxonomy always compare equal
+     * and a synchronization settles. The loader knows no WordPress function:
+     * the rule mirrors the one of the store.
      *
      * @param array<string, mixed> $raw
      */
@@ -221,6 +236,9 @@ final class SkillsGridLoader
         $wording = $this->requiredString($raw, $key, $where);
         if (mb_strlen($wording) > Patterns::TERM_NAME_MAX_LENGTH) {
             throw InvalidSkillsGridException::because("{$where}: \"{$key}\" exceeds " . Patterns::TERM_NAME_MAX_LENGTH . ' characters, the most a term name holds');
+        }
+        if (preg_match(self::REWRITTEN_BY_WORDPRESS, $wording) === 1) {
+            throw InvalidSkillsGridException::because("{$where}: \"{$key}\" must be plain text on one line (no markup, no ampersand, no control character, no %xx octet, no double space): WordPress would store it changed");
         }
 
         return $wording;

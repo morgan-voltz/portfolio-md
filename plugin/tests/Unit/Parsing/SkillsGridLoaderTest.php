@@ -190,6 +190,24 @@ final class SkillsGridLoaderTest extends TestCase
         yield 'French wording too long for a term name' => [['referentials' => [0 => ['skills' => [0 => ['name' => str_repeat('é', 201)]]]]], 'skill 4.0.1/FR-01: "name" exceeds 200 characters'];
         yield 'translated wording too long for a term name' => [['referentials' => [0 => ['skills' => [0 => ['i18n' => ['de' => ['name' => str_repeat('ä', 201)]]]]]]], 'skill 4.0.1/FR-01, i18n.de: "name" exceeds 200 characters'];
         yield 'referential name too long for a term name' => [['referentials' => [0 => ['name' => str_repeat('x', 201)]]], 'referential 4.0.1: "name" exceeds 200 characters'];
+        yield 'wording with markup, which WordPress would strip' => [['referentials' => [0 => ['skills' => [0 => ['name' => 'Utiliser des <em>outils</em>']]]]], 'skill 4.0.1/FR-01: "name" must be plain text on one line'];
+        yield 'wording with a lone angle bracket, which WordPress would escape' => [['referentials' => [0 => ['skills' => [0 => ['i18n' => ['en' => ['name' => 'x < y']]]]]]], 'skill 4.0.1/FR-01, i18n.en: "name" must be plain text on one line'];
+        yield 'wording on two lines, which WordPress would join' => [['referentials' => [0 => ['skills' => [0 => ['i18n' => ['de' => ['name' => "Kollaborative\nWerkzeuge nutzen"]]]]]]], 'skill 4.0.1/FR-01, i18n.de: "name" must be plain text on one line'];
+        yield 'wording with a double space, which WordPress would collapse' => [['referentials' => [0 => ['skills' => [0 => ['name' => 'Utiliser des  outils']]]]], 'must be plain text on one line'];
+        yield 'wording with an encoded octet, which WordPress would remove' => [['referentials' => [0 => ['name' => 'Compétences%20 4.0.1']]], 'referential 4.0.1: "name" must be plain text on one line'];
+        yield 'wording with an ampersand, which kses would encode in a term name' => [['referentials' => [0 => ['skills' => [0 => ['name' => 'HTML & CSS']]]]], 'must be plain text on one line'];
+    }
+
+    #[Test]
+    public function a_percent_sign_that_is_not_an_octet_and_accented_text_are_ordinary_characters(): void
+    {
+        $grid = $this->loader->fromArray(self::grid(['referentials' => [0 => ['skills' => [0 => [
+            'name' => 'Atteindre 100 % de couverture : tests, revue, déploiement',
+            'i18n' => ['en' => ['name' => 'Reach 100 % coverage'], 'de' => ['name' => 'Ziel: Überprüfung der Qualität (Tests, Code-Review)']],
+        ]]]]]));
+
+        self::assertSame('Reach 100 % coverage', $grid->referentials[0]->skills[0]->translations['en']);
+        self::assertSame('Ziel: Überprüfung der Qualität (Tests, Code-Review)', $grid->referentials[0]->skills[0]->translations['de']);
     }
 
     #[Test]
