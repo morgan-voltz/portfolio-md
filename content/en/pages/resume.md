@@ -19,7 +19,7 @@ My name is Morgan Voltz. A full-stack developer, I am preparing the Licence prof
 
 ## Professional experience
 
-- **Founder and developer — Kovelt** (since September 2025). I design, build and operate three products on my own: [carbon-fr](../projects/carbon-fr-en.md), a Rust API in production; [Atlas](../../fr/projects/atlas.md), in C# / .NET 10; and [Vefta](../projects/vefta-en.md), a personal productivity suite in Rust (Axum, Dioxus, PostgreSQL), offline-first and never monetising the user's data.
+- **Founder and developer — Kovelt** (since September 2025). I design, build and operate three products on my own: [carbon-fr](../projects/carbon-fr-en.md), a Rust API in production; [Atlas](../projects/atlas-en.md), in C# / .NET 10; and [Vefta](../projects/vefta-en.md), a personal productivity suite in Rust (Axum, Dioxus, PostgreSQL), offline-first and never monetising the user's data.
 - **Industrial electrician, then automation technician** (before the career change). Some fifteen years as an electrician: access control, alarm and fire detection panels; industrial and commercial electrical work; site supervision. Then automation technician, including programming Siemens PLCs on stacker cranes, the logistics robots of Stöcklin Logistik AG (Switzerland).
 
 ## Technical skills
@@ -47,23 +47,23 @@ Git, Docker / Podman, GitLab CI/CD, Postman / Bruno, Linux, WSL2, Jira, Confluen
 
 ### Products and client projects
 - **[Vefta](../projects/vefta-en.md)** — end-to-end Rust productivity suite for Kovelt, offline-first. *In progress.*
-- **[Atlas](../../fr/projects/atlas.md)** — .NET platform that unifies French public company and industrial property data, locked down by tests. *In progress.*
+- **[Atlas](../projects/atlas-en.md)** — .NET platform that unifies French public company and industrial property data, locked down by tests. *In progress.*
 - **[carbon-fr](../projects/carbon-fr-en.md)** — open source API that measures the carbon intensity of French electricity. *Stable.*
 - **[AUTOFIN Control](../projects/autofin-control-en.md)** — reading PDF balance sheets by geometric analysis for the financial control of m2A, in a team of five. *Stable.*
 
 ### Storyline and academic projects, UHA 4.0
 - **[MomoCad](../projects/momocad-en.md)** — CAD-style 2D drawing whose state is nothing but a replayed event log; current 4.0.2 storyline project. *In progress.*
-- **[GeoForge, the game](../../fr/projects/geoforge-jeu.md)** — geometric puzzle where only the server validates a placement; 4.0.2 storyline project of the 2025–2026 session, led and defended solo. *Archived.*
-- **[UHA Learn](../../fr/projects/uha-learn.md)** — course catalogue and progress tracking, with a PHP REST API written without a framework; 4.0.1 storyline project. *Archived.*
-- **[HEHEWATT](../../fr/projects/hehewatt.md)** — school carpooling application taken over and extended by several cohorts of students, in a team of 30 to 50 people depending on the cohort. *Archived.*
+- **[GeoForge, the game](../projects/geoforge-jeu-en.md)** — geometric puzzle where only the server validates a placement; 4.0.2 storyline project of the 2025–2026 session, led and defended solo. *Archived.*
+- **[UHA Learn](../projects/uha-learn-en.md)** — course catalogue and progress tracking, with a PHP REST API written without a framework; 4.0.1 storyline project. *Archived.*
+- **[HEHEWATT](../projects/hehewatt-en.md)** — school carpooling application taken over and extended by several cohorts of students, in a team of 30 to 50 people depending on the cohort. *Archived.*
 
 ### Tooling and personal prototypes
-- **[DevEye](../../fr/projects/deveye.md)** — MCP server in Rust that gives an AI agent eyes and hands on a live graphical application. *In progress.*
-- **[GeoForge, the Godot addon](../../fr/projects/geoforge-godot.md)** — generation of relief, rivers and roads from real physical laws, adjustable point by point. *Prototype.*
-- **[chronos-penpot-tools](../../fr/projects/chronos-penpot-tools.md)** — Penpot plugin that turns a mock-up into a Dioxus component, through a conversion core compiled to WebAssembly. *Prototype.*
-- **[Trace 4.0, Manifest V3 migration](../../fr/projects/trace-4-0-manifest-v3.md)** — getting the school's activity-tracking extension, broken by the end of Manifest V2, working again on my own initiative. *Stable.*
-- **[xvii](../../fr/projects/xvii.md)** — sixteen-track audio studio in Rust whose real-time thread may neither allocate nor wait. *Prototype.*
-- **[ancestors-modding](../../fr/projects/ancestors-modding.md)** — reverse-engineering toolbox to mod an abandoned Unreal Engine game with no SDK and no documentation. *Prototype.*
+- **[DevEye](../projects/deveye-en.md)** — MCP server in Rust that gives an AI agent eyes and hands on a live graphical application. *In progress.*
+- **[GeoForge, the Godot addon](../projects/geoforge-godot-en.md)** — generation of relief, rivers and roads from real physical laws, adjustable point by point. *Prototype.*
+- **[chronos-penpot-tools](../projects/chronos-penpot-tools-en.md)** — Penpot plugin that turns a mock-up into a Dioxus component, through a conversion core compiled to WebAssembly. *Prototype.*
+- **[Trace 4.0, Manifest V3 migration](../projects/trace-4-0-manifest-v3-en.md)** — getting the school's activity-tracking extension, broken by the end of Manifest V2, working again on my own initiative. *Stable.*
+- **[xvii](../projects/xvii-en.md)** — sixteen-track audio studio in Rust whose real-time thread may neither allocate nor wait. *Prototype.*
+- **[ancestors-modding](../projects/ancestors-modding-en.md)** — reverse-engineering toolbox to mod an abandoned Unreal Engine game with no SDK and no documentation. *Prototype.*
 
 ## Interests
 

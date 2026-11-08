@@ -19,7 +19,7 @@ Ich heisse Morgan Voltz. Als Full-Stack-Entwickler absolviere ich die Licence pr
 
 ## Berufserfahrung
 
-- **Gründer und Entwickler — Kovelt** (seit September 2025). Ich konzipiere, entwickle und betreibe allein drei Produkte: [carbon-fr](../projects/carbon-fr-de.md), eine Rust-API in Produktion; [Atlas](../../fr/projects/atlas.md), in C# / .NET 10; und [Vefta](../projects/vefta-de.md), eine persönliche Produktivitätssuite in Rust (Axum, Dioxus, PostgreSQL), offline-first gedacht und ohne jemals die Daten der Nutzer zu monetarisieren.
+- **Gründer und Entwickler — Kovelt** (seit September 2025). Ich konzipiere, entwickle und betreibe allein drei Produkte: [carbon-fr](../projects/carbon-fr-de.md), eine Rust-API in Produktion; [Atlas](../projects/atlas-de.md), in C# / .NET 10; und [Vefta](../projects/vefta-de.md), eine persönliche Produktivitätssuite in Rust (Axum, Dioxus, PostgreSQL), offline-first gedacht und ohne jemals die Daten der Nutzer zu monetarisieren.
 - **Industrieelektriker, dann Automatiker** (vor dem Berufswechsel). Rund fünfzehn Jahre als Elektriker: Zutrittskontroll-, Alarm- und Brandmeldezentralen; Industrie- und Gebäudeelektrik; Bauleitung. Danach Automatiker, unter anderem mit der Programmierung von Siemens-Steuerungen auf Regalbediengeräten, den Logistikrobotern der Stöcklin Logistik AG (Schweiz).
 
 ## Technische Kenntnisse
@@ -47,23 +47,23 @@ Git, Docker / Podman, GitLab CI/CD, Postman / Bruno, Linux, WSL2, Jira, Confluen
 
 ### Produkte und Kundenprojekte
 - **[Vefta](../projects/vefta-de.md)** — durchgehend in Rust geschriebene Produktivitätssuite für Kovelt, offline-first gedacht. *In Arbeit.*
-- **[Atlas](../../fr/projects/atlas.md)** — .NET-Plattform, die die öffentlichen französischen Unternehmens- und Immaterialgüterdaten zusammenführt, durch Tests abgesichert. *In Arbeit.*
+- **[Atlas](../projects/atlas-de.md)** — .NET-Plattform, die die öffentlichen französischen Unternehmens- und Immaterialgüterdaten zusammenführt, durch Tests abgesichert. *In Arbeit.*
 - **[carbon-fr](../projects/carbon-fr-de.md)** — Open-Source-API, die die CO₂-Intensität des französischen Stroms misst. *Stabil.*
 - **[AUTOFIN Control](../projects/autofin-control-de.md)** — Auslesen von PDF-Bilanzen durch geometrische Analyse für das Finanzcontrolling von m2A, im Fünferteam. *Stabil.*
 
 ### Leitprojekt und akademische Projekte UHA 4.0
 - **[MomoCad](../projects/momocad-de.md)** — 2D-Zeichnung im CAD-Stil, deren Zustand nur ein erneut abgespieltes Ereignisprotokoll ist; laufendes Leitprojekt 4.0.2. *In Arbeit.*
-- **[GeoForge, das Spiel](../../fr/projects/geoforge-jeu.md)** — geometrisches Puzzle, bei dem allein der Server eine Platzierung bestätigt; Leitprojekt 4.0.2 des Durchgangs 2025–2026, allein geführt und verteidigt. *Archiviert.*
-- **[UHA Learn](../../fr/projects/uha-learn.md)** — Kurskatalog und Fortschrittsverfolgung mit einer ohne Framework geschriebenen PHP-REST-API; Leitprojekt 4.0.1. *Archiviert.*
-- **[HEHEWATT](../../fr/projects/hehewatt.md)** — Mitfahr-App für Schulen, von mehreren Studierendenjahrgängen übernommen und weitergeführt, in Teams von 30 bis 50 Personen je nach Jahrgang. *Archiviert.*
+- **[GeoForge, das Spiel](../projects/geoforge-jeu-de.md)** — geometrisches Puzzle, bei dem allein der Server eine Platzierung bestätigt; Leitprojekt 4.0.2 des Durchgangs 2025–2026, allein geführt und verteidigt. *Archiviert.*
+- **[UHA Learn](../projects/uha-learn-de.md)** — Kurskatalog und Fortschrittsverfolgung mit einer ohne Framework geschriebenen PHP-REST-API; Leitprojekt 4.0.1. *Archiviert.*
+- **[HEHEWATT](../projects/hehewatt-de.md)** — Mitfahr-App für Schulen, von mehreren Studierendenjahrgängen übernommen und weitergeführt, in Teams von 30 bis 50 Personen je nach Jahrgang. *Archiviert.*
 
 ### Werkzeuge und persönliche Prototypen
-- **[DevEye](../../fr/projects/deveye.md)** — MCP-Server in Rust, der einem KI-Agenten Augen und Hände auf einer laufenden grafischen Anwendung gibt. *In Arbeit.*
-- **[GeoForge, das Godot-Addon](../../fr/projects/geoforge-godot.md)** — Erzeugung von Relief, Flüssen und Strassen nach realen physikalischen Gesetzen, Punkt für Punkt anpassbar. *Prototyp.*
-- **[chronos-penpot-tools](../../fr/projects/chronos-penpot-tools.md)** — Penpot-Plugin, das einen Entwurf in eine Dioxus-Komponente verwandelt, über einen in WebAssembly kompilierten Konvertierungskern. *Prototyp.*
-- **[Trace 4.0, Migration auf Manifest V3](../../fr/projects/trace-4-0-manifest-v3.md)** — Wiederinbetriebnahme der Zeiterfassungs-Browsererweiterung der Schule, die mit dem Ende von Manifest V2 nicht mehr funktionierte, aus eigener Initiative. *Stabil.*
-- **[xvii](../../fr/projects/xvii.md)** — Audiostudio mit sechzehn Spuren in Rust, dessen Echtzeit-Thread weder allozieren noch warten darf. *Prototyp.*
-- **[ancestors-modding](../../fr/projects/ancestors-modding.md)** — Reverse-Engineering-Werkzeugkasten, um ein aufgegebenes Unreal-Engine-Spiel ohne SDK und ohne Dokumentation zu modden. *Prototyp.*
+- **[DevEye](../projects/deveye-de.md)** — MCP-Server in Rust, der einem KI-Agenten Augen und Hände auf einer laufenden grafischen Anwendung gibt. *In Arbeit.*
+- **[GeoForge, das Godot-Addon](../projects/geoforge-godot-de.md)** — Erzeugung von Relief, Flüssen und Strassen nach realen physikalischen Gesetzen, Punkt für Punkt anpassbar. *Prototyp.*
+- **[chronos-penpot-tools](../projects/chronos-penpot-tools-de.md)** — Penpot-Plugin, das einen Entwurf in eine Dioxus-Komponente verwandelt, über einen in WebAssembly kompilierten Konvertierungskern. *Prototyp.*
+- **[Trace 4.0, Migration auf Manifest V3](../projects/trace-4-0-manifest-v3-de.md)** — Wiederinbetriebnahme der Zeiterfassungs-Browsererweiterung der Schule, die mit dem Ende von Manifest V2 nicht mehr funktionierte, aus eigener Initiative. *Stabil.*
+- **[xvii](../projects/xvii-de.md)** — Audiostudio mit sechzehn Spuren in Rust, dessen Echtzeit-Thread weder allozieren noch warten darf. *Prototyp.*
+- **[ancestors-modding](../projects/ancestors-modding-de.md)** — Reverse-Engineering-Werkzeugkasten, um ein aufgegebenes Unreal-Engine-Spiel ohne SDK und ohne Dokumentation zu modden. *Prototyp.*
 
 ## Interessen
 
