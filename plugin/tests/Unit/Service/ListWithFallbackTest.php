@@ -100,6 +100,7 @@ final class ListWithFallbackTest extends TestCase
         yield 'German, every project translated' => [Language::De, ['de-all']];
         yield 'English, no translation' => [Language::En, []];
         yield 'English, one English translation' => [Language::En, ['en']];
+        yield 'English, every project translated' => [Language::En, ['en-all']];
         yield 'French' => [Language::Fr, ['de', 'en']];
     }
 
@@ -116,9 +117,11 @@ final class ListWithFallbackTest extends TestCase
         if (in_array('en', $translations, true)) {
             $this->addEnglishP3();
         }
-        if (in_array('de-all', $translations, true)) {
-            foreach ([1, 2, 3] as $n) {
-                $this->catalog->add(Documents::project(['id' => 10 + $n, 'slug' => "p{$n}-de", 'translationKey' => "p{$n}", 'lang' => Language::De, 'link' => "http://example.test/de/projets/p{$n}-de/", 'date' => Documents::utc("2026-0{$n}-01 00:00:00")]));
+        foreach (['de-all' => Language::De, 'en-all' => Language::En] as $all => $language_) {
+            if (in_array($all, $translations, true)) {
+                foreach ([1, 2, 3] as $n) {
+                    $this->catalog->add(Documents::project(['id' => ($language_ === Language::De ? 10 : 20) + $n, 'slug' => "p{$n}-{$language_->value}", 'translationKey' => "p{$n}", 'lang' => $language_, 'link' => "http://example.test/{$language_->value}/projets/p{$n}-{$language_->value}/", 'date' => Documents::utc("2026-0{$n}-01 00:00:00")]));
+                }
             }
         }
 
@@ -150,19 +153,45 @@ final class ListWithFallbackTest extends TestCase
     }
 
     #[Test]
-    public function the_default_limit_holds_the_whole_portfolio_within_the_cap_of_a_page(): void
+    public function the_default_limit_is_fifty_cards_and_cuts_the_list_there(): void
     {
         self::assertSame(50, ListWithFallback::DEFAULT_LIMIT);
         self::assertLessThanOrEqual(CatalogQuery::MAX_PER_PAGE, ListWithFallback::DEFAULT_LIMIT);
-        self::assertSame([3, 2, 1], array_map(static fn (ListItem $item): int => $item->postId, (new ListWithFallback($this->catalog))->items(ContentType::Project, Language::Fr)));
+
+        $catalog = new InMemoryContentCatalog();
+        for ($n = 1; $n <= 51; $n++) {
+            $catalog->add(Documents::project(['id' => $n, 'slug' => "p{$n}", 'translationKey' => "p{$n}", 'date' => Documents::utc('2026-01-01 00:00:00')]));
+        }
+
+        $items = (new ListWithFallback($catalog))->items(ContentType::Project, Language::Fr);
+
+        self::assertCount(50, $items, 'the fifty-first project is not printed: the default is a page, not the whole collection');
+        self::assertSame(51, $items[0]->postId, 'newest first, at equal dates the newest post');
+    }
+
+    /**
+     * @return iterable<string, array{int, bool}>
+     */
+    public static function limits(): iterable
+    {
+        yield 'zero' => [0, false];
+        yield 'negative' => [-1, false];
+        yield 'one' => [1, true];
+        yield 'the cap of a page' => [CatalogQuery::MAX_PER_PAGE, true];
+        yield 'above the cap' => [CatalogQuery::MAX_PER_PAGE + 1, false];
     }
 
     #[Test]
-    public function a_limit_outside_the_page_sizes_of_the_catalog_is_refused(): void
+    #[DataProvider('limits')]
+    public function a_limit_is_a_page_size_of_the_catalog_or_is_refused(int $limit, bool $accepted): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        if (!$accepted) {
+            $this->expectException(InvalidArgumentException::class);
+        }
 
-        (new ListWithFallback($this->catalog))->items(ContentType::Project, Language::Fr, CatalogQuery::MAX_PER_PAGE + 1);
+        (new ListWithFallback($this->catalog))->items(ContentType::Project, Language::Fr, $limit);
+
+        self::assertSame($limit, $this->catalog->listCalls[0]['query']->perPage);
     }
 
     #[Test]
