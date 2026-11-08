@@ -23,7 +23,10 @@
  * anonymous visitor. The translations are imported without a language
  * gateway, so Polylang knows nothing of them: their `link` is not checked
  * here (the i18n smoke does, through the real adapter), only what the
- * plugin serves from its own metas (ADR-021).
+ * plugin serves from its own metas (ADR-021). The labels of a status and
+ * the wordings of the skills are checked in the language asked, on the
+ * German sheet and on the French sheet served as a fallback, with the
+ * `official` flag of every wording (lot 4 of ADR-020).
  *
  * No `declare(strict_types=1)`: `wp eval-file` runs the file through eval().
  */
