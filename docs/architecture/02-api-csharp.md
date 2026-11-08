@@ -5,7 +5,7 @@
 **Prérequis** : avoir lu [`00-overview.md`](00-overview.md)
 **Lectorat** : contributeur .NET, Morgan en phase d'implémentation, relecteur technique
 **Temps de lecture** : environ vingt-cinq minutes
-**Dernière mise à jour** : 8 novembre 2026 (libellés dans la langue demandée et clé `official` des compétences, ADR-020 lot 4 ; la langue dans les routes du plugin et dans les clés de cache, ADR-021 ; contrat réel des routes du plugin le 29 octobre, phase 5 ; version d'origine du 22 avril 2026)
+**Dernière mise à jour** : 8 novembre 2026 (ADR-023 : .NET 10, en-têtes transmis, HTTPS par Traefik, santé et observation, configuration par l'environnement ; libellés dans la langue demandée et clé `official` des compétences, ADR-020 lot 4 ; la langue dans les routes du plugin et dans les clés de cache, ADR-021 ; contrat réel des routes du plugin le 29 octobre, phase 5 ; version d'origine du 22 avril 2026)
 
 ---
 
@@ -35,7 +35,7 @@ Elle peut aussi calculer des champs dérivés à la volée : articles connexes b
 
 ### 1.3. Laboratoire d'apprentissage .NET
 
-Le troisième rôle est personnel et il teinte les choix techniques qui suivent. L'API est l'endroit où Morgan apprend .NET 8 moderne : Minimal APIs, injection de dépendances native, HttpClient typé, tests en xUnit, patterns de Clean Architecture. Certaines décisions qu'on prend ici — utiliser Minimal APIs plutôt que des Controllers classiques, par exemple — sont motivées par cette dimension d'apprentissage plutôt que par une supériorité technique absolue.
+Le troisième rôle est personnel et il teinte les choix techniques qui suivent. L'API est l'endroit où Morgan apprend .NET 10 moderne : Minimal APIs, injection de dépendances native, HttpClient typé, tests en xUnit, patterns de Clean Architecture. Certaines décisions qu'on prend ici — utiliser Minimal APIs plutôt que des Controllers classiques, par exemple — sont motivées par cette dimension d'apprentissage plutôt que par une supériorité technique absolue.
 
 ---
 
@@ -261,15 +261,19 @@ La forme des réponses JSON est volontairement stable et versionnée via le pré
 
 L'API est publique en lecture et n'a pas besoin d'authentification pour l'usage normal. Quelques précautions restent de rigueur.
 
-**Rate limiting** sur les endpoints publics pour éviter qu'un script abuse. ASP.NET Core 8 fournit un middleware de rate limiting natif (`AddRateLimiter`) qui permet de limiter par IP. Une limite raisonnable (par exemple cent requêtes par minute par IP) ne gêne aucun usage légitime et bloque les abus.
+**Rate limiting** sur les endpoints publics pour éviter qu'un script abuse. ASP.NET Core fournit un middleware de rate limiting natif (`AddRateLimiter`) qui permet de limiter par IP. Une limite raisonnable (par exemple cent requêtes par minute par IP) ne gêne aucun usage légitime et bloque les abus. En production l'API est derrière Traefik (ADR-023) : elle lit les en-têtes transmis par le proxy (`ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` dans le compose), sans quoi toutes les requêtes porteraient l'adresse de Traefik et tomberaient dans le même seau.
 
 **CORS** configuré strictement pour n'autoriser que le ou les domaines du front React en production. En développement local, on autorise `localhost` sur plusieurs ports. La configuration est centralisée dans `Program.cs`.
 
 **Pas de secrets dans les logs.** Le middleware de logging est configuré pour ne pas capturer les en-têtes d'authentification éventuels, ni les bodies des requêtes contenant des données sensibles. En gateway simple, le risque est faible, mais la discipline se pose dès le début.
 
-**HTTPS obligatoire en production** via la redirection HTTPS du middleware ASP.NET Core. En développement local, HTTP suffit et le middleware s'adapte.
+**HTTPS obligatoire en production**, assuré par Traefik, qui termine le TLS et redirige HTTP vers HTTPS (ADR-023) : derrière lui l'API n'écoute qu'en HTTP sur `8080`, et `UseHttpsRedirection` ne sert qu'en développement local, où le middleware s'adapte.
 
 **Pas d'exposition du token WordPress.** Le token qui permet à l'API d'appeler `/sync` du plugin (si jamais l'API devait pousser quelque chose vers WordPress, ce qui n'est pas le cas actuel) serait stocké dans les secrets ASP.NET Core (`user-secrets` en dev, variables d'environnement ou coffre-fort en production). Jamais dans `appsettings.json` committé.
+
+**Santé et observation (ADR-023).** `GET /health/live` répond 200 dès que le processus tourne ; `GET /health/ready` répond 503 jusqu'à la première lecture réussie du `/sitemap` du plugin, puis 200, et le reste : une panne ultérieure de WordPress fait servir le cache tel quel plutôt que couper l'API. Traefik sonde `/health/ready` et Uptime Kuma la surveille. `GET /metrics` (format Prometheus) est servi **sur un second port, `9090`**, que Kestrel écoute en plus de `8080` (`ASPNETCORE_HTTP_PORTS=8080;9090`) et qu'aucune route publique n'atteint : Prometheus le scrute sur le réseau interne du VPS. Les journaux vont sur la sortie standard ; la version de l'API est écrite dans le journal de démarrage. Pas de `HEALTHCHECK` dans l'image : la santé se lit de l'extérieur. Le détail côté serveur est dans [`04-deployment.md`](04-deployment.md) §3.
+
+**Configuration par l'environnement (ADR-023).** Patron Options, préfixe `PORTFOLIO__`, `__` comme séparateur de section, une liste en clés indexées : `PORTFOLIO__WORDPRESSBASEURL` (la racine des routes du plugin, `https://voltz.dev/wp-json/portfolio/v1/`), `PORTFOLIO__ALLOWEDORIGINS__0`, `__1`… (les origines CORS ; `https://app.voltz.dev` en production, `localhost` en développement), `PORTFOLIO__CACHE__SITEMAPREFRESHSECONDS` (le rythme de relecture du `/sitemap`, §5). En production, l'API refuse de démarrer sans origine CORS : mieux vaut un conteneur qui s'arrête qu'un front bloqué en silence. Aucun secret aujourd'hui ; le jour où il y en a un, il va dans le `.env` du serveur, mode 600.
 
 ---
 
@@ -329,7 +333,7 @@ Les packages nécessaires pour l'API restent peu nombreux.
 
 `Markdig` est la seule dépendance externe majeure de `Portfolio.Infrastructure`. Version actuellement stable de la 0.x série, à vérifier au moment de l'implémentation.
 
-`Microsoft.Extensions.Caching.Memory` est incluse par défaut dans .NET 8 pour `IMemoryCache`.
+`Microsoft.Extensions.Caching.Memory` est incluse par défaut dans .NET 10 pour `IMemoryCache`.
 
 En dépendances de test : `xunit` pour les tests, `Microsoft.NET.Test.Sdk` comme runner, `FluentAssertions` pour l'expressivité des assertions, et `NSubstitute` pour les doubles de test (préférable à Moq, plus simple et plus moderne).
 
