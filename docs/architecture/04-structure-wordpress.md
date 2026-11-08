@@ -483,4 +483,8 @@ WordPress
 
 - L'option `portfolio_md_published_languages` dit quelles langues sont ouvertes au public (le français toujours) ; c'est un réglage d'environnement, posé par `wp portfolio languages publish|unpublish`, jamais du contenu versionné. Le modèle de contenu ne change pas : une langue fermée garde ses posts, ses pages et ses URL, mais toute vue dans cette langue est `noindex, follow`, hors du sitemap XML, hors de la détection du navigateur et des hreflang (`01-plugin-php.md` §7.1).
 
+**2026-11-08 (ouverture des langues, ADR-022 lot 5c)**
+
+- L'archive des projets de chaque langue (`/fr/projets/`, `/de/projets/`, `/en/projets/`) liste toutes les fiches, par la liste du plugin et non par la boucle principale : celles de la langue, puis les françaises en repli avec le badge, dans l'ordre de l'archive française (section 4.1 inchangée : aucun type, taxonomie ou meta ne change). Une archive dont la langue n'a aucune fiche propre est `noindex, follow` jusqu'à la première traduction ; le sélecteur de langue du thème ne montre que les langues ouvertes.
+
 ---
