@@ -55,16 +55,19 @@ final class CollectionControllerTest extends TestCase
         self::assertSame('GET', $list['args']['methods']);
         self::assertSame([$controller, 'list'], $list['args']['callback']);
         self::assertSame('__return_true', $list['args']['permission_callback']);
-        self::assertSame(['page', 'per_page', 'tag'], array_keys($list['args']['args']));
+        self::assertSame(['page', 'per_page', 'language', 'tag'], array_keys($list['args']['args']));
         self::assertSame(['type' => 'integer', 'default' => 1, 'minimum' => 1], self::schemaOf($list['args']['args']['page']));
         self::assertSame(['type' => 'integer', 'default' => 10, 'minimum' => 1, 'maximum' => 100], self::schemaOf($list['args']['args']['per_page']));
+        // No default on purpose: the controller applies French, and the Link header can tell a request that asked nothing.
+        self::assertSame(['type' => 'string', 'enum' => ['fr', 'de', 'en']], self::schemaOf($list['args']['args']['language']));
         self::assertSame(['type' => 'string', 'pattern' => '^[a-z0-9]+(?:-[a-z0-9]+)*$'], self::schemaOf($list['args']['args']['tag']));
 
         self::assertSame('/articles/(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)', $item['route']);
         self::assertSame('GET', $item['args']['methods']);
         self::assertSame([$controller, 'item'], $item['args']['callback']);
         self::assertSame('__return_true', $item['args']['permission_callback']);
-        self::assertSame(['slug'], array_keys($item['args']['args']));
+        self::assertSame(['slug', 'language'], array_keys($item['args']['args']));
+        self::assertSame($list['args']['args']['language'], $item['args']['args']['language']);
     }
 
     /**
@@ -85,9 +88,9 @@ final class CollectionControllerTest extends TestCase
      */
     public static function collections(): iterable
     {
-        yield 'articles paginate and filter by tag' => [ContentType::Article, '/articles', ['page', 'per_page', 'tag']];
-        yield 'projects also filter by status and skill' => [ContentType::Project, '/projects', ['page', 'per_page', 'tag', 'status', 'skill']];
-        yield 'pages only paginate' => [ContentType::Page, '/pages', ['page', 'per_page']];
+        yield 'articles paginate, take a language and filter by tag' => [ContentType::Article, '/articles', ['page', 'per_page', 'language', 'tag']];
+        yield 'projects also filter by status and skill' => [ContentType::Project, '/projects', ['page', 'per_page', 'language', 'tag', 'status', 'skill']];
+        yield 'pages only paginate and take a language' => [ContentType::Page, '/pages', ['page', 'per_page', 'language']];
     }
 
     #[Test]
@@ -355,6 +358,129 @@ final class CollectionControllerTest extends TestCase
     }
 
     #[Test]
+    public function an_absent_language_reaches_the_catalog_as_french_and_a_given_one_as_itself(): void
+    {
+        $this->catalog->add(Documents::article());
+        $controller = $this->controller(ContentType::Article);
+
+        $controller->list(self::request([]));
+        $controller->list(self::request(['language' => 'de']));
+        $controller->item(self::request(['slug' => 'rust-ownership-intuition']));
+        $controller->item(self::request(['slug' => 'rust-ownership-intuition', 'language' => 'en']));
+
+        self::assertSame([Language::Fr, Language::De], array_map(static fn (array $call): Language => $call['query']->language, $this->catalog->listCalls));
+        self::assertSame([Language::Fr, Language::En], array_column($this->catalog->findCalls, 'language'));
+    }
+
+    #[Test]
+    public function a_language_outside_the_closed_list_answers_400_on_both_routes(): void
+    {
+        $this->catalog->add(Documents::project());
+        $controller = $this->controller(ContentType::Project);
+
+        foreach (['xx', '', 'DE', ['de']] as $bad) {
+            $list = $controller->list(self::request(['language' => $bad]));
+            $item = $controller->item(self::request(['slug' => 'momocad', 'language' => $bad]));
+
+            foreach ([$list, $item] as $response) {
+                self::assertInstanceOf(WP_Error::class, $response);
+                self::assertSame('rest_invalid_param', $response->get_error_code());
+                self::assertSame(['status' => 400], $response->get_error_data());
+                self::assertStringContainsString('fr, de, en', $response->get_error_message());
+            }
+        }
+        self::assertSame([], $this->catalog->listCalls);
+        self::assertSame([], $this->catalog->findCalls);
+    }
+
+    #[Test]
+    public function the_link_header_carries_the_language_only_when_the_request_did(): void
+    {
+        foreach ([1, 2, 3] as $i) {
+            $this->catalog->add(Documents::project(['id' => $i, 'slug' => "project-{$i}", 'date' => Documents::utc("2026-0{$i}-01 00:00:00")]));
+        }
+        $controller = $this->controller(ContentType::Project);
+
+        $german = $controller->list(self::request(['page' => '2', 'per_page' => '1', 'language' => 'de', 'status' => 'en-cours']));
+        $bare = $controller->list(self::request(['page' => '2', 'per_page' => '1', 'status' => 'en-cours']));
+        $french = $controller->list(self::request(['per_page' => '1', 'language' => 'fr']));
+
+        self::assertInstanceOf(WP_REST_Response::class, $german);
+        self::assertInstanceOf(WP_REST_Response::class, $bare);
+        self::assertInstanceOf(WP_REST_Response::class, $french);
+        self::assertSame(
+            '<http://example.test/wp-json/portfolio/v1/projects?page=1&per_page=1&language=de&status=en-cours>; rel="prev", '
+            . '<http://example.test/wp-json/portfolio/v1/projects?page=3&per_page=1&language=de&status=en-cours>; rel="next"',
+            $german->headers['Link'],
+        );
+        self::assertStringNotContainsString('language', $bare->headers['Link']);
+        self::assertSame('<http://example.test/wp-json/portfolio/v1/projects?page=2&per_page=1&language=fr>; rel="next"', $french->headers['Link']);
+    }
+
+    #[Test]
+    public function a_german_list_is_anchored_on_the_french_documents_with_the_fallbacks_flagged(): void
+    {
+        $this->catalog->add(
+            Documents::project(['id' => 1, 'slug' => 'momocad', 'date' => Documents::utc('2026-09-01 00:00:00')]),
+            Documents::project(['id' => 2, 'slug' => 'momocad-de', 'lang' => Language::De, 'translationKey' => 'momocad', 'date' => Documents::utc('2026-11-01 00:00:00')]),
+            Documents::project(['id' => 3, 'slug' => 'vefta', 'date' => Documents::utc('2026-10-01 00:00:00')]),
+        );
+        $controller = $this->controller(ContentType::Project);
+
+        $german = $controller->list(self::request(['language' => 'de']));
+        $french = $controller->list(self::request([]));
+
+        self::assertInstanceOf(WP_REST_Response::class, $german);
+        self::assertInstanceOf(WP_REST_Response::class, $french);
+        self::assertSame(['vefta', 'momocad-de'], array_column($german->get_data(), 'slug'));
+        self::assertSame(['fr', 'de'], array_column($german->get_data(), 'lang'));
+        self::assertSame([true, false], array_column($german->get_data(), 'is_fallback'));
+        self::assertSame(['de', 'de'], array_column($german->get_data(), 'requested_language'));
+        self::assertSame(['fr' => 'momocad', 'de' => 'momocad-de'], $german->get_data()[1]['translations']);
+        self::assertSame(['vefta', 'momocad'], array_column($french->get_data(), 'slug'));
+        self::assertSame($french->headers['X-WP-Total'], $german->headers['X-WP-Total']);
+        self::assertSame('2', $german->headers['X-WP-Total']);
+    }
+
+    #[Test]
+    public function a_detail_is_served_in_the_language_asked_or_along_its_fallback_chain(): void
+    {
+        $this->catalog->add(
+            Documents::project(['id' => 1, 'slug' => 'momocad']),
+            Documents::project(['id' => 2, 'slug' => 'momocad-de', 'lang' => Language::De, 'translationKey' => 'momocad']),
+        );
+        $controller = $this->controller(ContentType::Project);
+
+        $german = $controller->item(self::request(['slug' => 'momocad', 'language' => 'de']));
+        $english = $controller->item(self::request(['slug' => 'momocad', 'language' => 'en']));
+        $frenchFromGerman = $controller->item(self::request(['slug' => 'momocad-de', 'language' => 'fr']));
+
+        self::assertInstanceOf(WP_REST_Response::class, $german);
+        self::assertInstanceOf(WP_REST_Response::class, $english);
+        self::assertInstanceOf(WP_REST_Response::class, $frenchFromGerman);
+        self::assertSame(['momocad-de', 'de', false, 'de'], self::languageKeys($german->get_data()));
+        self::assertSame(['momocad', 'fr', true, 'en'], self::languageKeys($english->get_data()));
+        self::assertSame(['momocad', 'fr', false, 'fr'], self::languageKeys($frenchFromGerman->get_data()));
+    }
+
+    #[Test]
+    public function a_slug_that_exists_never_answers_404_whatever_the_language(): void
+    {
+        $this->catalog->add(Documents::project(['id' => 7, 'slug' => 'waise-de', 'lang' => Language::De, 'translationKey' => 'waise']));
+        $controller = $this->controller(ContentType::Project);
+
+        $orphan = $controller->item(self::request(['slug' => 'waise-de', 'language' => 'fr']));
+        $unknown = $controller->item(self::request(['slug' => 'waise', 'language' => 'de']));
+
+        self::assertInstanceOf(WP_REST_Response::class, $orphan);
+        self::assertSame(200, $orphan->get_status());
+        self::assertSame(['waise-de', 'de', true, 'fr'], self::languageKeys($orphan->get_data()));
+        self::assertSame(['de' => 'waise-de'], $orphan->get_data()['translations']);
+        self::assertInstanceOf(WP_Error::class, $unknown);
+        self::assertSame(CollectionController::NOT_FOUND, $unknown->get_error_code());
+    }
+
+    #[Test]
     public function answers_the_document_under_a_slug(): void
     {
         $project = Documents::project();
@@ -396,6 +522,16 @@ final class CollectionControllerTest extends TestCase
     private function controller(ContentType $type): CollectionController
     {
         return new CollectionController($type, $this->catalog, new DocumentPresenter());
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     *
+     * @return array{string, string, bool, string} slug, lang, is_fallback, requested_language
+     */
+    private static function languageKeys(array $data): array
+    {
+        return [$data['slug'], $data['lang'], $data['is_fallback'], $data['requested_language']];
     }
 
     /**

@@ -157,6 +157,7 @@ try {
 
     // 6. Every query of the plugin sees every language -------------------------------------------------
     wp_untrash_post($deId);
+    wp_publish_post($deId); // a post restored from the trash is a draft since WordPress 5.6: the catalog wants it published
     $savedLanguage = PLL()->curlang;
     try {
         PLL()->curlang = PLL()->model->get_language('de');
@@ -168,9 +169,13 @@ try {
             $check('findBySlug still finds the French page', $repository->findBySlug(ContentType::Page, 'zz-smoke-i18n')?->id === $frId);
             $check('findByKey still sees both languages', count($repository->findByKey(ContentType::Page, 'zz-smoke-i18n')) === 2);
             $catalog = new WordPressContentCatalog();
-            $check('the public catalog still serves the French page', $catalog->find(ContentType::Page, 'zz-smoke-i18n') !== null);
+            $check('the public catalog still serves the French page', $catalog->find(ContentType::Page, 'zz-smoke-i18n', Language::Fr)?->slug === 'zz-smoke-i18n');
+            $german = $catalog->find(ContentType::Page, 'zz-smoke-i18n', Language::De);
+            $check('and the German page for the same key when asked in German, under its own /de/ link (ADR-021)', $german?->slug === 'zz-smoke-i18n-de' && $german->isFallback === false && str_contains($german->link, '/de/'), (string) $german?->link);
             $listed = array_map(static fn ($document) => $document->slug, $catalog->list(ContentType::Page, new CatalogQuery(perPage: 50))->items);
             $check('the public list still holds the French page', in_array('zz-smoke-i18n', $listed, true), implode(',', $listed));
+            $listedInGerman = array_map(static fn ($document) => $document->slug, $catalog->list(ContentType::Page, new CatalogQuery(perPage: 50, language: Language::De))->items);
+            $check('the German list holds the German page in its place', in_array('zz-smoke-i18n-de', $listedInGerman, true) && !in_array('zz-smoke-i18n', $listedInGerman, true), implode(',', $listedInGerman));
             $check('the sitemap still holds it', in_array('zz-smoke-i18n', array_map(static fn ($entry) => $entry->slug, $catalog->sitemap()), true));
             $check('the document lister sees both pages', count(array_filter($repository->listDocuments(ContentType::Page), static fn ($d) => in_array($d->id, $ids, true))) === 2);
         }

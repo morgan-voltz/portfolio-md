@@ -42,6 +42,14 @@ use WP_REST_Server;
  * with capitals answers 400, because the server matches routes without
  * regard to case and the schema of the parameter then refuses it.
  *
+ * Both routes take `language=fr|de|en` (ADR-021), French when absent; any
+ * other value answers 400 from the schema. The catalog does the rest: a
+ * list is anchored on the French documents and served in that language,
+ * a detail is served in that language or along its fallback chain, and
+ * every document says in which language it comes (`lang`, `is_fallback`,
+ * `requested_language`). The `Link` header repeats `language` only when
+ * the request carried it. Polylang's own `lang` parameter is never read.
+ *
  * The server's `_fields` parameter narrows these answers like any other
  * (`_fields=slug,title`): it is applied to every route when the response
  * is served, which the smoke test shows.
@@ -90,8 +98,26 @@ final class CollectionController implements RestController
                     'type' => 'string',
                     'pattern' => '^' . Patterns::SLUG_BODY . '$',
                 ],
+                'language' => self::languageArg(),
             ],
         ]);
+    }
+
+    /**
+     * The language parameter of both routes (ADR-021): the closed list of
+     * the languages of the site, lowercase, French when absent. Declared
+     * without default on purpose, so that the controller can tell a request
+     * that asked for French from one that asked nothing.
+     *
+     * @return array<string, mixed>
+     */
+    private static function languageArg(): array
+    {
+        return [
+            'description' => 'The language of the documents, fr, de or en; French when absent. A document missing in that language is served in the nearest one (de, en, fr) and flagged is_fallback.',
+            'type' => 'string',
+            'enum' => Language::values(),
+        ];
     }
 
     /**
@@ -117,6 +143,7 @@ final class CollectionController implements RestController
                 'minimum' => 1,
                 'maximum' => CatalogQuery::MAX_PER_PAGE,
             ],
+            'language' => self::languageArg(),
         ];
 
         if ($this->type !== ContentType::Page) {
@@ -161,7 +188,7 @@ final class CollectionController implements RestController
         return new WP_REST_Response(
             array_map($this->presenter->present(...), $page->items),
             200,
-            $this->headers($page, $query),
+            $this->headers($page, $query, $request->get_param('language') !== null),
         );
     }
 
@@ -171,7 +198,13 @@ final class CollectionController implements RestController
         $slug = $request->get_param('slug');
         $slug = is_string($slug) ? $slug : '';
 
-        $document = $this->catalog->find($this->type, $slug, Language::default());
+        try {
+            $language = self::language($request);
+        } catch (InvalidArgumentException $invalid) {
+            return new WP_Error('rest_invalid_param', $invalid->getMessage(), ['status' => 400]);
+        }
+
+        $document = $this->catalog->find($this->type, $slug, $language);
         if ($document === null) {
             return new WP_Error(self::NOT_FOUND, sprintf('No published %s has the slug "%s".', $this->type->value, $slug), ['status' => 404]);
         }
@@ -200,16 +233,34 @@ final class CollectionController implements RestController
             tag: $this->type !== ContentType::Page ? self::textOrNull($request->get_param('tag')) : null,
             status: $status,
             skill: $this->type === ContentType::Project ? self::textOrNull($request->get_param('skill')) : null,
+            language: self::language($request),
         );
     }
 
     /**
+     * The language the request asks for, French when it asks none. The
+     * server validated the value against the schema already; this is the
+     * guard of the controller itself, the one the unit tests see.
+     */
+    private static function language(WP_REST_Request $request): Language
+    {
+        $given = $request->get_param('language');
+        if ($given === null) {
+            return Language::default();
+        }
+
+        return (is_string($given) ? Language::tryFrom($given) : null)
+            ?? throw new InvalidArgumentException('The language must be one of ' . implode(', ', Language::values()) . ', "' . (is_scalar($given) ? (string) $given : gettype($given)) . '" given.');
+    }
+
+    /**
      * The headers of the native collections: the totals, and the previous
-     * and next pages as links that keep the size and the filters.
+     * and next pages as links that keep the size, the language when the
+     * request gave one, and the filters.
      *
      * @return array<string, string>
      */
-    private function headers(CatalogPage $page, CatalogQuery $query): array
+    private function headers(CatalogPage $page, CatalogQuery $query, bool $withLanguage): array
     {
         $headers = [
             'X-WP-Total' => (string) $page->total,
@@ -221,10 +272,10 @@ final class CollectionController implements RestController
         // and an empty collection has no previous page at all.
         $previous = min($query->page - 1, $page->totalPages());
         if ($previous > 0) {
-            $links[] = '<' . $this->pageUrl($query, $previous) . '>; rel="prev"';
+            $links[] = '<' . $this->pageUrl($query, $previous, $withLanguage) . '>; rel="prev"';
         }
         if ($query->page < $page->totalPages()) {
-            $links[] = '<' . $this->pageUrl($query, $query->page + 1) . '>; rel="next"';
+            $links[] = '<' . $this->pageUrl($query, $query->page + 1, $withLanguage) . '>; rel="next"';
         }
         if ($links !== []) {
             $headers['Link'] = implode(', ', $links);
@@ -233,9 +284,12 @@ final class CollectionController implements RestController
         return $headers;
     }
 
-    private function pageUrl(CatalogQuery $query, int $page): string
+    private function pageUrl(CatalogQuery $query, int $page, bool $withLanguage): string
     {
         $params = ['page' => $page, 'per_page' => $query->perPage];
+        if ($withLanguage) {
+            $params['language'] = $query->language->value;
+        }
         if ($query->tag !== null) {
             $params['tag'] = $query->tag;
         }

@@ -13,11 +13,14 @@ use WP_REST_Server;
 
 /**
  * `GET /portfolio/v1/sitemap` (01-plugin-php.md §7.1): every published
- * document, by collection, with the instant of its last modification, in
- * one unpaginated answer. Meant for a consumer that caches the documents
- * (the C# gateway, 02-api-csharp.md §5.2): it polls this route, compares
- * the instants with those it holds, and fetches again only what changed.
- * Open to anyone, like the collections it summarizes.
+ * document of every language, by collection, with the instant of its last
+ * modification, its language and its translation key, in one unpaginated
+ * answer. Meant for a consumer that caches the documents (the C# gateway,
+ * 02-api-csharp.md §5.2): it polls this route, compares the instants with
+ * those it holds, and drops the whole translation group of what changed.
+ * It is the only view of every language at once; it takes no parameter,
+ * so a `language` given to it is ignored like any undeclared one
+ * (ADR-021). Open to anyone, like the collections it summarizes.
  */
 final class SitemapController implements RestController
 {
