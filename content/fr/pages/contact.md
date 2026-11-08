@@ -16,6 +16,6 @@ Je cherche un stage de six mois à partir de janvier 2027, en développement log
 
 ## Ce qui m'intéresse
 
-Un stage ou une alternance où l'architecture compte autant que le code : C#, Rust ou PHP, des tests dès le départ, et une équipe qui écrit ses décisions. Le [CV](../pages/cv.md) et les [projets](/fr/projets/) disent le reste.
+Un stage ou une alternance où l'architecture et les tests comptent autant que le code, en C#, Rust, PHP ou TypeScript. Le [CV](../pages/cv.md) et les [projets](/fr/projets/) disent le reste.
 
-Pas de formulaire ici, à dessein : un message écrit vaut mieux qu'un champ à remplir.
+Pas de formulaire ici : un e-mail suffit.
