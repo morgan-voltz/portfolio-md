@@ -19,7 +19,7 @@ Ich heisse Morgan Voltz. Als Full-Stack-Entwickler absolviere ich die Licence pr
 
 ## Berufserfahrung
 
-- **Gründer und Entwickler — Kovelt** (seit September 2025). Ich konzipiere, entwickle und betreibe allein drei Produkte: [carbon-fr](../../fr/projects/carbon-fr.md), eine Rust-API in Produktion; [Atlas](../../fr/projects/atlas.md), in C# / .NET 10; und [Vefta](../../fr/projects/vefta.md), eine persönliche Produktivitätssuite in Rust (Axum, Dioxus, PostgreSQL), offline-first gedacht und ohne jemals die Daten der Nutzer zu monetarisieren.
+- **Gründer und Entwickler — Kovelt** (seit September 2025). Ich konzipiere, entwickle und betreibe allein drei Produkte: [carbon-fr](../projects/carbon-fr-de.md), eine Rust-API in Produktion; [Atlas](../../fr/projects/atlas.md), in C# / .NET 10; und [Vefta](../projects/vefta-de.md), eine persönliche Produktivitätssuite in Rust (Axum, Dioxus, PostgreSQL), offline-first gedacht und ohne jemals die Daten der Nutzer zu monetarisieren.
 - **Industrieelektriker, dann Automatiker** (vor dem Berufswechsel). Rund fünfzehn Jahre als Elektriker: Zutrittskontroll-, Alarm- und Brandmeldezentralen; Industrie- und Gebäudeelektrik; Bauleitung. Danach Automatiker, unter anderem mit der Programmierung von Siemens-Steuerungen auf Regalbediengeräten, den Logistikrobotern der Stöcklin Logistik AG (Schweiz).
 
 ## Technische Kenntnisse
@@ -46,13 +46,13 @@ Git, Docker / Podman, GitLab CI/CD, Postman / Bruno, Linux, WSL2, Jira, Confluen
 ## Ausgewählte Projekte
 
 ### Produkte und Kundenprojekte
-- **[Vefta](../../fr/projects/vefta.md)** — durchgehend in Rust geschriebene Produktivitätssuite für Kovelt, offline-first gedacht. *In Arbeit.*
+- **[Vefta](../projects/vefta-de.md)** — durchgehend in Rust geschriebene Produktivitätssuite für Kovelt, offline-first gedacht. *In Arbeit.*
 - **[Atlas](../../fr/projects/atlas.md)** — .NET-Plattform, die die öffentlichen französischen Unternehmens- und Immaterialgüterdaten zusammenführt, durch Tests abgesichert. *In Arbeit.*
-- **[carbon-fr](../../fr/projects/carbon-fr.md)** — Open-Source-API, die die CO₂-Intensität des französischen Stroms misst. *Stabil.*
-- **[AUTOFIN Control](../../fr/projects/autofin-control.md)** — Auslesen von PDF-Bilanzen durch geometrische Analyse für das Finanzcontrolling von m2A, im Fünferteam. *Stabil.*
+- **[carbon-fr](../projects/carbon-fr-de.md)** — Open-Source-API, die die CO₂-Intensität des französischen Stroms misst. *Stabil.*
+- **[AUTOFIN Control](../projects/autofin-control-de.md)** — Auslesen von PDF-Bilanzen durch geometrische Analyse für das Finanzcontrolling von m2A, im Fünferteam. *Stabil.*
 
 ### Leitprojekt und akademische Projekte UHA 4.0
-- **[MomoCad](../../fr/projects/momocad.md)** — 2D-Zeichnung im CAD-Stil, deren Zustand nur ein erneut abgespieltes Ereignisprotokoll ist; laufendes Leitprojekt 4.0.2. *In Arbeit.*
+- **[MomoCad](../projects/momocad-de.md)** — 2D-Zeichnung im CAD-Stil, deren Zustand nur ein erneut abgespieltes Ereignisprotokoll ist; laufendes Leitprojekt 4.0.2. *In Arbeit.*
 - **[GeoForge, das Spiel](../../fr/projects/geoforge-jeu.md)** — geometrisches Puzzle, bei dem allein der Server eine Platzierung bestätigt; Leitprojekt 4.0.2 des Durchgangs 2025–2026, allein geführt und verteidigt. *Archiviert.*
 - **[UHA Learn](../../fr/projects/uha-learn.md)** — Kurskatalog und Fortschrittsverfolgung mit einer ohne Framework geschriebenen PHP-REST-API; Leitprojekt 4.0.1. *Archiviert.*
 - **[HEHEWATT](../../fr/projects/hehewatt.md)** — Mitfahr-App für Schulen, von mehreren Studierendenjahrgängen übernommen und weitergeführt, in Teams von 30 bis 50 Personen je nach Jahrgang. *Archiviert.*
