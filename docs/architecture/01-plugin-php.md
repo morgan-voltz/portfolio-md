@@ -5,7 +5,7 @@
 **Prérequis** : avoir lu [`00-overview.md`](00-overview.md)
 **Lectorat** : contributeur PHP, Morgan en phase d'implémentation, relecteur technique
 **Temps de lecture** : environ trente minutes
-**Dernière mise à jour** : 8 novembre 2026 (ADR-020, lot 4 : libellés de statut et intitulés de compétence dans la langue demandée, clé `official`, grille avec `official` et `i18n`, trois term metas de plus ; ADR-021, lot 3 : la langue dans les routes REST de lecture, paramètre `language`, cinq clés par document, listes ancrées sur le français et repli, sitemap avec langue et clé ; le 7 novembre, ADR-020, lot 2 : pont Polylang, adaptateur de la passerelle de langue, types déclarés à Polylang, requêtes toutes langues, boîte en lecture seule pour les traductions, `wp portfolio translations reconcile` ; lots 1a, 1b et 1c : modèle de langue, portes et migration du contenu vers `content/fr/`, `lang` obligatoire ; webhook Git, phase 9, ADR-019, et endpoints REST publics en lecture, phase 5, ADR-018, le 29 octobre ; pipeline et import WP-CLI le 26 octobre ; version d'origine du 22 avril 2026)
+**Dernière mise à jour** : 8 novembre 2026 (ADR-022, lot 5a : le thème enfant `theme/portfolio-md-child` existe et le script `tools/site-setup.php` pose les réglages sûrs du site ; ADR-020, lot 4 : libellés de statut et intitulés de compétence dans la langue demandée, clé `official`, grille avec `official` et `i18n`, trois term metas de plus ; ADR-021, lot 3 : la langue dans les routes REST de lecture, paramètre `language`, cinq clés par document, listes ancrées sur le français et repli, sitemap avec langue et clé ; le 7 novembre, ADR-020, lot 2 : pont Polylang, adaptateur de la passerelle de langue, types déclarés à Polylang, requêtes toutes langues, boîte en lecture seule pour les traductions, `wp portfolio translations reconcile` ; lots 1a, 1b et 1c : modèle de langue, portes et migration du contenu vers `content/fr/`, `lang` obligatoire ; webhook Git, phase 9, ADR-019, et endpoints REST publics en lecture, phase 5, ADR-018, le 29 octobre ; pipeline et import WP-CLI le 26 octobre ; version d'origine du 22 avril 2026)
 
 ---
 
@@ -605,13 +605,15 @@ La commande `composer test` lance la suite unitaire (`composer test:unit` idem).
 
 Le plugin est volontairement découplé du thème, mais certains points de coordination sont nécessaires.
 
+Le thème du site est un **enfant de GeneratePress**, versionné dans `theme/portfolio-md-child/` depuis le lot 5a d'ADR-022 (8 novembre 2026) : `style.css` (en-tête `Template: generatepress`, feuille mise en file par GeneratePress lui-même) et `functions.php` ; il est monté dans les conteneurs par `docker-compose.yml` comme le plugin et activé par `bootstrap.sh`. Ses règles : il ne décide jamais de la langue d'un document et n'écrit rien, il rend ce que le plugin sert et ce que Polylang route, et garde chaque appel au plugin ou à Polylang derrière `function_exists()`. Le sélecteur de langue, la liste avec repli et le badge FR viennent avec les lots 5c et 5d (ADR-022) ; le dessin du site, phase 10. Le mode d'emploi est dans `theme/theme-README.md`.
+
 Le plugin produit du HTML Gutenberg standard. Tout thème compatible avec les blocs Gutenberg natifs affichera correctement les articles produits par le plugin, y compris les thèmes de base comme GeneratePress, Kadence ou les thèmes officiels WordPress (Twenty Twenty-Four, etc.).
 
 Le thème peut avoir besoin de templates dédiés pour les CPT. La convention WordPress de hiérarchie des templates permet de créer `single-project.php`, `archive-project.php`, `single-article.php`, `archive-article.php` et `taxonomy-skill.php` dans le child theme pour customiser l'affichage sans toucher au plugin.
 
 Pour les enrichissements à la demande (Mermaid, KaTeX), le thème devra lire les flags `_portfolio_needs_mermaid` et `_portfolio_needs_katex` en début de rendu et charger conditionnellement les assets correspondants. Ces flags ne sont pas encore enregistrés (reportés, ADR-013) : ils apparaîtront avec le pipeline qui les détecte et le thème qui les lit. Cette logique vit dans le thème, pas dans le plugin, parce qu'elle concerne le rendu et non le stockage.
 
-La documentation du child theme sera produite séparément quand la phase dix de la feuille de route sera atteinte.
+La configuration du site qui se fait une fois par environnement (option de publication des langues, `noindex` des archives de taxonomies, puis accueil statique et menus par langue) n'est ni dans le thème ni dans l'administration : c'est le script rejouable `plugin/tools/site-setup.php` (`wp eval-file`), ADR-022 point 12. La documentation du dessin du thème viendra avec la phase dix.
 
 ---
 
