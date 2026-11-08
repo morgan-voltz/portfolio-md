@@ -4,7 +4,7 @@
 **Rôle** : document d'entrée dans l'architecture, porte d'accès aux documents détaillés
 **Lectorat** : contributeur, recruteur, étudiant, Morgan lui-même à froid
 **Temps de lecture** : environ quinze minutes
-**Dernière mise à jour** : 8 novembre 2026 (ADR-021 : la langue dans les routes REST de lecture, lot 3 du site trilingue ; le 7 novembre, ADR-020, site trilingue : modèle de langue, portes, contenu migré vers `content/fr/` et pont Polylang, lot 2 ; phases 5 et 9 terminées le 29 octobre : endpoints REST publics en lecture, webhook Git)
+**Dernière mise à jour** : 8 novembre 2026 (ADR-020 lot 4 : libellés de statut et intitulés de compétence dans la langue demandée, grille trilingue ; ADR-021 : la langue dans les routes REST de lecture, lot 3 du site trilingue ; le 7 novembre, ADR-020, site trilingue : modèle de langue, portes, contenu migré vers `content/fr/` et pont Polylang, lot 2 ; phases 5 et 9 terminées le 29 octobre : endpoints REST publics en lecture, webhook Git)
 
 ---
 
@@ -184,7 +184,7 @@ Le projet est découpé en douze phases indépendantes, conçues pour être atta
 
 **Phase 4** : éditeur Markdown dans l'admin WordPress. Morgan peut écrire en Markdown directement depuis l'admin et voir le rendu immédiatement. *(Terminée : côté serveur le 26 octobre 2026, métabox Markdown sur l'écran d'édition classique des articles et projets et page de collage sous le menu Portfolio ; éditeur CodeMirror 6 et prévisualisation rendue par le serveur le 27 octobre 2026, ADR-016.)*
 
-**Phase 5** : endpoint REST de lecture. L'API custom `/wp-json/portfolio/v1/*` expose articles et projets au format JSON. *(Terminée le 29 octobre 2026 : `GET /articles`, `/projects`, `/pages`, leurs `/{slug}` et `/sitemap`, Markdown source inclus, ADR-018. Amendée le 8 novembre 2026 par ADR-021 : paramètre `language`, cinq clés de langue par document, listes ancrées sur le français avec repli signalé, sitemap avec langue et clé.)*
+**Phase 5** : endpoint REST de lecture. L'API custom `/wp-json/portfolio/v1/*` expose articles et projets au format JSON. *(Terminée le 29 octobre 2026 : `GET /articles`, `/projects`, `/pages`, leurs `/{slug}` et `/sitemap`, Markdown source inclus, ADR-018. Amendée le 8 novembre 2026 par ADR-021 : paramètre `language`, cinq clés de langue par document, listes ancrées sur le français avec repli signalé, sitemap avec langue et clé. Lot 4 d'ADR-020 le même jour : `status.label` et `skills[].label` dans la langue demandée, `skills[].official`.)*
 
 **Phase 6** : API C# ASP.NET Core. Un service .NET consomme le WordPress, met en cache, expose une API publique.
 
