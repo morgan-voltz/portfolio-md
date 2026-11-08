@@ -89,8 +89,9 @@ final class ContentRendererTest extends TestCase
     #[Test]
     public function the_render_version_is_pinned_to_what_the_links_look_like(): void
     {
-        // 1.2.0 since the links carry the language of the document (ADR-020, lot 1b): a post rendered by an
-        // older version is rendered again at its next import. Move this pin on purpose, with the version.
-        self::assertSame('1.2.0', ContentRenderer::VERSION);
+        // 1.2.0 since the links carry the language of the document (ADR-020, lot 1b), 1.3.0 since the SEO
+        // description is also written to Yoast (ADR-022, point 13): a post written by an older version is
+        // written again at its next import. Move this pin on purpose, with the version.
+        self::assertSame('1.3.0', ContentRenderer::VERSION);
     }
 }

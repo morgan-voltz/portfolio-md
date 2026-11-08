@@ -54,6 +54,9 @@ use WP_Term;
  */
 final class WordPressContentRepository implements ContentRepository, DocumentLister
 {
+    /** Yoast's own meta description of a post (ADR-022, point 13): what its `<meta name="description">` says. */
+    public const YOAST_META_DESCRIPTION = '_yoast_wpseo_metadesc';
+
     private const LAST_SYNC_FORMAT = 'Y-m-d\TH:i:s\Z';
 
     /** Where WordPress keeps the slug of a trashed post while the post is named `<slug>__trashed`. */
@@ -363,6 +366,15 @@ final class WordPressContentRepository implements ContentRepository, DocumentLis
         $frontmatter = $record->frontmatter;
 
         MetaWriter::update($postId, CommonMetaRegistrar::SEO_DESCRIPTION, $frontmatter->seoDescription);
+        // The same text for Yoast (ADR-022, point 13), so that the <meta name="description"> of the
+        // page is the one the author wrote. Git is the only writer: an absent description deletes
+        // the meta rather than leaving a stale one. No Yoast guard, a meta key is harmless without
+        // it, and a first import before Yoast is active would otherwise leave every page without.
+        if ($frontmatter->seoDescription !== '') {
+            MetaWriter::update($postId, self::YOAST_META_DESCRIPTION, $frontmatter->seoDescription);
+        } else {
+            delete_post_meta($postId, self::YOAST_META_DESCRIPTION);
+        }
         if ($frontmatter->type !== ContentType::Page) {
             // The other public metas are registered on the plugin's types only.
             MetaWriter::update($postId, CommonMetaRegistrar::FEATURED, $frontmatter->featured);
