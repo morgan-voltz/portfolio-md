@@ -18,6 +18,7 @@ import os
 import sys
 import tempfile
 import unittest
+import urllib.error
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -215,6 +216,112 @@ class Answers(unittest.TestCase):
         self.assertEqual("2 created, 1 unchanged", sync.summary_line(counts, 1))
 
 
+class Post(unittest.TestCase):
+    """The request and its patience: an explicit User-Agent, 5xx and connection errors retried
+    with the backoff schedule, a 4xx returned at once, the host's challenge page recognised."""
+
+    CHALLENGE = b'<!DOCTYPE HTML><html lang="en-US"><head><title>Test de s\xc3\xa9curit\xc3\xa9 / Security check...</title></head><body><form action="/o2s-cgi/security-challenge?a=verify-response"></form></body></html>'
+
+    def fake_network(self, answers: list) -> tuple[list, list]:
+        """Patch urlopen to pop one answer per call (an int status with a body, or an exception) and
+        sleep to record its delays; return the recorded requests and delays."""
+        requests_seen: list = []
+        delays: list = []
+        answers = list(answers)
+
+        class Response:
+            def __init__(self, status: int, body: bytes) -> None:
+                self.status, self._body = status, body
+
+            def read(self) -> bytes:
+                return self._body
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc) -> None:
+                return None
+
+        def urlopen(request, timeout=0):
+            requests_seen.append(request)
+            answer = answers.pop(0)
+            if isinstance(answer, Exception):
+                raise answer
+            status, body = answer
+            if status >= 400:
+                raise urllib.error.HTTPError(request.full_url, status, "error", {}, io.BytesIO(body))
+            return Response(status, body)
+
+        self.addCleanup(setattr, sync.urllib.request, "urlopen", sync.urllib.request.urlopen)
+        self.addCleanup(setattr, sync.time, "sleep", sync.time.sleep)
+        sync.urllib.request.urlopen = urlopen
+        sync.time.sleep = delays.append
+        return requests_seen, delays
+
+    def test_the_backoff_grows_from_five_seconds_to_ninety_at_most(self) -> None:
+        self.assertEqual([sync.backoff(a) for a in (1, 2, 3, 4, 5)], [5.0, 15.0, 45.0, 90.0, 90.0])
+
+    def test_the_request_identifies_itself_and_authenticates(self) -> None:
+        seen, delays = self.fake_network([(200, b'{"results": []}')])
+        with redirect_stdout(io.StringIO()):
+            status, payload = sync.post("https://example.test/wp-json/portfolio/v1/sync", "morgan", "secret", {"files": []})
+        self.assertEqual((status, payload), (200, {"results": []}))
+        self.assertEqual(seen[0].get_header("User-agent"), sync.USER_AGENT)
+        self.assertTrue(seen[0].get_header("Authorization").startswith("Basic "))
+        self.assertEqual(delays, [])
+
+    def test_a_firewall_challenge_is_outlasted_with_the_backoff_schedule(self) -> None:
+        seen, delays = self.fake_network([(503, self.CHALLENGE), (503, self.CHALLENGE), (200, b'{"results": []}')])
+        out = io.StringIO()
+        with redirect_stdout(out):
+            status, payload = sync.post("https://example.test/sync", "morgan", "secret", {"files": []})
+        self.assertEqual((status, payload), (200, {"results": []}))
+        self.assertEqual(len(seen), 3)
+        self.assertEqual(delays, [5.0, 15.0])
+        self.assertIn("WAIT   HTTP 503, the host's firewall answered a JavaScript challenge page instead of the site (Tiger Protect); attempt 1 of 5, next in 5 s", out.getvalue())
+
+    def test_five_challenges_in_a_row_are_reported_once_as_a_challenge(self) -> None:
+        seen, delays = self.fake_network([(503, self.CHALLENGE)] * 5)
+        with redirect_stdout(io.StringIO()):
+            status, payload = sync.post("https://example.test/sync", "morgan", "secret", {"files": []})
+        self.assertEqual(status, 503)
+        self.assertEqual(len(seen), 5)
+        self.assertEqual(delays, [5.0, 15.0, 45.0, 90.0])
+        self.assertEqual(sync.challenge(payload), "the host's firewall answered a JavaScript challenge page instead of the site (Tiger Protect)")
+
+    def test_a_client_error_is_returned_at_once(self) -> None:
+        seen, delays = self.fake_network([(401, b'{"code": "rest_forbidden"}')])
+        with redirect_stdout(io.StringIO()):
+            status, payload = sync.post("https://example.test/sync", "morgan", "secret", {"files": []})
+        self.assertEqual((status, payload), (401, {"code": "rest_forbidden"}))
+        self.assertEqual((len(seen), delays), (1, []))
+
+    def test_a_connection_error_is_retried_with_a_wait_line_then_reported_as_no_answer(self) -> None:
+        seen, delays = self.fake_network([urllib.error.URLError("refused")] * 5)
+        out = io.StringIO()
+        with redirect_stdout(out):
+            status, payload = sync.post("https://example.test/sync", "morgan", "secret", {"files": []})
+        self.assertEqual(status, 0)
+        self.assertTrue(str(payload).startswith("no answer from https://example.test/sync"))
+        self.assertEqual(delays, [5.0, 15.0, 45.0, 90.0])
+        self.assertEqual(out.getvalue().count("WAIT   no answer"), 4)
+
+    def test_a_challenge_page_with_a_client_status_is_not_retried(self) -> None:
+        seen, delays = self.fake_network([(403, self.CHALLENGE)])
+        with redirect_stdout(io.StringIO()):
+            status, payload = sync.post("https://example.test/sync", "morgan", "secret", {"files": []})
+        self.assertEqual(status, 403)
+        self.assertEqual((len(seen), delays), (1, []))
+        self.assertIsNotNone(sync.challenge(payload))
+
+    def test_the_challenge_detector_recognises_the_firewall_page_only(self) -> None:
+        self.assertIsNone(sync.challenge({"code": "x"}))
+        self.assertIsNone(sync.challenge("Service Unavailable"))
+        self.assertIsNone(sync.challenge("<html><body><h1>Internal error</h1></body></html>"), "an ordinary HTML error page is not a challenge")
+        self.assertIsNone(sync.challenge("<html><body>Security check failed.</body></html>"), "a WordPress wp_die page about a nonce is not a challenge")
+        self.assertIsNotNone(sync.challenge(self.CHALLENGE.decode("utf-8")))
+
+
 class WorkflowCommands(unittest.TestCase):
     def test_a_path_cannot_end_a_command_and_start_another(self) -> None:
         self.assertEqual("content/projects/x%0A::add-mask::y.md", sync.escape_data("content/projects/x\n::add-mask::y.md"))
@@ -278,6 +385,35 @@ class Main(unittest.TestCase):
             os.environ.clear()
             os.environ.update(saved_env)
         return code, out.getvalue()
+
+    def with_post(self, status: int, payload) -> None:
+        """Patch the network call of the script for the duration of a test."""
+        self.addCleanup(setattr, sync, "post", sync.post)
+        sync.post = lambda url, user, password, body: (status, payload)
+
+    def a_tree_with_one_document(self) -> str:
+        root = tempfile.mkdtemp()
+        content = Path(root) / "content" / "fr" / "pages"
+        content.mkdir(parents=True)
+        (content / "a-propos.md").write_text("---\ntitle: x\n---\n", encoding="utf-8")
+        (Path(root) / "content" / "skills.yaml").write_text("referentials: []\n", encoding="utf-8")
+        return root
+
+    def test_a_challenge_that_outlasts_the_retries_is_reported_in_one_line_with_the_schedule(self) -> None:
+        self.with_post(503, Post.CHALLENGE.decode("utf-8"))
+        code, out = self.run_main("--url", "https://example.test", "--user", "morgan", "--password-env", "PW", "--all", "--repo", self.a_tree_with_one_document(), env={"PW": "secret"})
+        self.assertEqual(code, 1)
+        self.assertIn("ERROR  batch 1", out)
+        self.assertIn("the host's firewall answered a JavaScript challenge page instead of the site (Tiger Protect), 5 attempts over about 155 s", out)
+        self.assertNotIn("o2s-cgi", out, "the markup of the page is not copied")
+
+    def test_a_challenge_page_with_a_client_status_is_reported_as_not_retried_with_its_page(self) -> None:
+        self.with_post(403, Post.CHALLENGE.decode("utf-8"))
+        code, out = self.run_main("--url", "https://example.test", "--user", "morgan", "--password-env", "PW", "--all", "--repo", self.a_tree_with_one_document(), env={"PW": "secret"})
+        self.assertEqual(code, 1)
+        self.assertIn("at the first attempt (HTTP 403, not retried)", out)
+        self.assertIn("o2s-cgi/security-challenge", out, "the page follows so that the reader sees what answered")
+        self.assertNotIn("attempts over", out)
 
     def test_an_empty_password_is_a_usage_error(self) -> None:
         code, _ = self.run_main("--url", "http://x", "--user", "u", "--password-env", "NOPE_EMPTY", "--all", env={"NOPE_EMPTY": ""})

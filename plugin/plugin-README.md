@@ -242,6 +242,8 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/sync-smoke.php --user=<your admin login>
 ```
 
+**Patience with the host's firewall (8 November 2026).** The production host answers a JavaScript challenge page (HTTP 503, "Security check", Tiger Protect) to a GitHub runner for a minute or two now and then; the first dry run met it, the second passed. The script therefore identifies itself (`User-Agent: portfolio-md-sync/1.0`), makes five attempts in all on a 5xx or a connection error, with waits of 5, 15, 45 and 90 seconds between them (`backoff()`), prints one `WAIT` line before each wait, and when the challenge outlasts every attempt it reports it in one line instead of the page's markup (a challenge page with a 4xx status is not retried and is printed, since the firewall did not ask for patience). If the job is still red, run it again. The unit tests cover the schedule, the headers and the detector (`Post` in `test_sync_content.py`).
+
 ## Tests
 
 Three complementary suites for the plugin, plus the tests of the CI script, and the exploratory scripts of two spikes.
