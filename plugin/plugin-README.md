@@ -210,7 +210,7 @@ Since lot 5c of ADR-022 the plugin exposes two plain functions in the global nam
 | `portfolio_md_list_with_fallback(string $type, string $language, int $limit = 50)` | the published documents of a kind (`project`, `article`, `page`) as a reader of a language gets them: the same documents, in the same order, as `GET /<collection>?language=<lang>&per_page=<limit>`, each served in that language when its translation group holds it, else along the fallback chain and flagged. A list of `Service\ListItem` (post id, title, excerpt = subtitle else SEO description, permalink of the document served, language served, language asked, fallback flag), no HTML. An unknown language reads as French; an unknown kind or a limit outside 1..100 throws, since a template wrote them. |
 | `portfolio_md_published_languages()` | the languages open to the public, French always and first (`['fr']`, `['fr', 'de']`...): what a switcher may show. |
 
-The child theme (`../theme/portfolio-md-child/`) uses them in `archive-project.php` and in its language switcher. Behind them, `Service\ListWithFallback` over the same `ContentCatalog` as the REST routes, and `Service\PublishedLanguages`. The archive of a kind of document whose language has no document of that kind of its own is `noindex, follow` (Yoast `wpseo_robots`, `ContentCatalog::countOwn()`): the page is then only French cards under a foreign URL.
+The child theme (`../theme/portfolio-md-child/`) uses them in `archive-project.php` and in its language switcher. Behind them, `Service\ListWithFallback` over the same `ContentCatalog` as the REST routes, and `Service\PublishedLanguages`. The archive of a kind of document whose language has no document of that kind of its own is `noindex, follow` and its block leaves the XML sitemap (Yoast `wpseo_robots` and `wpseo_sitemap_<type>_content`, `ContentCatalog::countOwn()`): the page is then only French cards under a foreign URL.
 
 ## Git door
 
@@ -276,7 +276,7 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
 plugin/tools/opening-check.sh http://localhost:8000
 ```
 
-**List smoke (lot 5c of ADR-022).** `tests/Integration/wp-cli/list-smoke.php` checks the list a template prints against the real stack: the template functions and the rendering functions of the child theme as WordPress loads them, `archive-project.php` found by the template hierarchy, the list equal to the REST list in every language once a French project and its German translation are imported through the Polylang gateway (German first for a German reader, the others as French fallbacks in the French order, everything French for an English reader), the count of own documents, the robots rule of the project archive with every language open, the cards and the badge rendered by the theme; the fixtures are deleted for good and the option restored. `tools/opening-check.sh` reports, for each page, the cards and badges of the archive and the languages of the switcher.
+**List smoke (lot 5c of ADR-022).** `tests/Integration/wp-cli/list-smoke.php` checks the list a template prints against the real stack: the template functions and the rendering functions of the child theme as WordPress loads them, `archive-project.php` found by the template hierarchy, the list equal to the REST list in every language once a French project, its German translation and a German draft are imported through the Polylang gateway (the German card in place of the French one for a German reader, the others as French fallbacks in the French order, the draft in no list), the count of own documents as a delta on what the site holds, the robots rule and the sitemap block of the project archive with every language open, the cards and the badge rendered by the theme; the fixtures are deleted for good and the option restored. It needs at least one published French project. `tools/opening-check.sh` reports, for each page, the cards and badges of the archive and the languages of the switcher.
 
 ```bash
 podman-compose --profile tools run --rm wpcli wp eval-file \
@@ -290,8 +290,8 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
 cd plugin
 composer test            # or: composer test:unit
 
-# Without PHP on the host
-podman run --rm -v "$PWD:/app:z" -w /app docker.io/library/php:8.3-cli vendor/bin/phpunit
+# Without PHP on the host: mount the whole repository, the suite reads content/ and theme/
+podman run --rm -v "$PWD/..:/repo:z" -w /repo/plugin docker.io/library/php:8.3-cli vendor/bin/phpunit
 ```
 
 **Browser suite (Node, no browser).** `assets/tests/` covers the JavaScript with Node's own test runner: the preview loop (debounce, stale answers, failures) and the document of the preview frame are pure; the mounting on the textarea runs in a jsdom document with a fake editor and fake requests. CodeMirror itself is not tested. Run it from `plugin/assets` after `npm ci`:
