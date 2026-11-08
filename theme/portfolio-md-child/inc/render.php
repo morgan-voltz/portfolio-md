@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 /**
  * What the theme renders from what the plugin and Polylang hand over (ADR-022,
- * points 5 and 8): the language switcher and the cards of a list with
- * fallback. Pure functions, arrays and value objects in, HTML out, every
+ * points 5, 8 and 10): the language switcher, the cards of a list with
+ * fallback and the recent projects block of the home page. Pure functions, arrays and value objects in, HTML out, every
  * value escaped here; they call nothing of WordPress but the escaping
  * functions, so the unit suite of the plugin exercises them without a
  * WordPress. The hooks that feed them are in functions.php.
@@ -149,4 +149,27 @@ function portfolio_md_child_render_badge(string $documentLanguage, string $pageL
         . '<span lang="' . esc_attr($documentLanguage) . '" aria-hidden="true">' . esc_html(strtoupper($documentLanguage)) . '</span>'
         . '<span class="screen-reader-text" lang="' . esc_attr($pageLanguage) . '">' . esc_html($sentence) . '</span>'
         . '</span>';
+}
+
+/**
+ * The recent projects block of the home page (ADR-022, point 10): a heading,
+ * the cards of the first projects as the reader's language gets them, and a
+ * link to the archive of the language. Nothing when the list is empty: a
+ * home page without projects says nothing rather than an empty heading.
+ *
+ * @param list<ListItem> $items      the first projects, portfolio_md_list_with_fallback('project', $language, 3)
+ * @param string         $language   the language of the page
+ * @param string         $archiveUrl the archive of the projects in that language, get_post_type_archive_link('project')
+ */
+function portfolio_md_child_render_home_projects(array $items, string $language, string $archiveUrl): string
+{
+    if ($items === []) {
+        return '';
+    }
+
+    return '<section class="home-projects" aria-labelledby="home-projects-title">'
+        . '<h2 id="home-projects-title" class="home-projects-title">' . esc_html(portfolio_md_child_text('recent_projects', $language)) . '</h2>'
+        . portfolio_md_child_render_cards($items, $language)
+        . ($archiveUrl !== '' ? '<p class="home-projects-more"><a href="' . esc_url($archiveUrl) . '">' . esc_html(portfolio_md_child_text('all_projects', $language)) . '</a></p>' : '')
+        . '</section>';
 }

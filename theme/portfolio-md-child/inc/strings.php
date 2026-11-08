@@ -6,7 +6,8 @@ declare(strict_types=1);
  * The few words the theme says itself, in the three languages of the site
  * (ADR-022, point 14): the title of the project archive, the label of the
  * language switcher, the sentence behind the badge of a card served in
- * another language, the names of the languages. Everything else on a page
+ * another language, the names of the languages, the heading and the link
+ * of the recent projects block of the home page. Everything else on a page
  * comes from the documents. French is the fallback of an unknown language.
  */
 
@@ -21,18 +22,24 @@ function portfolio_md_child_strings(): array
             'no_projects' => 'Aucun projet pour le moment.',
             'languages' => 'Langues',
             'only_in' => 'Cette page n’est disponible qu’en %s.',
+            'recent_projects' => 'Projets récents',
+            'all_projects' => 'Tous les projets',
         ],
         'de' => [
             'projects' => 'Projekte',
             'no_projects' => 'Noch keine Projekte.',
             'languages' => 'Sprachen',
             'only_in' => 'Diese Seite ist nur auf %s verfügbar.',
+            'recent_projects' => 'Neueste Projekte',
+            'all_projects' => 'Alle Projekte',
         ],
         'en' => [
             'projects' => 'Projects',
             'no_projects' => 'No project yet.',
             'languages' => 'Languages',
             'only_in' => 'This page is only available in %s.',
+            'recent_projects' => 'Recent projects',
+            'all_projects' => 'All projects',
         ],
     ];
 }

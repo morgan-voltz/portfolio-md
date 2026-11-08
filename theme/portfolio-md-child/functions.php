@@ -15,7 +15,9 @@ declare(strict_types=1);
  *
  * Lot 5c: the language switcher on the menu bar (point 5) and, through
  * archive-project.php, the list of projects with fallback and the badge
- * (points 6 and 8). The home block and the menus come with lot 5d.
+ * (points 6 and 8). Lot 5d: the recent projects block under the content of
+ * the home page of each language (point 10); the menus per language are
+ * configuration, plugin/tools/site-setup.php.
  */
 
 require_once __DIR__ . '/inc/strings.php';
@@ -67,3 +69,23 @@ function portfolio_md_child_archive_query(WP_Query $query): void
     $query->set('posts_per_page', class_exists(\Voltz\PortfolioMd\Service\ListWithFallback::class) ? \Voltz\PortfolioMd\Service\ListWithFallback::DEFAULT_LIMIT : 50);
 }
 add_action('pre_get_posts', 'portfolio_md_child_archive_query');
+
+/**
+ * The recent projects block of the home page (ADR-022, point 10): under the
+ * Markdown body of the home page of the language, on GeneratePress's
+ * generate_after_content of the page template, the first three projects as
+ * the reader's language gets them and a link to the archive. Polylang
+ * translates the static front page per language, so is_front_page() is true
+ * on /fr/, /de/ and /en/ alike once each has its home page.
+ */
+function portfolio_md_child_home_projects(): void
+{
+    if (!is_front_page() || !is_main_query() || !in_the_loop() || !function_exists('portfolio_md_list_with_fallback')) {
+        return;
+    }
+    $language = portfolio_md_child_current_language();
+    $archive = get_post_type_archive_link('project');
+
+    echo portfolio_md_child_render_home_projects(portfolio_md_list_with_fallback('project', $language, 3), $language, is_string($archive) ? $archive : ''); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped while rendered
+}
+add_action('generate_after_content', 'portfolio_md_child_home_projects');
