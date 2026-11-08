@@ -5,7 +5,7 @@ Description: Child theme of GeneratePress for the WordPress portfolio (ADR-022):
 Author: Morgan Voltz
 Author URI: https://github.com/morgan-voltz
 Template: generatepress
-Version: 0.1.0
+Version: 0.2.0
 Requires at least: 7.0
 Requires PHP: 8.2
 License: MIT
@@ -16,6 +16,56 @@ Text Domain: portfolio-md-child
 /*
  * GeneratePress enqueues this stylesheet itself after its own
  * (inc/general.php, filter generate_load_child_theme_stylesheet): nothing
- * to enqueue in functions.php. The rules of the theme come with lots 5c
- * and 5d (badge, switcher, cards); the real design is phase 10.
+ * to enqueue in functions.php. Sober rules only; the real design is phase 10.
  */
+
+/* The language switcher (ADR-022, point 5): one menu bar item per open language,
+   the current one as text with the same room as the links of GeneratePress. */
+.lang-switcher {
+	display: inline-flex;
+	align-items: center;
+}
+
+.lang-switcher .lang-current {
+	display: inline-block;
+	padding: 0 20px;
+	line-height: 60px;
+	font-weight: 700;
+}
+
+.lang-switcher .no-translation a {
+	opacity: 0.75;
+}
+
+/* The badge of a card served in another language than the page (point 8). */
+.lang-badge {
+	display: inline-block;
+	margin-left: 0.5em;
+	padding: 0 0.45em;
+	border: 1px solid currentColor;
+	border-radius: 0.25em;
+	font-size: 0.6em;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	line-height: 1.6;
+	vertical-align: middle;
+	text-transform: uppercase;
+}
+
+.portfolio-card .entry-summary p:last-child {
+	margin-bottom: 0;
+}
+
+/* WordPress's own hidden-text class, as GeneratePress defines it, in case a parent update drops it. */
+.screen-reader-text {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(1px, 1px, 1px, 1px);
+	clip-path: inset(50%);
+	border: 0;
+	word-wrap: normal !important;
+}
