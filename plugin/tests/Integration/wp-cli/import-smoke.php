@@ -232,6 +232,14 @@ try {
     $check('a changed file updates the same post', $updated->outcome === ImportOutcome::Updated && $updated->postId === $articleId, $updated->outcome->value);
     $check('the title changed, the slug did not', get_post($articleId)->post_title === 'Article renommé' && get_post($articleId)->post_name === $articleSlug);
 
+    $described = str_replace('seo_description: "Description SEO de fumée."', 'seo_description: "Nouvelle description."', $renamed);
+    $service->import($described, new ImportOptions());
+    $check('a changed SEO description follows into the Yoast meta', $meta($articleId, WordPressContentRepository::YOAST_META_DESCRIPTION) === 'Nouvelle description.', var_export($meta($articleId, WordPressContentRepository::YOAST_META_DESCRIPTION), true));
+    $service->import(str_replace("seo_description: \"Nouvelle description.\"\n", '', $described), new ImportOptions());
+    $check('a removed SEO description deletes the Yoast meta', !metadata_exists('post', $articleId, WordPressContentRepository::YOAST_META_DESCRIPTION));
+    $service->import($renamed, new ImportOptions());
+    $check('and it comes back with the description', $meta($articleId, WordPressContentRepository::YOAST_META_DESCRIPTION) === 'Description SEO de fumée.');
+
     // 3. A project gets its status, skills and project metas ----------------------------------
 
     $result = $service->import($project($skill->code), new ImportOptions());

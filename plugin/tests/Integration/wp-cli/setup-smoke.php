@@ -61,8 +61,25 @@ $frenchHome = $pageOf(CorePages::HOME, Language::Fr);
 if ($frenchHome === null) {
     WP_CLI::error('No published French page "accueil": import content/fr/pages first (wp portfolio import /srv/portfolio-content/fr/pages --user=...).');
 }
-$expectedItems = 2 + count(array_filter([CorePages::ABOUT, CorePages::CV, CorePages::CONTACT], static fn (string $key): bool => $pageOf($key, Language::Fr) !== null));
-$menusBefore = count(wp_get_nav_menus());
+$frenchPages = array_values(array_filter(array_map(static fn (string $key): ?int => $pageOf($key, Language::Fr), [CorePages::ABOUT, CorePages::CV, CorePages::CONTACT])));
+$expectedItems = 2 + count($frenchPages);
+$menuBefore = wp_get_nav_menu_object('Menu FR');
+/** What a run may not change on a second run: everything the script writes. */
+$snapshot = static function () use ($stylesheet): array {
+    $menu = wp_get_nav_menu_object('Menu FR');
+    $items = $menu === false ? [] : (array) wp_get_nav_menu_items((int) $menu->term_id, ['post_status' => 'publish,draft']);
+    $polylang = (array) get_option('polylang');
+
+    return [
+        'menus' => count(wp_get_nav_menus()),
+        'items' => array_map(static fn ($item): int => (int) $item->ID, $items),
+        'mods' => get_option("theme_mods_{$stylesheet}"),
+        'nav_menus' => $polylang['nav_menus'] ?? null,
+        'redirect_lang' => $polylang['redirect_lang'] ?? null,
+        'show_on_front' => get_option('show_on_front'),
+        'page_on_front' => get_option('page_on_front'),
+    ];
+};
 
 // 1. The first run ----------------------------------------------------------------------------------------
 $first = $run();
@@ -74,11 +91,19 @@ $check('redirect_lang is on', ($polylangOption()['redirect_lang'] ?? false) === 
 $menu = wp_get_nav_menu_object('Menu FR');
 $menuId = $menu === false ? 0 : (int) $menu->term_id;
 $items = $menuId > 0 ? wp_get_nav_menu_items($menuId) : [];
-$check("Menu FR exists with its {$expectedItems} items (home, projects, then the pages that exist)", $menuId > 0 && is_array($items) && count($items) === $expectedItems, json_encode([$menuId, is_array($items) ? count($items) : null]));
-$titles = is_array($items) ? array_map(static fn ($item): string => (string) $item->title, $items) : [];
-$check('the French menu starts with Accueil and Projets', ($titles[0] ?? '') === 'Accueil' && ($titles[1] ?? '') === 'Projets', json_encode($titles));
-$projects = is_array($items) ? array_values(array_filter($items, static fn ($item): bool => $item->type === 'custom')) : [];
-$check('Projets is a custom link to the French archive', count($projects) === 1 && str_ends_with((string) $projects[0]->url, '/fr/projets/'), json_encode(array_map(static fn ($i): string => (string) $i->url, $projects)));
+$items = is_array($items) ? $items : [];
+if ($menuBefore === false) {
+    $check("Menu FR is created and built with its {$expectedItems} items (home, projects, then the pages that exist)", $menuId > 0 && str_contains($out, 'menu Menu FR: created') && str_contains($out, "menu Menu FR: built with {$expectedItems} item(s)") && count($items) === $expectedItems, json_encode([$menuId, count($items)]));
+    $titles = array_map(static fn ($item): string => (string) $item->title, $items);
+    $check('the French menu starts with Accueil and Projets', ($titles[0] ?? '') === 'Accueil' && ($titles[1] ?? '') === 'Projets', json_encode($titles));
+    $targets = array_map(static fn ($item): int => (int) $item->object_id, array_values(array_filter($items, static fn ($item): bool => $item->type === 'post_type')));
+    $check('its page items point to the French home, About, CV and Contact pages, in that order', $targets === [$frenchHome, ...$frenchPages], json_encode([$targets, [$frenchHome, ...$frenchPages]]));
+    $projects = array_values(array_filter($items, static fn ($item): bool => $item->type === 'custom'));
+    $check('Projets is a root-relative link to the French archive, with no host baked in', count($projects) === 1 && (string) $projects[0]->url === '/fr/projets/', json_encode(array_map(static fn ($i): string => (string) $i->url, $projects)));
+} else {
+    WP_CLI::log('      (Menu FR was already there: the build path is not exercised in this run; delete the menu to replay it)');
+    $check('Menu FR, already there, is left as is', $menuId === (int) $menuBefore->term_id && str_contains($out, 'menu Menu FR: already holds') && count($items) >= 2, json_encode([$menuId, count($items)]));
+}
 $mods = get_option("theme_mods_{$stylesheet}");
 $check('the primary location of the theme holds Menu FR, in the raw theme_mods option', is_array($mods) && (int) ($mods['nav_menu_locations']['primary'] ?? 0) === $menuId, json_encode($mods['nav_menu_locations'] ?? null));
 $navMenus = $polylangOption()['nav_menus'] ?? null;
@@ -90,10 +115,12 @@ foreach (['de', 'en'] as $slug) {
 $check('the taxonomy archives are noindex in Yoast', WPSEO_Options::get('noindex-tax-tech_tag') === true && WPSEO_Options::get('noindex-tax-project_status') === true && WPSEO_Options::get('noindex-tax-skill') === true);
 
 // 2. The second run ---------------------------------------------------------------------------------------
+$afterFirst = $snapshot();
 $second = $run();
 $out2 = $second->stdout . "\n" . $second->stderr;
-$check('a second run changes nothing', $second->return_code === 0 && str_contains($out2, 'Nothing to change'), trim($out2));
-$check('no second menu is created and the first keeps its items', count(wp_get_nav_menus()) === max($menusBefore, count(wp_get_nav_menus())) && wp_get_nav_menu_object('Menu FR') !== false && count((array) wp_get_nav_menu_items($menuId)) === $expectedItems && count(array_filter(wp_get_nav_menus(), static fn ($m): bool => $m->name === 'Menu FR')) === 1);
+$check('a second run reports nothing to change', $second->return_code === 0 && str_contains($out2, 'Nothing to change'), trim($out2));
+$check('and leaves every setting as the first run left it (menus, items, theme location, nav_menus, redirect_lang, front page)', $snapshot() === $afterFirst, json_encode([$afterFirst, $snapshot()]));
+$check('exactly one menu is named Menu FR', count(array_filter(wp_get_nav_menus(), static fn ($m): bool => $m->name === 'Menu FR')) === 1);
 
 if ($failures > 0) {
     WP_CLI::error("{$failures} check(s) failed");

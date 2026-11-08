@@ -367,9 +367,11 @@ final class WordPressContentRepository implements ContentRepository, DocumentLis
 
         MetaWriter::update($postId, CommonMetaRegistrar::SEO_DESCRIPTION, $frontmatter->seoDescription);
         // The same text for Yoast (ADR-022, point 13), so that the <meta name="description"> of the
-        // page is the one the author wrote. Git is the only writer: an absent description deletes
-        // the meta rather than leaving a stale one. No Yoast guard, a meta key is harmless without
-        // it, and a first import before Yoast is active would otherwise leave every page without.
+        // page is the one the author wrote. An absent description deletes the meta rather than
+        // leaving a stale one. Written whenever the document is written, so an edit of the Yoast
+        // field in the admin holds until the document or the render version changes. No Yoast
+        // guard: a meta key is harmless without it, and a first import before Yoast is active would
+        // otherwise leave every page without.
         if ($frontmatter->seoDescription !== '') {
             MetaWriter::update($postId, self::YOAST_META_DESCRIPTION, $frontmatter->seoDescription);
         } else {
