@@ -318,6 +318,10 @@ final class WordPressContentCatalog implements ContentCatalog
     {
         $termIds = [];
         foreach ($posts as $post) {
+            // The tags of every kind of document carry their names in metas too (ADR-024).
+            foreach (self::terms($post, TaxonomyRegistrar::TECH_TAG) as $term) {
+                $termIds[] = (int) $term->term_id;
+            }
             if ($post->post_type !== PostTypeRegistrar::PROJECT) {
                 continue;
             }
@@ -361,7 +365,7 @@ final class WordPressContentCatalog implements ContentCatalog
         if ($type !== ContentType::Page) {
             $fields += [
                 'tags' => array_map(
-                    static fn (WP_Term $term): DocumentTag => new DocumentTag($term->slug, $term->name),
+                    static fn (WP_Term $term): DocumentTag => new DocumentTag($term->slug, $term->name, self::translations((int) $term->term_id, TaxonomyRegistrar::tagNameMeta(...))),
                     self::terms($post, TaxonomyRegistrar::TECH_TAG),
                 ),
                 'subtitle' => self::text($id, CommonMetaRegistrar::SUBTITLE),
@@ -424,16 +428,7 @@ final class WordPressContentCatalog implements ContentCatalog
                 continue;
             }
 
-            $names = [Language::default()->value => $term->name];
-            foreach (Language::cases() as $language) {
-                if ($language->isDefault()) {
-                    continue;
-                }
-                $wording = get_term_meta($termId, TaxonomyRegistrar::skillNameMeta($language), true);
-                if (is_string($wording) && $wording !== '') {
-                    $names[$language->value] = $wording;
-                }
-            }
+            $names = [Language::default()->value => $term->name] + self::translations($termId, TaxonomyRegistrar::skillNameMeta(...));
 
             $skills[] = new DocumentSkill(
                 $term->slug,
@@ -446,6 +441,30 @@ final class WordPressContentCatalog implements ContentCatalog
         usort($skills, static fn (DocumentSkill $a, DocumentSkill $b): int => strnatcmp($a->code, $b->code));
 
         return $skills;
+    }
+
+    /**
+     * The wordings a term holds in the languages other than French, read
+     * from the metas named by $metaKey (skillNameMeta or tagNameMeta).
+     *
+     * @param callable(Language): string $metaKey
+     *
+     * @return array<string, string> language value => wording
+     */
+    private static function translations(int $termId, callable $metaKey): array
+    {
+        $translations = [];
+        foreach (Language::cases() as $language) {
+            if ($language->isDefault()) {
+                continue;
+            }
+            $wording = get_term_meta($termId, $metaKey($language), true);
+            if (is_string($wording) && $wording !== '') {
+                $translations[$language->value] = $wording;
+            }
+        }
+
+        return $translations;
     }
 
     /**

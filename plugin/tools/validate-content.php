@@ -24,8 +24,10 @@ declare(strict_types=1);
 require __DIR__ . '/../vendor/autoload.php';
 
 use Voltz\PortfolioMd\Domain\InvalidSkillsGridException;
+use Voltz\PortfolioMd\Domain\InvalidTagsFileException;
 use Voltz\PortfolioMd\Domain\Skill;
 use Voltz\PortfolioMd\Parsing\SkillsGridLoader;
+use Voltz\PortfolioMd\Parsing\TagsFileLoader;
 use Voltz\PortfolioMd\Validation\ContentValidator;
 
 if ($argc !== 3) {
@@ -50,7 +52,21 @@ try {
 }
 echo "OK   {$argv[1]} (" . count($grid->referentials) . ' référentiels, ' . $grid->countSkills() . " compétences, intitulés en fr, de, en)\n";
 
-$report = (new ContentValidator(array_map(static fn (Skill $skill): string => $skill->code, $grid->allSkills())))->validate($argv[2]);
+// The names of the tags (ADR-024): when the content folder holds tags.yaml, every tag of a sheet must be named in it.
+$tagSlugs = null;
+$tagsFile = rtrim($argv[2], '/') . '/tags.yaml';
+if (is_file($tagsFile)) {
+    try {
+        $names = (new TagsFileLoader())->load($tagsFile);
+    } catch (InvalidTagsFileException $exception) {
+        echo "FAIL {$tagsFile}\n     - {$exception->getMessage()}\n";
+        exit(1);
+    }
+    $tagSlugs = $names->slugs();
+    echo "OK   {$tagsFile} (" . $names->count() . " tags nommés, intitulés en fr, de, en)\n";
+}
+
+$report = (new ContentValidator(array_map(static fn (Skill $skill): string => $skill->code, $grid->allSkills()), null, $tagSlugs))->validate($argv[2]);
 
 $files = 0;
 $failed = 0;

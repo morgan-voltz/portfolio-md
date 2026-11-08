@@ -72,6 +72,8 @@ podman-compose --profile tools run --rm wpcli wp portfolio skills sync /srv/port
 
 # Apply it (idempotent: a second run reports "0 created, 0 updated")
 podman-compose --profile tools run --rm wpcli wp portfolio skills sync /srv/portfolio-content/skills.yaml
+podman-compose --profile tools run --rm wpcli wp portfolio tags sync /srv/portfolio-content/tags.yaml --dry-run   # the names of the technology tags (ADR-024)
+podman-compose --profile tools run --rm wpcli wp portfolio tags sync /srv/portfolio-content/tags.yaml
 
 # Check the result
 podman-compose --profile tools run --rm wpcli wp term list skill --fields=term_id,name,slug,parent --format=table

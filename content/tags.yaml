@@ -1,0 +1,161 @@
+# Noms d'affichage des tags techniques, la taxonomie `tech_tag` (ADR-024, 8 novembre 2026).
+#
+# Les fiches citent leurs tags par slug (`tags: [csharp, dotnet]`) ; le slug est un identifiant,
+# jamais un nom à montrer. Ce fichier donne à chaque slug son nom tel que le site l'affiche,
+# dans la langue de la page : le nom français devient le nom du terme WordPress, les noms
+# allemand et anglais vont dans les term metas `_portfolio_tag_name_de` et `_portfolio_tag_name_en`.
+# L'API de lecture rend `tags[].name` dans la langue demandée, le thème affiche les puces de même.
+#
+# Deux formes :
+#   slug: "Nom"                       # un nom de technologie, le même dans les trois langues
+#   slug:                             # un nom qui se traduit
+#     name: "Nom français"
+#     i18n: { de: "Deutscher Name", en: "English name" }
+#
+# Règles : un slug valide (minuscules, chiffres, tirets), un nom en texte brut sur une ligne
+# (200 caractères au plus, ni balise ni esperluette : WordPress le stockerait changé), `de` et `en`
+# tous deux présents dès qu'il y a un bloc `i18n`. Le validateur de contenu refuse une fiche dont un
+# tag manque ici ; `wp portfolio tags sync content/tags.yaml` écrit les noms dans WordPress et
+# signale les termes qui ne sont plus dans le fichier, sans jamais les supprimer.
+#
+# Même chose en deux slugs : `api-rest` (HEHEWATT) et `rest-api` (Trace 4.0, UHA Learn) nomment la
+# même notion ; les fiches les gardent tels quels, le fichier leur donne le même nom.
+
+tags:
+  # Langages
+  csharp: "C#"
+  javascript: "JavaScript"
+  php: "PHP"
+  python: "Python"
+  rust: "Rust"
+  typescript: "TypeScript"
+
+  # Plateformes, frameworks, bibliothèques
+  avalonia: "Avalonia"
+  axum: "Axum"
+  bootstrap: "Bootstrap"
+  clipper2: "Clipper2"
+  cpal: "cpal"
+  dioxus: "Dioxus"
+  dotnet: ".NET"
+  entity-framework-core: "Entity Framework Core"
+  godot: "Godot"
+  jquery: "jQuery"
+  leaflet: "Leaflet"
+  phaser: "Phaser"
+  react: "React"
+  rubato: "rubato"
+  symphonia: "Symphonia"
+  tkinter: "Tkinter"
+  twig: "Twig"
+  uno-platform: "Uno Platform"
+  unreal-engine: "Unreal Engine"
+  vite: "Vite"
+  wasm-bindgen: "wasm-bindgen"
+  webassembly: "WebAssembly"
+  wpf: "WPF"
+  xunit: "xUnit"
+
+  # Données et infrastructure
+  ci-cd: "CI/CD"
+  docker: "Docker"
+  mysql: "MySQL"
+  podman: "Podman"
+  postgresql: "PostgreSQL"
+  redis: "Redis"
+  sqlite: "SQLite"
+  self-hosted:
+    name: "Auto-hébergé"
+    i18n: { de: "Self-Hosting", en: "Self-hosted" }
+
+  # Protocoles, API, systèmes
+  api-rest:
+    name: "API REST"
+    i18n: { de: "REST-API", en: "REST API" }
+  rest-api:
+    name: "API REST"
+    i18n: { de: "REST-API", en: "REST API" }
+  cdp: "Chrome DevTools Protocol"
+  chrome-extension:
+    name: "Extension Chrome"
+    i18n: { de: "Chrome-Erweiterung", en: "Chrome extension" }
+  chrome-storage-api: "API chrome.storage"
+  dbus: "D-Bus"
+  jwt: "JWT"
+  kwin: "KWin"
+  manifest-v3: "Manifest V3"
+  mcp: "MCP"
+  offscreencanvas: "OffscreenCanvas"
+  openapi: "OpenAPI"
+  openstreetmap: "OpenStreetMap"
+  osrm: "OSRM"
+  service-worker: "Service worker"
+  wayland: "Wayland"
+
+  # Architecture et pratiques
+  architecture-hexagonale:
+    name: "Architecture hexagonale"
+    i18n: { de: "Hexagonale Architektur", en: "Hexagonal architecture" }
+  clean-architecture: "Clean Architecture"
+  cqrs: "CQRS"
+  ddd: "DDD"
+  design-patterns:
+    name: "Patrons de conception"
+    i18n: { de: "Entwurfsmuster", en: "Design patterns" }
+  event-sourcing: "Event sourcing"
+  mvc: "MVC"
+  mvvm: "MVVM"
+  offline-first:
+    name: "Hors ligne d'abord"
+    i18n: { de: "Offline-first", en: "Offline-first" }
+  open-data:
+    name: "Open data"
+    i18n: { de: "Open Data", en: "Open data" }
+  open-source:
+    name: "Open source"
+    i18n: { de: "Open Source", en: "Open source" }
+  privacy-first:
+    name: "Vie privée d'abord"
+    i18n: { de: "Privacy-first", en: "Privacy-first" }
+  securite:
+    name: "Sécurité"
+    i18n: { de: "Sicherheit", en: "Security" }
+  solid: "SOLID"
+  sync:
+    name: "Synchronisation"
+    i18n: { de: "Synchronisation", en: "Synchronisation" }
+
+  # Domaines et techniques
+  audio-temps-reel:
+    name: "Audio temps réel"
+    i18n: { de: "Echtzeit-Audio", en: "Real-time audio" }
+  binary-patching:
+    name: "Patch binaire"
+    i18n: { de: "Binär-Patching", en: "Binary patching" }
+  debug-symbols:
+    name: "Symboles de débogage"
+    i18n: { de: "Debug-Symbole", en: "Debug symbols" }
+  design-to-code:
+    name: "Design-to-code"
+    i18n: { de: "Design-to-Code", en: "Design-to-code" }
+  dsp: "DSP"
+  excel: "Excel"
+  generation-procedurale:
+    name: "Génération procédurale"
+    i18n: { de: "Prozedurale Generierung", en: "Procedural generation" }
+  ia-agentique:
+    name: "IA agentique"
+    i18n: { de: "Agentische KI", en: "Agentic AI" }
+  machine-learning:
+    name: "Apprentissage automatique"
+    i18n: { de: "Maschinelles Lernen", en: "Machine learning" }
+  modding: "Modding"
+  msix: "MSIX"
+  pdf-extraction:
+    name: "Extraction de PDF"
+    i18n: { de: "PDF-Extraktion", en: "PDF extraction" }
+  penpot: "Penpot"
+  plantuml: "PlantUML"
+  reverse-engineering:
+    name: "Rétro-ingénierie"
+    i18n: { de: "Reverse Engineering", en: "Reverse engineering" }

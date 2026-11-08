@@ -70,9 +70,11 @@ final class ContentValidator
     private readonly FrontmatterParser $parser;
 
     /**
-     * @param list<string> $skillCodes the competency codes of content/skills.yaml
+     * @param list<string>      $skillCodes the competency codes of content/skills.yaml
+     * @param list<string>|null $tagSlugs   the slugs named in content/tags.yaml (ADR-024); null when the
+     *                                      file is not known, and the rule that every tag is named is off
      */
-    public function __construct(private readonly array $skillCodes, ?FrontmatterParser $parser = null)
+    public function __construct(private readonly array $skillCodes, ?FrontmatterParser $parser = null, private readonly ?array $tagSlugs = null)
     {
         $this->parser = $parser ?? new FrontmatterParser();
     }
@@ -396,6 +398,9 @@ final class ContentValidator
                 }
             }
             foreach ((array) ($fm['tags'] ?? []) as $tag) {
+                if (is_string($tag) && $this->tagSlugs !== null && preg_match(Patterns::SLUG, $tag) === 1 && !in_array($tag, $this->tagSlugs, true)) {
+                    $found[] = "tag sans nom dans tags.yaml : {$tag}";
+                }
                 if (!is_string($tag) || preg_match(Patterns::SLUG, $tag) !== 1) {
                     $found[] = 'tag non slug : ' . (is_scalar($tag) ? (string) $tag : '?');
                 }

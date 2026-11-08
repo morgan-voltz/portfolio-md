@@ -55,6 +55,7 @@ Les entrées ne sont jamais supprimées. Si une décision est révisée, on ajou
 | ADR-021 | La langue dans les routes REST de lecture | 2026-11-07 | Accepté |
 | ADR-022 | Ouvrir une langue au public : l'option de publication, le thème enfant et la configuration du site | 2026-11-08 | Accepté |
 | ADR-023 | Déploiement : WordPress chez o2switch, l'API en service Kovelt derrière Traefik, le front sur Cloudflare Pages | 2026-11-08 | Accepté |
+| ADR-024 | Les noms des tags techniques viennent d'un fichier trilingue, `content/tags.yaml` | 2026-11-08 | Accepté |
 
 ---
 
@@ -819,6 +820,35 @@ Le dépôt gagne `api/deploy/` (Dockerfile, compose de production de référence
 *Changement de domaine (8 novembre 2026, le soir)* : `voltz.dev`, le nom que cette ADR visait, **n'appartenait pas à Morgan** : le registre public le montre enregistré par un tiers chez un autre registrar depuis le 11 février 2026, contact masqué, et la page de parking qu'on prenait pour la sienne était celle de ce tiers ; `voltz.fr` est pris depuis 2006, `.com`, `.net` et `.org` aussi. Morgan a acheté **`morganvoltz.dev`** chez Cloudflare Registrar le 8 novembre 2026 (la zone DNS y est donc d'emblée, sans changement de serveurs de noms) ; les trois hôtes deviennent `morganvoltz.dev`, `api.morganvoltz.dev` et `app.morganvoltz.dev`, et l'adresse de contact `contact@morganvoltz.dev`. Cette note est la seule trace de l'ancien nom dans le dépôt : le texte de l'ADR, le document de déploiement, le guide, le compose de production, l'en-tête du plugin et les pages Contact des trois langues ont été réécrits au nouveau nom le même jour. En production, le site installé le matin sous l'ancien nom est copié dans la racine du nouveau domaine additionnel et renommé dans sa base (`wp search-replace`) avant tout enregistrement DNS. Un rachat ou un rattrapage de `voltz.dev` à son expiration (février 2027) n'en ferait qu'une redirection.
 
 *Mise en ligne (8 novembre 2026, le soir)* : les deux enregistrements DNS du site posés par Morgan dans la zone Cloudflare de `morganvoltz.dev` (sans proxy), le certificat Let's Encrypt du nom principal émis par l'hébergeur dans l'heure, la recette de la partie 4 du runbook passée en lecture seule (statuts, redirections, robots, canonical, 404, sitemaps), l'ancienne racine supprimée, le contenu redéployé avec l'adresse de contact `contact@morganvoltz.dev` (routage de courrier Cloudflare vers la boîte de Morgan). Le site est en ligne en français ; l'allemand et l'anglais restent `noindex` jusqu'à leur ouverture (runbook, partie 3), un autre jour. La porte Git (ADR-019) est active le même soir : secrets posés, lancement à blanc passé après un premier essai refusé par le challenge JavaScript du pare-feu de l'hébergeur, ce qui a valu au script de synchronisation sa patience (cinq tentatives, 5 à 90 secondes) et la reconnaissance de ce challenge. Restent, pour leurs phases, l'API et le front.
+
+---
+
+## ADR-024 — Les noms des tags techniques viennent d'un fichier trilingue, `content/tags.yaml`
+
+**Date** : 2026-11-08
+**Statut** : Accepté (recommandation suivie par Morgan le 8 novembre 2026, « je te suis », parmi trois voies présentées)
+
+### Contexte
+
+Les fiches citent leurs technologies par slug (`tags: [csharp, dotnet, architecture-hexagonale]`), et l'import crée un terme `tech_tag` inconnu **avec son slug pour nom** (`01-plugin-php.md` §4.4 : « à renommer dans l'admin »). Tant que le site ne montrait pas ces termes, personne ne les renommait. La phase dix (ADR-022, note « Phase dix ») les affiche en puces sur la page d'un projet, et l'API de lecture les sert depuis ADR-018 : le site en ligne montre `csharp`, `dotnet`, `architecture-hexagonale`. Le renommage dans l'administration n'est ni versionné ni reproductible en production, et une page allemande montrerait un nom français. La grille de compétences a déjà résolu le même problème : `content/skills.yaml`, un intitulé par langue dans des term metas, un libellé servi dans la langue de la page (ADR-020, lot 4).
+
+### Décision
+
+1. **Un fichier `content/tags.yaml`**, une entrée par slug, deux formes : `slug: "Nom"` quand le nom est le même dans les trois langues (une technologie), ou `slug: { name: "Nom français", i18n: { de: "…", en: "…" } }` quand il se traduit. Le nom français est le nom du terme WordPress ; `de` et `en` vont dans les term metas `_portfolio_tag_name_de` et `_portfolio_tag_name_en`, enregistrées par `TaxonomyRegistrar` sur `tech_tag` comme celles des compétences.
+2. **Une commande, `wp portfolio tags sync <tags.yaml> [--dry-run]`** (`Cli\TagsCommand`, `Parsing\TagsFileLoader`, `Service\TagTermSynchronizer`, `Storage\WordPressTagTermGateway`), le même patron que `skills sync` : un slug du fichier sans terme reçoit son terme, un terme dont le nom ou les traductions diffèrent est réécrit, un terme absent du fichier est signalé comme orphelin et jamais supprimé. Idempotente ; à rejouer après un déploiement du plugin ou une modification du fichier.
+3. **Le validateur de contenu exige qu'un tag d'une fiche soit nommé dans le fichier** quand `content/tags.yaml` existe à côté des documents (`ContentValidator`, règle « tag sans nom dans tags.yaml »), pour qu'aucun slug nu n'arrive sur le site. Les slugs restent libres : nommer un nouveau tag, c'est ajouter une ligne.
+4. **Le nom suit la langue de la page.** `Service\DocumentTag` porte les traductions et résout le libellé comme `DocumentSkill` (chaîne de repli de la langue, français en dernier) ; la route REST rend `tags[].name` dans la langue demandée (la clé ne change pas, sa valeur suit `language`, comme `status.label` et `skills[].label` au lot 4 : un client qui lisait le nom français d'un document français ne voit aucune différence) ; le thème affiche la puce dans la langue de la page et la marque `lang` quand le nom a dû se replier.
+5. **L'import ne change pas** : un tag inconnu de WordPress est toujours créé avec son slug pour nom, et c'est la synchronisation qui le nomme. L'ordre d'un premier déploiement devient : grille, **noms des tags**, contenu.
+
+### Alternatives considérées
+
+- **Renommer les termes dans l'administration** : zéro code, mais hors Git, à refaire en production et sans nom par langue ; écarté.
+- **Un nom par slug, sans langue** : plus court, mais contraire au principe du lot 4 (les libellés suivent la langue de la page) ; une page allemande montrerait « Architecture hexagonale ». Écarté, le surcoût du bloc `i18n` étant nul pour les noms de technologies.
+- **Dériver le nom du slug** (majuscule initiale, table d'acronymes) : impossible pour `csharp` → « C# » ou `dotnet` → « .NET » sans table, donc un fichier de toute façon ; écarté.
+
+### Conséquences
+
+Le dépôt gagne `content/tags.yaml` (84 tags le 8 novembre 2026, tous ceux des quatorze fiches ; deux slugs, `api-rest` et `rest-api`, nomment la même notion et reçoivent le même nom), la commande et ses classes, les term metas, la règle du validateur, les tests (chargeur, synchroniseur avec passerelle en mémoire, libellé du tag, présentateur, thème, validateur). Documents : `content/README.md` (le fichier, la règle 11, l'ordre des commandes), `01-plugin-php.md` (§4.4, §7.3, §9.2, arborescence), `04-structure-wordpress.md` §4.1, `plugin/plugin-README.md`, `theme/theme-README.md`, le runbook (parties 1.2, 2.2 et 2.4). En production : déployer le plugin puis `wp portfolio tags sync ~/portfolio-content/tags.yaml`, une fois.
 
 ---
 

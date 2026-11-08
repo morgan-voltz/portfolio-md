@@ -58,7 +58,9 @@ final class ContentValidatorTest extends TestCase
     public function the_real_content_tree_has_no_error(): void
     {
         $grid = Yaml::parseFile(self::CONTENT . '/skills.yaml');
-        $report = (new ContentValidator(ContentValidator::skillCodes(is_array($grid) ? $grid : [])))->validate(self::CONTENT);
+        $tags = Yaml::parseFile(self::CONTENT . '/tags.yaml');
+        $tagSlugs = is_array($tags) && is_array($tags['tags'] ?? null) ? array_map('strval', array_keys($tags['tags'])) : null;
+        $report = (new ContentValidator(ContentValidator::skillCodes(is_array($grid) ? $grid : []), null, $tagSlugs))->validate(self::CONTENT);
 
         self::assertClean($report);
         self::assertCount(count(glob(self::CONTENT . '/*/*/*.md') ?: []), $report->notes, 'every document of the tree passes');
@@ -251,6 +253,20 @@ final class ContentValidatorTest extends TestCase
         self::assertError($report, 'fr/projects/momocad.md', 'status hors liste');
         self::assertError($report, 'fr/projects/momocad.md', 'compétence inconnue : 4.0.9/X01');
         self::assertError($report, 'fr/projects/atlas.md', 'type doit valoir article, project, page');
+    }
+
+    #[Test]
+    public function a_tag_that_is_not_named_in_the_tags_file_is_refused_only_when_the_file_is_known(): void
+    {
+        $this->tree->put('fr/projects/momocad.md', ContentTree::projectFrontmatter(['tags' => ['csharp', 'cobol']]), ContentTree::projectBody());
+
+        self::assertClean($this->validate(), 'without the names file, a slug is enough (the rule is off)');
+
+        $named = new ContentValidator(['4.0.2/E07', '4.0.1/FR-13'], null, ['csharp', 'dotnet']);
+        $report = $named->validate($this->tree->root());
+
+        self::assertError($report, 'fr/projects/momocad.md', 'tag sans nom dans tags.yaml : cobol');
+        self::assertStringNotContainsString('csharp', implode("\n", $report->errors['fr/projects/momocad.md']));
     }
 
     #[Test]

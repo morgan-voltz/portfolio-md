@@ -83,6 +83,14 @@ final class TaxonomyRegistrar
     public const SKILL_OFFICIAL_META = '_portfolio_skill_official';
 
     /**
+     * Préfixe des term metas qui portent le nom d'un tag technique dans une
+     * autre langue que le français (ADR-024) : `_portfolio_tag_name_de`,
+     * `_portfolio_tag_name_en`. Le nom français est le nom du terme. Écrits
+     * par `wp portfolio tags sync` depuis `content/tags.yaml`.
+     */
+    public const TAG_NAME_META_PREFIX = '_portfolio_tag_name_';
+
+    /**
      * Statuts fermés du post type project, sous forme [slug => libellé].
      *
      * Le slug est l'identifiant technique stocké en base.
@@ -120,6 +128,15 @@ final class TaxonomyRegistrar
     public static function skillNameMeta(Language $language): string
     {
         return self::SKILL_NAME_META_PREFIX . $language->value;
+    }
+
+    /**
+     * The term meta that holds the name of a technology tag in $language;
+     * French has none, its name being the name of the term (ADR-024).
+     */
+    public static function tagNameMeta(Language $language): string
+    {
+        return self::TAG_NAME_META_PREFIX . $language->value;
     }
 
     /**
@@ -229,6 +246,21 @@ final class TaxonomyRegistrar
                 'hierarchical' => false,
             ],
         ]);
+
+        foreach (Language::cases() as $language) {
+            if ($language->isDefault()) {
+                continue;
+            }
+            register_term_meta(self::TECH_TAG, self::tagNameMeta($language), [
+                'type'              => 'string',
+                'single'            => true,
+                'default'           => '',
+                'description'       => "Name of the technology tag in \"{$language->value}\", a translation of the French term name (ADR-024).",
+                'sanitize_callback' => [self::class, 'sanitizeSkillName'],
+                'auth_callback'     => [self::class, 'authorizeEditSkillTerm'],
+                'show_in_rest'      => true,
+            ]);
+        }
     }
 
     /**
