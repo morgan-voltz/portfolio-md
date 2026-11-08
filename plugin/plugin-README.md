@@ -22,7 +22,7 @@ The public read API is in (29 October 2026, ADR-018): `GET /wp-json/portfolio/v1
 
 The content is **trilingual** (ADR-020, 7 November 2026): `content/<lang>/<folder>/<slug>.md`, every document with a `lang` and the `translation_key` it shares with its translations (`Domain\Language`, `Domain\ContentPath`, the content validator `tools/validate-content.php`; lot 1a). Since lot 1b every door reads the language from the path, stores `_portfolio_lang` and `_portfolio_translation_key`, tells a `Service\LanguageGateway` the language of the post (Polylang, through `Storage\PolylangLanguageGateway`, since lot 2; it does nothing while Polylang is absent) and links the translations of a key. The plugin hands its post types to Polylang itself, every query of the plugin sees every language, a translation is read-only in the admin (Git is the only writer of translations), and `wp portfolio translations reconcile` pushes the stored languages and groups back when Polylang's own screens changed them. Since the content migration (lot 1c, 7 November 2026) the sixteen documents live in `content/fr/` and `lang` is required of every document; a path outside `content/<lang>/<folder>/` is skipped by the Git door and refused by `wp portfolio import`.
 
-Since 8 November 2026 the public REST routes take the language of the reader (`language=fr|de|en`, ADR-021): lists anchored on the French documents and served in that language, a flagged fallback for a missing translation, five language keys on every document and a sitemap that names the language and the translation group of every line (see "REST API" below). Since lot 4 of ADR-020 (8 November 2026) the status labels and the skill wordings come in the language asked, with an `official` flag on every skill, from a trilingual grid (see "WP-CLI commands" and "REST API"). Lot 5 (ADR-022, accepted on 8 November 2026) opens a language to the public; its first part is in: the child theme `theme/portfolio-md-child` (skeleton, mounted and activated like the plugin), the replayable site setup script `tools/site-setup.php` (publication option, `noindex` of the taxonomy archives) and the opening spike that settled the mechanics (see "Tests"). What is **not yet** implemented: the publication option itself in the plugin (lot 5b), the list with fallback, the switcher and the FR badge in the theme (5c), the home and Contact pages, the menus and the Yoast description (5d), image import into the media library. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
+Since 8 November 2026 the public REST routes take the language of the reader (`language=fr|de|en`, ADR-021): lists anchored on the French documents and served in that language, a flagged fallback for a missing translation, five language keys on every document and a sitemap that names the language and the translation group of every line (see "REST API" below). Since lot 4 of ADR-020 (8 November 2026) the status labels and the skill wordings come in the language asked, with an `official` flag on every skill, from a trilingual grid (see "WP-CLI commands" and "REST API"). Lot 5 (ADR-022, accepted on 8 November 2026) opens a language to the public. In: the child theme `theme/portfolio-md-child` (skeleton, mounted and activated like the plugin), the replayable site setup script `tools/site-setup.php` (publication option, `noindex` of the taxonomy archives), the opening spike that settled the mechanics (see "Tests"), and the publication itself (lot 5b): the option `portfolio_md_published_languages` read by `Service\PublishedLanguages`, what Polylang and Yoast must not announce about a closed language (`Storage\PolylangPublication`, `Storage\YoastPublication`), the readiness grid (`Service\LanguageReadiness`) and `wp portfolio languages status|publish|unpublish` (see "WP-CLI commands"). What is **not yet** implemented: the list with fallback, the switcher and the FR badge in the theme (5c), the home and Contact pages, the menus and the Yoast description (5d), image import into the media library. See [`../docs/architecture/01-plugin-php.md`](../docs/architecture/01-plugin-php.md) for the target architecture and [`../docs/architecture/04-structure-wordpress.md`](../docs/architecture/04-structure-wordpress.md) for the content model.
 
 ## Local setup
 
@@ -121,6 +121,15 @@ Keep Polylang in line with what the plugin stores (ADR-020, lot 2): the command 
 ```bash
 podman-compose --profile tools run --rm wpcli wp portfolio translations reconcile --dry-run
 podman-compose --profile tools run --rm wpcli wp portfolio translations reconcile
+```
+
+Open a language to the public, or close it (ADR-022, lot 5b). A closed language is served by URL but not announced: no browser detection, no cookie preference, no switcher entry, no hreflang, `noindex`, out of the Yoast sitemap. `status` shows each language with its readiness grid (the four core pages `accueil`/`startseite`/`home`, `a-propos`/`ueber-mich`/`about`, `cv`/`lebenslauf`/`resume`, `contact`/`kontakt`/`get-in-touch` served in the language, a menu bound in Polylang, at least three translated sheets), `publish` refuses while the grid is not green unless `--force`, and warns when a language of the fallback chain is still closed; `unpublish` closes without a question; French cannot be closed. The option is an environment setting, never content: it is not in Git, a direct `wp option update` is normalized on its way in (known languages, French always), and every change clears the Yoast sitemap cache.
+
+```bash
+podman-compose --profile tools run --rm wpcli wp portfolio languages status
+podman-compose --profile tools run --rm wpcli wp portfolio languages publish en
+podman-compose --profile tools run --rm wpcli wp portfolio languages publish de --force
+podman-compose --profile tools run --rm wpcli wp portfolio languages unpublish de
 ```
 
 The languages of the site (fr, de, en, French by default, the language in the URL) are created once by `tools/polylang-setup-languages.php`, run by `bootstrap.sh` on the local stack and by hand on a fresh site before the first synchronization: without them every import fails on the language gateway.
@@ -248,6 +257,14 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
 podman-compose --profile tools run --rm wpcli wp rewrite flush --hard
 ```
 
+**Publication smoke (lot 5b of ADR-022).** `tests/Integration/wp-cli/publication-smoke.php` checks the opening of a language against the real stack: a direct write of the option is normalized, the Polylang and Yoast filters registered at boot answer as they should with German closed then open (translation URL, preferred language, browser languages, x-default, sitemap entry and archive block, robots of a document), and `wp portfolio languages` refuses, forces, closes and rejects what it must; the option is put back at the end. `tools/opening-check.sh` then observes over HTTP what an anonymous visitor and a robot see with German closed, opened by force and closed again (redirects of `/`, hreflang, robots, sitemaps); it restores the option too.
+
+```bash
+podman-compose --profile tools run --rm wpcli wp eval-file \
+  wp-content/plugins/portfolio-md/tests/Integration/wp-cli/publication-smoke.php --user=<your admin login>
+plugin/tools/opening-check.sh http://localhost:8000
+```
+
 **Unit suite (PHPUnit 11, no WordPress).** The registrars call WordPress functions, so `tests/bootstrap.php` loads small stand-ins (`tests/Support/wp-stubs.php`) that record registrations in `WordPressSpy` or mimic WordPress closely enough for the covered cases. The suite checks that every meta is registered with the right type, REST visibility and callbacks, and that every sanitizer accepts and rejects what it should. The Markdown pipeline (parser, Gutenberg transformer, import service, conflict rule) is covered there too without any stub, including a full render of every sheet in `content/fr/`.
 
 ```bash
@@ -280,7 +297,7 @@ podman-compose --profile tools run --rm wpcli wp eval-file \
   wp-content/plugins/portfolio-md/tests/Integration/wp-cli/i18n-smoke.php --user=<your admin login>
 ```
 
-`--user` is required for the capability checks. The other smoke scripts (`skills`, `import`, `admin`, `preview`, `rest`, `sync`, `i18n`) are listed in their sections above. The official `wp-phpunit` framework will come if the smoke scripts stop being enough.
+`--user` is required for the capability checks. The other smoke scripts (`skills`, `import`, `admin`, `preview`, `rest`, `sync`, `i18n`, `publication`) are listed in their sections above. The official `wp-phpunit` framework will come if the smoke scripts stop being enough.
 
 **CI script (Python, no network).** `.github/scripts/test_sync_content.py` covers the pure parts of `sync-content.py`: reading the `-z` diff, which paths are documents (the language layout, the stray files left in a type folder without a language folder), the grid first, batches by count and bytes, the summaries. From the repository root:
 

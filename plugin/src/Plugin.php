@@ -9,6 +9,7 @@ use Voltz\PortfolioMd\Admin\EditorAssets;
 use Voltz\PortfolioMd\Admin\EditorMetaBox;
 use Voltz\PortfolioMd\Admin\ImportPage;
 use Voltz\PortfolioMd\Cli\ImportCommand;
+use Voltz\PortfolioMd\Cli\LanguagesCommand;
 use Voltz\PortfolioMd\Cli\SkillsCommand;
 use Voltz\PortfolioMd\Cli\TranslationsCommand;
 use Voltz\PortfolioMd\Domain\ContentType;
@@ -34,8 +35,14 @@ use Voltz\PortfolioMd\Service\PreviewService;
 use Voltz\PortfolioMd\Service\SkillTermSynchronizer;
 use Voltz\PortfolioMd\Service\SystemClock;
 use Voltz\PortfolioMd\Service\TranslationReconciler;
+use Voltz\PortfolioMd\Service\LanguageReadiness;
+use Voltz\PortfolioMd\Service\PublishedLanguages;
 use Voltz\PortfolioMd\Storage\PolylangLanguageGateway;
+use Voltz\PortfolioMd\Storage\PolylangMenuBindings;
 use Voltz\PortfolioMd\Storage\PolylangPostTypes;
+use Voltz\PortfolioMd\Storage\PolylangPublication;
+use Voltz\PortfolioMd\Storage\WordPressPublishedLanguagesStore;
+use Voltz\PortfolioMd\Storage\YoastPublication;
 use Voltz\PortfolioMd\Storage\WordPressContentCatalog;
 use Voltz\PortfolioMd\Storage\WordPressContentRepository;
 use Voltz\PortfolioMd\Storage\WordPressSkillTermGateway;
@@ -103,6 +110,12 @@ final class Plugin
     /** The bridge to Polylang (ADR-020), shared by the import and the reconciliation command. */
     private ?PolylangLanguageGateway $languageGateway = null;
 
+    /** The option that says which languages are open to the public (ADR-022), and its hooks. */
+    private ?WordPressPublishedLanguagesStore $publishedLanguagesStore = null;
+
+    /** The reader of that option, shared by the Polylang and Yoast adapters and the languages command. */
+    private ?PublishedLanguages $publishedLanguages = null;
+
     public function __construct(string $pluginFile)
     {
         $this->pluginFile = $pluginFile;
@@ -125,6 +138,13 @@ final class Plugin
         // Polylang reads this filter early (it caches the list after `after_setup_theme`):
         // hooked at load, harmless when Polylang is absent (ADR-020, lot 2).
         (new PolylangPostTypes())->register();
+
+        // A closed language is served but not announced (ADR-022): the option that says
+        // which languages are open, and what Polylang and Yoast must not do about the
+        // others. Filters only they apply: harmless when either is absent.
+        $this->publishedLanguagesStore()->register();
+        (new PolylangPublication($this->publishedLanguages()))->register();
+        (new YoastPublication($this->publishedLanguages()))->register();
 
         // Hook 'init' : on enregistre les post types, les taxonomies ET les
         // metas à ce moment, dans l'ordre sûr recommandé par WordPress :
@@ -231,6 +251,16 @@ final class Plugin
         return $this->languageGateway ??= new PolylangLanguageGateway();
     }
 
+    private function publishedLanguagesStore(): WordPressPublishedLanguagesStore
+    {
+        return $this->publishedLanguagesStore ??= new WordPressPublishedLanguagesStore();
+    }
+
+    private function publishedLanguages(): PublishedLanguages
+    {
+        return $this->publishedLanguages ??= new PublishedLanguages($this->publishedLanguagesStore());
+    }
+
     private function repository(): WordPressContentRepository
     {
         return $this->repository ??= new WordPressContentRepository();
@@ -266,6 +296,13 @@ final class Plugin
             $this->languageGateway(),
             $this->languageGateway(),
         )));
+
+        // Opening a language to the public (ADR-022): the grid reads the public catalog, the
+        // same one the REST routes serve, so that "ready" means "what the site would serve".
+        \WP_CLI::add_command('portfolio languages', new LanguagesCommand(
+            $this->publishedLanguages(),
+            new LanguageReadiness(new WordPressContentCatalog(), new PolylangMenuBindings()),
+        ));
     }
 
     /**

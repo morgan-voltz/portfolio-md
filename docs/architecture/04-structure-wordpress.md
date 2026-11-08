@@ -5,7 +5,7 @@
 **Lectorat** : Morgan à froid, contributeurs futurs, et toute personne qui veut comprendre comment WordPress est organisé pour ce projet.
 **Articulation** : ce document complète `01-plugin-php.md` (qui détaille le plugin de conversion Markdown ↔ WordPress) en se concentrant sur la modélisation côté CMS.
 **Temps de lecture** : environ 12 minutes
-**Dernière mise à jour** : 8 novembre 2026 (ouverture des langues, ADR-022 lot 5a : archives des trois taxonomies en `noindex` et hors sitemap ; libellés par langue, ADR-020 lot 4 : trois term metas de plus sur `skill`, libellés de statut en trois langues ; la langue dans les routes REST, ADR-021 lot 3 : les deux champs internes de langue conditionnent la visibilité d'un document dans l'API ; le 7 novembre, pont Polylang, ADR-020 lot 2 : types déclarés à Polylang par le plugin, boîte en lecture seule pour les traductions, réconciliation ; langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
+**Dernière mise à jour** : 8 novembre 2026 (ouverture des langues, ADR-022 lot 5b : l'option `portfolio_md_published_languages`, une langue fermée servie mais `noindex` et hors sitemap ; lot 5a : archives des trois taxonomies en `noindex` et hors sitemap ; libellés par langue, ADR-020 lot 4 : trois term metas de plus sur `skill`, libellés de statut en trois langues ; la langue dans les routes REST, ADR-021 lot 3 : les deux champs internes de langue conditionnent la visibilité d'un document dans l'API ; le 7 novembre, pont Polylang, ADR-020 lot 2 : types déclarés à Polylang par le plugin, boîte en lecture seule pour les traductions, réconciliation ; langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
 
 ---
 
@@ -478,5 +478,9 @@ WordPress
 
 - Les archives des trois taxonomies du plugin (`tech_tag`, `project_status`, `skill`) sont `noindex` et hors du sitemap XML : réglage Yoast `noindex-tax-<taxonomie>` posé par `plugin/tools/site-setup.php`. Elles restent servies, sans préfixe de langue, leur contenu suivant la langue du visiteur (sections 4.1 et 4.3 ; sonde `spikes/2026-11-07-polylang.md` §3.2). Les termes ne sont pas traduits.
 - Le thème actif est l'enfant de GeneratePress versionné dans `theme/portfolio-md-child/` ; l'arborescence publique (section 2) ne change pas, les accueils par langue et les menus arrivent avec le lot 5d.
+
+**2026-11-08 (ouverture des langues, ADR-022 lot 5b)**
+
+- L'option `portfolio_md_published_languages` dit quelles langues sont ouvertes au public (le français toujours) ; c'est un réglage d'environnement, posé par `wp portfolio languages publish|unpublish`, jamais du contenu versionné. Le modèle de contenu ne change pas : une langue fermée garde ses posts, ses pages et ses URL, mais toute vue dans cette langue est `noindex, follow`, hors du sitemap XML, hors de la détection du navigateur et des hreflang (`01-plugin-php.md` §7.1).
 
 ---
