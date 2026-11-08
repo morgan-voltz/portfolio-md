@@ -91,12 +91,15 @@ final class PolylangLanguageGateway implements LanguageGateway, LanguageInspecto
             if ($this->translationsOf($survivor) === []) {
                 return;
             }
-            pll_save_post_translations($postIdsByLanguage);
-            $view = $this->translationsOf($survivor);
-            if ($view !== []) {
-                throw LanguageGatewayException::groupNotApplied($postIdsByLanguage, $view);
+            try {
+                pll_save_post_translations($postIdsByLanguage);
+                $view = $this->translationsOf($survivor);
+                if ($view !== []) {
+                    throw LanguageGatewayException::groupNotApplied($postIdsByLanguage, $view);
+                }
+            } finally {
+                $this->cleanLanguagesCache();
             }
-            $this->cleanLanguagesCache();
 
             return;
         }
@@ -105,15 +108,18 @@ final class PolylangLanguageGateway implements LanguageGateway, LanguageInspecto
             return;
         }
 
-        pll_save_post_translations(self::frenchFirst($postIdsByLanguage));
+        try {
+            pll_save_post_translations(self::frenchFirst($postIdsByLanguage));
 
-        foreach ($postIdsByLanguage as $postId) {
-            $view = $this->translationsOf($postId);
-            if (!self::sameGroup($view, $postIdsByLanguage)) {
-                throw LanguageGatewayException::groupNotApplied($postIdsByLanguage, $view);
+            foreach ($postIdsByLanguage as $postId) {
+                $view = $this->translationsOf($postId);
+                if (!self::sameGroup($view, $postIdsByLanguage)) {
+                    throw LanguageGatewayException::groupNotApplied($postIdsByLanguage, $view);
+                }
             }
+        } finally {
+            $this->cleanLanguagesCache();
         }
-        $this->cleanLanguagesCache();
     }
 
     /**
@@ -121,7 +127,9 @@ final class PolylangLanguageGateway implements LanguageGateway, LanguageInspecto
      * posts page (ADR-022, point 11): linking or unlinking the translation
      * of one of them leaves the language home, its canonical and the
      * hreflang stale until that cache is cleaned. Cheap, and harmless for
-     * any other group, so every change of group cleans it.
+     * any other group, so every save of a group cleans it, applied or not:
+     * a group Polylang kept only in part leaves the cache as stale as a
+     * whole one.
      */
     private function cleanLanguagesCache(): void
     {
