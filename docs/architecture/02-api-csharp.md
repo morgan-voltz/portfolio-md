@@ -160,15 +160,15 @@ Ce cas d'usage traverse toute l'architecture et sert de fil rouge pédagogique p
 
 **Étape un : l'arrivée de la requête dans `Portfolio.Api`.** La requête HTTP entre dans ASP.NET Core, traverse le pipeline de middlewares (CORS, logging, éventuellement l'authentification), et aboutit à l'endpoint Minimal API déclaré dans `ArticleEndpoints.cs`. L'endpoint reçoit en paramètres le `slug` extrait de la route et une instance de `GetArticleBySlug` fournie par l'injection de dépendances.
 
-**Étape deux : l'appel au handler applicatif.** L'endpoint appelle `handler.ExecuteAsync(slug)` et attend son résultat. Remarque importante : l'endpoint ne contient aucune logique métier, il se contente de traduire entre HTTP et service applicatif. Si le handler retourne `null`, l'endpoint répond 404. S'il retourne un article, l'endpoint le sérialise en JSON via `Results.Ok(article)`. C'est tout.
+**Étape deux : l'appel au handler applicatif.** L'endpoint appelle `handler.ExecuteAsync(slug, language)` et attend son résultat. Remarque importante : l'endpoint ne contient aucune logique métier, il se contente de traduire entre HTTP et service applicatif. Si le handler retourne `null`, l'endpoint répond 404. S'il retourne un article, l'endpoint le sérialise en JSON via `Results.Ok(article)`. C'est tout.
 
 **Étape trois : le handler consulte le cache.** Dans `Portfolio.Application`, la classe `GetArticleBySlug` reçoit en dépendances trois interfaces : `IArticleCache`, `IWordPressClient`, et `IMarkdownRenderer`. Son premier geste est d'interroger le cache.
 
 ```csharp
-public async Task<ArticleDto?> ExecuteAsync(string slug)
+public async Task<ArticleDto?> ExecuteAsync(string slug, string language)
 {
     // Étape 3 — Cache hit ?
-    var cached = await _cache.GetAsync(slug);
+    var cached = await _cache.GetAsync("articles", language, slug);
     if (cached is not null)
     {
         return cached;
@@ -183,7 +183,7 @@ Si WordPress retourne 404, le client retourne `null`. Le handler retourne à son
 
 **Étape cinq : la transformation.** Si l'article existe, le handler le transforme en `ArticleDto` prêt pour le front. Cette transformation inclut typiquement le rendu du Markdown en HTML via `_markdownRenderer.Render(article.Markdown)`. Le handler décide aussi comment peupler les champs du DTO à partir des données WordPress : mapping des tags, formatage des dates, calcul du temps de lecture si besoin, ajout d'éventuels liens connexes.
 
-**Étape six : mise en cache et retour.** Le DTO construit est stocké dans le cache avec une clé dérivée du slug et un TTL raisonnable (quelques minutes pour commencer, ajustable). Il est ensuite retourné au endpoint qui le sérialise et l'envoie au client.
+**Étape six : mise en cache et retour.** Le DTO construit est stocké dans le cache avec la clé `(collection, language, slug)` (§5.3) et un TTL raisonnable (quelques minutes pour commencer, ajustable). Il est ensuite retourné au endpoint qui le sérialise et l'envoie au client.
 
 Un détail conceptuellement important : pendant toute cette chaîne, `Portfolio.Application` ne sait rien de HTTP ni de WordPress. Le handler parle à des interfaces. C'est `Portfolio.Infrastructure` qui implémente ces interfaces en termes de HttpClient et Markdig. Et c'est `Portfolio.Api` qui câble le tout dans `Program.cs` en disant « l'interface `IWordPressClient` est implémentée par la classe `WordPressClient`, voici sa configuration ».
 
