@@ -10,6 +10,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="Markdig" />
+    </ItemGroup>
+
+    <ItemGroup>
         <!-- The tests reach one internal member: the constructor that shortens the timeout of the client. -->
         <InternalsVisibleTo Include="Portfolio.Infrastructure.Tests" />
     </ItemGroup>

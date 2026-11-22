@@ -8,7 +8,7 @@ The solution follows Clean Architecture, in three projects:
 - `Portfolio.Application` — the core: the documents, the in-memory catalog, the ports and the use cases; it references no package and no other project, which a test checks
 - `Portfolio.Infrastructure` — the implementations of the ports: the client of the plugin and the Markdown renderer
 
-**Current status**: lot 3 of 8 (ADR-026, point 11). Lot 1 brought the solution, its continuous integration (`.github/workflows/api-ci.yml`), `GET /health/live`, the test of the dependency rule and the container image. Lot 2 brought the core: the documents, the in-memory catalog and the two read use cases, `GetDocumentBySlug` and `ListDocuments`. Lot 3 brings the client of the plugin, `WordPressClient`, tested against answers recorded from the plugin in production. The Markdown rendering and the public routes come with lots 4 and 5.
+**Current status**: lot 4 of 8 (ADR-026, point 11). Lot 1 brought the solution, its continuous integration (`.github/workflows/api-ci.yml`), `GET /health/live`, the test of the dependency rule and the container image. Lot 2 brought the core: the documents, the in-memory catalog and the two read use cases, `GetDocumentBySlug` and `ListDocuments`. Lot 3 brought the client of the plugin, `WordPressClient`, tested against answers recorded from the plugin in production. Lot 4 brings the Markdown renderer, `MarkdigRenderer`, with its single pass over the links and images. The refresh of the catalog and the public routes come with lot 5.
 
 ## Layout
 
@@ -20,10 +20,10 @@ api/
 ├── Directory.Packages.props        one version per package for the whole solution
 ├── Portfolio.Api/
 ├── Portfolio.Application/          the core: Documents/, the catalog, Ports/, UseCases/
-├── Portfolio.Infrastructure/       WordPress/, the client of the plugin
+├── Portfolio.Infrastructure/       WordPress/, the client of the plugin; Markdown/, the renderer (Markdig)
 ├── Portfolio.Api.Tests/            the API started in memory (WebApplicationFactory)
 ├── Portfolio.Application.Tests/    the core, and the dependency rule
-├── Portfolio.Infrastructure.Tests/ the client, against recorded answers of the plugin (Recorded/)
+├── Portfolio.Infrastructure.Tests/ the client and the renderer, against recorded answers of the plugin (Recorded/)
 └── deploy/                         container image and production compose (ADR-023)
 ```
 
@@ -47,4 +47,4 @@ podman run --rm -p 127.0.0.1:8080:8080 portfolio-api:dev   # http://localhost:80
 
 ## Documentation
 
-The architecture is described in [`../docs/architecture/02-api-csharp.md`](../docs/architecture/02-api-csharp.md) and decided in ADR-003, ADR-023, ADR-025 and ADR-026 ([`../docs/architecture/99-decisions.md`](../docs/architecture/99-decisions.md)). `02-api-csharp.md` describes the code in its sections 3, 4, 9.2, 10 and 11; its sections 5 to 8 still describe the former per-key cache until lots 4, 5 and 7 rewrite them. Where it and ADR-026 disagree, ADR-026 holds.
+The architecture is described in [`../docs/architecture/02-api-csharp.md`](../docs/architecture/02-api-csharp.md) and decided in ADR-003, ADR-023, ADR-025 and ADR-026 ([`../docs/architecture/99-decisions.md`](../docs/architecture/99-decisions.md)). `02-api-csharp.md` describes the code in its sections 3, 4, 6, 9.2, 10 and 11; its sections 5, 7 and 8 still describe the former per-key cache until lots 5 and 7 rewrite them. Where it and ADR-026 disagree, ADR-026 holds.
