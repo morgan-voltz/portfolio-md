@@ -83,6 +83,12 @@ public closed record class Document
 
     public required string Title { get; init; }
 
+    /// <summary>
+    /// The line under the title, for every kind of document since ADR-027
+    /// gave pages one too.
+    /// </summary>
+    public string? Subtitle { get; init; }
+
     /// <summary>The address of the document on the WordPress site, which carries the search engine optimization.</summary>
     public required string CanonicalUrl { get; init; }
 
@@ -108,8 +114,6 @@ public sealed record Article : Document
 {
     public required IReadOnlyList<Tag> Tags { get; init => field = [.. value]; }
 
-    public string? Subtitle { get; init; }
-
     /// <summary>Minutes; absent when the front matter gives none.</summary>
     public int? ReadingTime { get; init; }
 
@@ -117,15 +121,13 @@ public sealed record Article : Document
 }
 
 /// <summary>
-/// A project sheet. Its first four properties repeat those of
-/// <see cref="Article"/>: four lines are simpler to read than a fourth type
+/// A project sheet. Its first three properties repeat those of
+/// <see cref="Article"/>: three lines are simpler to read than a fourth type
 /// between <see cref="Document"/> and the two of them.
 /// </summary>
 public sealed record Project : Document
 {
     public required IReadOnlyList<Tag> Tags { get; init => field = [.. value]; }
-
-    public string? Subtitle { get; init; }
 
     /// <summary>Minutes; absent when the front matter gives none.</summary>
     public int? ReadingTime { get; init; }
@@ -153,5 +155,13 @@ public sealed record Project : Document
     public string? Client { get; init; }
 }
 
-/// <summary>A static page (home, about, résumé, contact): only the common properties.</summary>
-public sealed record Page : Document;
+/// <summary>A static page (home, about, résumé, contact).</summary>
+public sealed record Page : Document
+{
+    /// <summary>
+    /// The heading the page shows in place of its title, which keeps naming it
+    /// in menus, browser tabs and search results (ADR-027); absent when the
+    /// front matter gives none.
+    /// </summary>
+    public string? Headline { get; init; }
+}

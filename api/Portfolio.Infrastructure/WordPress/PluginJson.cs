@@ -47,6 +47,9 @@ internal abstract record PluginDocument
 
     public required string Title { get; init; }
 
+    /// <summary>Written for every kind of document since ADR-027 gave pages one too.</summary>
+    public required string? Subtitle { get; init; }
+
     /// <summary>The permalink of the document on the WordPress site.</summary>
     public required string Link { get; init; }
 
@@ -59,13 +62,15 @@ internal abstract record PluginDocument
     public required string Markdown { get; init; }
 }
 
-internal sealed record PluginPage : PluginDocument;
+internal sealed record PluginPage : PluginDocument
+{
+    /// <summary>The heading a page shows in place of its title (ADR-027).</summary>
+    public required string? Headline { get; init; }
+}
 
 internal sealed record PluginArticle : PluginDocument
 {
     public required IReadOnlyList<PluginTag> Tags { get; init; }
-
-    public required string? Subtitle { get; init; }
 
     public required int? ReadingTime { get; init; }
 
@@ -75,8 +80,6 @@ internal sealed record PluginArticle : PluginDocument
 internal sealed record PluginProject : PluginDocument
 {
     public required IReadOnlyList<PluginTag> Tags { get; init; }
-
-    public required string? Subtitle { get; init; }
 
     public required int? ReadingTime { get; init; }
 

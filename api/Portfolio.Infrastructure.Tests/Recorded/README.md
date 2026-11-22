@@ -1,6 +1,6 @@
 # Recorded answers of the plugin
 
-Real answers of the WordPress plugin in production, which the tests of the client replay instead of calling the site (ADR-026, point 10). Recorded on 2026-11-22 from `https://morganvoltz.dev/wp-json/portfolio/v1`, with the very requests the client sends. Each answer is a pair: `<name>.headers`, the status line and the headers as curl writes them, and `<name>.json`, the body.
+Real answers of the WordPress plugin in production, which the tests of the client replay instead of calling the site (ADR-026, point 10). Recorded on 2026-11-22 from `https://morganvoltz.dev/wp-json/portfolio/v1`, with the very requests the client sends. The pages and the sitemap were recorded again the same day, once the content of ADR-027 had reached production: pages carry `headline` and `subtitle`, and the three home pages have their new text. Each answer is a pair: `<name>.headers`, the status line and the headers as curl writes them, and `<name>.json`, the body.
 
 | Answer | Request |
 |---|---|
