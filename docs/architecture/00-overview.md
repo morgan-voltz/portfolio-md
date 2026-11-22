@@ -4,7 +4,7 @@
 **Rôle** : document d'entrée dans l'architecture, porte d'accès aux documents détaillés
 **Lectorat** : contributeur, recruteur, étudiant, Morgan lui-même à froid
 **Temps de lecture** : environ quinze minutes
-**Dernière mise à jour** : 22 novembre 2026 (ADR-025 : l'API cible .NET 11 et C# 15, ce qui remplace le point 3 d'ADR-023 ; le 8 novembre, ADR-023 acceptée : cible de déploiement, .NET 10, Traefik, Cloudflare Pages, `04-deployment.md` ; ADR-022 acceptée, ouverture des langues au public ; lot 5e : runbook `docs/guides/02-exploitation-site-trilingue.md`, répétition de l'ouverture, documents alignés ; lot 5d : pages Accueil et Contact en documents, description SEO recopiée vers Yoast, `site-setup.php` complet (accueil statique, `redirect_lang`, menus par langue), bloc « projets récents » ; lot 5c : liste avec repli, archive des projets, sélecteur et badge du thème enfant, `noindex` d'une archive sans élément propre ; lot 5b : option d'ouverture, filtres Polylang et Yoast d'une langue fermée, commande `wp portfolio languages` ; lot 5a : thème enfant `theme/portfolio-md-child`, script de configuration du site ; ADR-020 lot 4 : libellés de statut et intitulés de compétence dans la langue demandée, grille trilingue ; ADR-021 : la langue dans les routes REST de lecture, lot 3 du site trilingue ; le 7 novembre, ADR-020, site trilingue : modèle de langue, portes, contenu migré vers `content/fr/` et pont Polylang, lot 2 ; phases 5 et 9 terminées le 29 octobre : endpoints REST publics en lecture, webhook Git)
+**Dernière mise à jour** : 22 novembre 2026 (lot 2 d'ADR-026 : l'API garde un catalogue du contenu en mémoire au lieu d'un cache, §2.2, phase 6 et §9 ; ADR-025 : l'API cible .NET 11 et C# 15, ce qui remplace le point 3 d'ADR-023 ; le 8 novembre, ADR-023 acceptée : cible de déploiement, .NET 10, Traefik, Cloudflare Pages, `04-deployment.md` ; ADR-022 acceptée, ouverture des langues au public ; lot 5e : runbook `docs/guides/02-exploitation-site-trilingue.md`, répétition de l'ouverture, documents alignés ; lot 5d : pages Accueil et Contact en documents, description SEO recopiée vers Yoast, `site-setup.php` complet (accueil statique, `redirect_lang`, menus par langue), bloc « projets récents » ; lot 5c : liste avec repli, archive des projets, sélecteur et badge du thème enfant, `noindex` d'une archive sans élément propre ; lot 5b : option d'ouverture, filtres Polylang et Yoast d'une langue fermée, commande `wp portfolio languages` ; lot 5a : thème enfant `theme/portfolio-md-child`, script de configuration du site ; ADR-020 lot 4 : libellés de statut et intitulés de compétence dans la langue demandée, grille trilingue ; ADR-021 : la langue dans les routes REST de lecture, lot 3 du site trilingue ; le 7 novembre, ADR-020, site trilingue : modèle de langue, portes, contenu migré vers `content/fr/` et pont Polylang, lot 2 ; phases 5 et 9 terminées le 29 octobre : endpoints REST publics en lecture, webhook Git)
 
 ---
 
@@ -44,9 +44,9 @@ Détails complets dans [`01-plugin-php.md`](01-plugin-php.md).
 
 ### 2.2. API C# ASP.NET Core
 
-L'API joue trois rôles simultanément. Elle est d'abord une *gateway* entre WordPress et le front React : elle consomme l'API REST du plugin, met en cache les réponses, et expose sa propre API publique dont la forme est stable et contrôlée indépendamment du backend WordPress. Elle est ensuite un *transformer* : elle peut parser le Markdown côté C#, enrichir les données retournées, calculer des champs dérivés. Elle est enfin un *laboratoire d'apprentissage* pour les technologies .NET modernes que Morgan souhaite approfondir.
+L'API joue trois rôles simultanément. Elle est d'abord une *gateway* entre WordPress et le front React : elle consomme l'API REST du plugin, garde en mémoire un catalogue complet du contenu publié (ADR-026), et expose sa propre API publique dont la forme est stable et contrôlée indépendamment du backend WordPress. Elle est ensuite un *transformer* : elle peut parser le Markdown côté C#, enrichir les données retournées, calculer des champs dérivés. Elle est enfin un *laboratoire d'apprentissage* pour les technologies .NET modernes que Morgan souhaite approfondir.
 
-L'API est écrite en **C# sur .NET 11** (ADR-025) avec ASP.NET Core en Minimal APIs. Elle est organisée en trois projets distincts selon la Clean Architecture : `Portfolio.Api` pour les endpoints HTTP, `Portfolio.Application` pour la logique métier pure, et `Portfolio.Infrastructure` pour les implémentations concrètes (client HTTP vers WordPress, cache, parsing Markdown).
+L'API est écrite en **C# sur .NET 11** (ADR-025) avec ASP.NET Core en Minimal APIs. Elle est organisée en trois projets distincts selon la Clean Architecture : `Portfolio.Api` pour les endpoints HTTP, `Portfolio.Application` pour la logique métier pure, catalogue compris, et `Portfolio.Infrastructure` pour les implémentations concrètes (client HTTP vers WordPress, parsing Markdown).
 
 Cette structure en trois projets n'est pas choisie pour la complexité du projet tel qu'il existe aujourd'hui — elle serait presque sur-dimensionnée. Elle est choisie pour préparer l'évolution future : la partie `Portfolio.Application`, étant indépendante de toute technologie d'interface, pourra être réutilisée telle quelle par d'éventuels futurs frontends (desktop en Avalonia, mobile en MAUI, CLI). Ce point est développé en section quatre.
 
@@ -186,7 +186,7 @@ Le projet est découpé en douze phases indépendantes, conçues pour être atta
 
 **Phase 5** : endpoint REST de lecture. L'API custom `/wp-json/portfolio/v1/*` expose articles et projets au format JSON. *(Terminée le 29 octobre 2026 : `GET /articles`, `/projects`, `/pages`, leurs `/{slug}` et `/sitemap`, Markdown source inclus, ADR-018. Amendée le 8 novembre 2026 par ADR-021 : paramètre `language`, cinq clés de langue par document, listes ancrées sur le français avec repli signalé, sitemap avec langue et clé. Lot 4 d'ADR-020 le même jour : `status.label` et `skills[].label` dans la langue demandée, `skills[].official`.)*
 
-**Phase 6** : API C# ASP.NET Core. Un service .NET consomme le WordPress, met en cache, expose une API publique.
+**Phase 6** : API C# ASP.NET Core. Un service .NET consomme le WordPress, en garde un catalogue en mémoire, expose une API publique. *(En cours depuis le 22 novembre 2026, en huit lots, ADR-026 : lot 1, la solution, l'intégration continue et `/health/live` ; lot 2, le cœur, avec les documents, le catalogue et les cas d'usage de lecture.)*
 
 **Phase 7** : front React. Un site fonctionnel consomme l'API C# et affiche les articles et projets.
 
@@ -222,7 +222,7 @@ Pour consultation rapide, les technologies utilisées dans chaque composant.
 |---|---|
 | Plugin WordPress | PHP 8.2+, Composer, PSR-4, `league/commonmark`, `symfony/yaml`, `scrivo/highlight.php` |
 | WordPress | WordPress 6.x, MariaDB, thème GeneratePress (child theme custom) |
-| API C# | .NET 11, ASP.NET Core Minimal APIs, Markdig, IMemoryCache, HttpClient |
+| API C# | .NET 11 et C# 15, ASP.NET Core Minimal APIs, Markdig, HttpClient, catalogue en mémoire |
 | Front React | React 18, TypeScript, Vite, React Router, TanStack Query |
 | Outillage | Git, GitHub, Conventional Commits, PHPUnit, xUnit, Vitest |
 | Hébergement | Mutualisé pour WP, VPS Linux pour API, JAMstack pour front |

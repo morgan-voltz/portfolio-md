@@ -5,9 +5,9 @@
 **Prérequis** : avoir lu [`00-overview.md`](00-overview.md)
 **Lectorat** : contributeur .NET, Morgan en phase d'implémentation, relecteur technique
 **Temps de lecture** : environ vingt-cinq minutes
-**Dernière mise à jour** : 22 novembre 2026 (ADR-026 : un catalogue en mémoire remplace le cache par clé, bandeau de renvoi en tête, sections à réécrire lot par lot ; ADR-025 : .NET 11 et C# 15 à la place de .NET 10 ; le 8 novembre, ADR-023 : .NET 10, en-têtes transmis, HTTPS par Traefik, santé et observation, configuration par l'environnement ; libellés dans la langue demandée et clé `official` des compétences, ADR-020 lot 4 ; la langue dans les routes du plugin et dans les clés de cache, ADR-021 ; contrat réel des routes du plugin le 29 octobre, phase 5 ; version d'origine du 22 avril 2026)
+**Dernière mise à jour** : 22 novembre 2026 (lot 2 d'ADR-026 : le cœur de l'API, sections 3, 4, 9.2, 10 et 11 réécrites d'après le code ; ADR-026 : un catalogue en mémoire remplace le cache par clé, bandeau de renvoi en tête, sections à réécrire lot par lot ; ADR-025 : .NET 11 et C# 15 à la place de .NET 10 ; le 8 novembre, ADR-023 : .NET 10, en-têtes transmis, HTTPS par Traefik, santé et observation, configuration par l'environnement ; libellés dans la langue demandée et clé `official` des compétences, ADR-020 lot 4 ; la langue dans les routes du plugin et dans les clés de cache, ADR-021 ; contrat réel des routes du plugin le 29 octobre, phase 5 ; version d'origine du 22 avril 2026)
 
-> **À lire d'abord : ADR-026 (22 novembre 2026) révise ce document.** L'API ne tient plus un cache par clé rempli à la demande : elle garde en mémoire un catalogue complet du contenu publié, qu'un service de fond recharge quand le `/sitemap` change, et une requête ne déclenche jamais d'appel à WordPress. Les sections 3 à 8, 10 et 11 décrivent encore l'ancienne conception ; elles seront réécrites lot par lot, avec le code. Là où ce document et ADR-026 se contredisent, ADR-026 fait foi ([`99-decisions.md`](99-decisions.md)).
+> **À lire d'abord : ADR-026 (22 novembre 2026) révise ce document.** L'API ne tient plus un cache par clé rempli à la demande : elle garde en mémoire un catalogue complet du contenu publié, qu'un service de fond recharge quand le `/sitemap` change, et une requête ne déclenche jamais d'appel à WordPress. Depuis le lot 2, les sections 3, 4, 9.2, 10 et 11 décrivent le code. Les sections 5 à 8 décrivent encore l'ancienne conception ; elles seront réécrites avec les lots qui les concernent : le rendu Markdown au lot 4, le rafraîchissement et les routes au lot 5, l'exploitation au lot 7. Là où ce document et ADR-026 se contredisent, ADR-026 fait foi ([`99-decisions.md`](99-decisions.md)).
 
 ---
 
@@ -15,7 +15,7 @@
 
 Ce document détaille l'architecture interne de l'API C# qui sert de gateway entre le plugin WordPress et le front React. Il couvre l'organisation en trois projets, le pipeline typique d'une requête, la stratégie de cache, le parsing Markdown côté C#, les endpoints publics exposés, et la façon dont cette architecture se prépare à accueillir d'autres interfaces (desktop, mobile, CLI) sans duplication de logique.
 
-Comme pour `01-plugin-php.md`, les exemples de code présents ici sont des signatures ou des fragments illustratifs destinés à clarifier l'architecture. Ils ne constituent pas des implémentations prêtes à copier-coller. Le code réel est écrit par Morgan.
+Comme pour `01-plugin-php.md`, les exemples de code présents ici sont des signatures ou des fragments illustratifs destinés à clarifier l'architecture. Ils ne constituent pas des implémentations prêtes à copier-coller. Le code réel vit dans `api/`.
 
 ---
 
@@ -59,66 +59,65 @@ Clean Architecture en version légère (trois projets au lieu des quatre canoniq
 
 ## 3. La structure en trois projets
 
-La solution `Portfolio.sln` contient trois projets qui forment un graphe de dépendances strict.
+La solution `api/Portfolio.slnx` contient trois projets qui forment un graphe de dépendances strict, et deux projets de tests ; le troisième arrive avec le lot 3. L'arbre montre le code des lots 1 et 2 ; les lignes entre parenthèses annoncent ce qu'apportent les lots suivants d'ADR-026.
 
 ```
-Portfolio.sln
+api/
+├── Portfolio.slnx
+├── global.json, Directory.Build.props, Directory.Packages.props
 │
 ├── Portfolio.Api/                     # Entrée HTTP, ASP.NET Core Minimal APIs
-│   ├── Portfolio.Api.csproj
-│   ├── Program.cs                     # Bootstrap, DI, enregistrement des endpoints
-│   ├── Endpoints/                     # Les endpoints groupés par ressource
-│   ├── Dtos/                          # Objets de requête et réponse HTTP
-│   └── Middleware/                    # Pipeline HTTP custom (auth, logging, etc.)
+│   └── Program.cs                     # Composition root : services, routes, démarrage
+│                                      # (lot 5 : routes des collections et /health/ready ;
+│                                      #  lot 7 : options, CORS, limitation de débit, métriques)
 │
-├── Portfolio.Application/             # Cœur métier, aucune dépendance externe
-│   ├── Portfolio.Application.csproj
-│   ├── Models/                        # Article, Project, Tag, etc.
-│   ├── Abstractions/                  # Interfaces des services externes
-│   │   ├── IWordPressClient.cs
-│   │   ├── IArticleCache.cs
-│   │   └── IMarkdownRenderer.cs
-│   └── UseCases/                      # Handlers des cas d'usage
-│       ├── Articles/
-│       │   ├── GetArticleBySlug.cs
-│       │   └── ListArticles.cs
-│       └── Projects/
-│           ├── GetProjectBySlug.cs
-│           └── ListProjects.cs
+├── Portfolio.Application/             # Le cœur : aucun paquet, aucun autre projet
+│   ├── Documents/                     # Document, hiérarchie fermée : Article, Project, Page,
+│   │                                  #   et leurs valeurs : Tag, Skill, Status, ProjectStatus
+│   ├── Catalog.cs                     # L'instantané immuable du contenu publié
+│   ├── CollectionSnapshot.cs          # Une collection de l'instantané : listes et index des slugs
+│   ├── CatalogStore.cs                # Le catalogue courant, remplacé d'un seul geste
+│   ├── CatalogQuery.cs, PagedList.cs  # Ce qu'un lecteur demande, ce qu'il reçoit
+│   ├── LanguageLists.cs               # Les trois listes d'une collection, entrée du catalogue
+│   ├── CatalogBuildOutcome.cs         # Un catalogue, ou des rangs qui ne s'alignent pas
+│   ├── Language.cs, CollectionKind.cs, Slugs.cs
+│   ├── Ports/                         # Ce que le cœur attend du monde extérieur
+│   │   ├── IWordPressClient.cs        #   le plugin (implémenté au lot 3)
+│   │   ├── IMarkdownRenderer.cs       #   le rendu HTML (implémenté au lot 4)
+│   │   ├── Fetch.cs                   #   Fetch<T> : la réponse, ou SourceUnavailable
+│   │   └── Sitemap.cs
+│   └── UseCases/                      # Un cas d'usage par opération, paramétré par la collection
+│       ├── GetDocumentBySlug.cs       #   rend DocumentLookup : Document | NotFound | CatalogNotReady
+│       └── ListDocuments.cs           #   rend DocumentListing : PagedList<Document> | CatalogNotReady
+│                                      # (lot 5 : RefreshCatalog ; lot 6 : ListTagUsage, ListSkillUsage)
 │
-└── Portfolio.Infrastructure/          # Implémentations concrètes
-    ├── Portfolio.Infrastructure.csproj
-    ├── WordPress/
-    │   └── WordPressClient.cs         # Implémente IWordPressClient via HttpClient
-    ├── Caching/
-    │   └── MemoryArticleCache.cs      # Implémente IArticleCache via IMemoryCache
-    └── Markdown/
-        └── MarkdigRenderer.cs         # Implémente IMarkdownRenderer via Markdig
+├── Portfolio.Infrastructure/          # Les implémentations des ports, vide jusqu'au lot 3
+│                                      # (lot 3 : WordPress/, le client du plugin ;
+│                                      #  lot 4 : Markdown/, le rendu par Markdig)
+│
+├── Portfolio.Application.Tests/       # Le cœur, et la règle des dépendances
+├── Portfolio.Api.Tests/               # L'API démarrée en mémoire (WebApplicationFactory)
+└── deploy/                            # Image et compose de production (ADR-023)
 ```
+
+Les dossiers `Models/` et `Abstractions/` de la version d'avril sont devenus `Documents/` et `Ports/`, le vocabulaire d'ADR-026 ; les cas d'usage jumeaux par collection (`GetArticleBySlug`, `GetProjectBySlug`…) sont devenus un cas d'usage par opération.
 
 ### 3.1. `Portfolio.Api` : la surface HTTP
 
-Ce projet contient uniquement ce qui concerne la communication HTTP. Les endpoints sont déclarés en Minimal APIs dans des fichiers groupés par ressource. Un endpoint typique tient en quelques lignes expressives :
+Ce projet contient uniquement ce qui concerne la communication HTTP. Aujourd'hui il ne sert que `GET /health/live` (lot 1) ; les routes des trois collections arrivent au lot 5, déclarées en Minimal APIs. Une route de détail tiendra en quelques lignes, de cette forme :
 
 ```csharp
-// Dans Endpoints/ArticleEndpoints.cs
-public static class ArticleEndpoints
-{
-    public static void MapArticleEndpoints(this IEndpointRouteBuilder app)
+// Forme visée d'une route de détail (lot 5), à titre d'illustration
+group.MapGet("/{slug}", (string slug, GetDocumentBySlug getDocument) =>
+    getDocument.Execute(CollectionKind.Project, slug, Language.Fr) switch
     {
-        var group = app.MapGroup("/api/articles");
-
-        // La route appelle directement le handler applicatif via DI
-        group.MapGet("/{slug}", async (
-            string slug,
-            GetArticleBySlug handler) =>
-        {
-            var article = await handler.ExecuteAsync(slug);
-            return article is null ? Results.NotFound() : Results.Ok(article);
-        });
-    }
-}
+        Document document => Results.Ok(DocumentDto.From(document)),
+        NotFound => Results.Problem(statusCode: StatusCodes.Status404NotFound),
+        CatalogNotReady => Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable),
+    });
 ```
+
+La route ne contient aucune logique métier : elle traduit un résultat du cœur en réponse HTTP. Ce résultat est une union de C# 15 (§3.2), et le `switch` doit en traiter les trois cas, sinon le code ne compile pas : le compilateur signale le cas oublié par un avertissement (CS8509), que ce projet traite comme une erreur. Une route ne peut donc pas oublier le 503 d'une API qui vient de démarrer. La lecture du paramètre `language`, et le 400 d'une valeur invalide, viendront avec la route.
 
 Les **DTOs** (`Dtos/`) sont des objets qui représentent la forme exacte du JSON échangé avec les clients HTTP. Ils sont distincts des modèles de `Portfolio.Application`, pour une raison importante : les modèles du cœur évoluent selon la logique métier, les DTOs évoluent selon les contrats publics de l'API. Mélanger les deux couple ces deux rythmes d'évolution et crée des cassures incontrôlées côté front.
 
@@ -126,21 +125,25 @@ Le **`Program.cs`** joue le rôle de *composition root* : c'est l'unique endroit
 
 ### 3.2. `Portfolio.Application` : le cœur métier
 
-Ce projet est le centre de l'architecture et il a une propriété cruciale : **il ne dépend d'aucun framework externe, d'aucune librairie tierce, d'aucune fonctionnalité ASP.NET**. Les seules dépendances admises sont les types de base de .NET (`System.*`, `System.Threading.Tasks`, etc.). Si un `using Microsoft.AspNetCore.*` apparaît dans un fichier de ce projet, c'est une erreur architecturale.
+Ce projet est le centre de l'architecture et il a une propriété cruciale : **il ne dépend d'aucun paquet, d'aucun autre projet, d'aucune fonctionnalité ASP.NET**. Les seules dépendances admises sont les types de base de .NET (`System.*`). Le compilateur refuserait d'ailleurs un `using Microsoft.AspNetCore.Http;` dans ce projet, qui ne référence pas ASP.NET Core. Le piège est ailleurs : .NET 11 range neuf bibliothèques `Microsoft.Extensions.*` dans le framework de base (ADR-025), si bien qu'un `ILogger` y compile sans la moindre référence de paquet. Deux tests de `DependencyRuleTests` ferment cette porte : le premier lit les assemblages que le code du cœur utilise et n'admet que `System.*`, le second lit ce que la restauration a résolu pour lui et n'admet ni paquet ni projet (ADR-026, notes du lot 1).
 
-Le projet contient trois types d'éléments. Les **modèles** (`Models/`) sont les objets métier : `Article`, `Project`, `Tag`. Ils sont idéalement implémentés en `record` C# pour leur immutabilité et leur égalité par valeur. Ils ne contiennent que des données et des méthodes qui opèrent sur ces données sans effet de bord externe.
+Le cœur contient quatre sortes d'éléments.
 
-Les **abstractions** (`Abstractions/`) sont des interfaces qui définissent ce dont le cœur a besoin du monde extérieur, sans savoir comment ce besoin sera satisfait. L'interface `IWordPressClient` décrit ce que le cœur attend pour récupérer des articles — « donne-moi un article par slug », « donne-moi une liste paginée » — mais ne dit rien de HTTP, de WordPress, de JSON. L'implémentation concrète de ces interfaces vit dans `Portfolio.Infrastructure`.
+Les **documents** (`Documents/`). `Document` est un `closed record class` de C# 15 : une hiérarchie fermée, dont les seules sous-classes sont `Article`, `Project` et `Page`, parce qu'aucun autre assemblage ne peut en dériver. Un `switch` qui traite ces trois cas n'a donc pas besoin de bras par défaut, et une quatrième sorte de document ferait échouer la compilation de chaque `switch` qui l'oublie (vérifié : avertissement CS8509, traité en erreur). Un document est tel qu'une liste du plugin le sert : `RequestedLanguage` est la langue de cette liste, `Lang` celle du document, et `IsFallback` se calcule de l'écart entre les deux, pour ne jamais les contredire. Les libellés (`Tag.Name`, `Skill.Label`, `Status.Label`) arrivent déjà dans la langue demandée. Ce sont des `record` pour leur immuabilité ; leur égalité « par valeur » s'arrête aux listes et aux dictionnaires, que C# compare par référence, si bien que les tests vérifient qu'un document rendu est le même objet que celui donné au catalogue (`Assert.Same`), jamais que deux documents sont égaux. Un enregistrement n'est d'ailleurs immuable qu'en surface : ses listes ne le sont que si personne d'autre ne les tient. Un document recopie donc les listes et le dictionnaire qu'on lui donne, dans l'accesseur `init` de chaque propriété (`init => field = [.. value];`, où `field`, apparu avec C# 14, désigne le champ caché de la propriété) : ce que l'appelant fait ensuite de ses propres collections ne change plus ni le document, ni le catalogue qui le tient.
+
+Le **catalogue**. `Catalog` est l'instantané immuable du contenu publié : `Catalog.Build` le construit à partir des neuf listes du plugin (trois collections, trois langues), et `CatalogStore` tient l'instantané courant. La section quatre suit une lecture de bout en bout.
+
+Les **ports** (`Ports/`) sont des interfaces qui définissent ce dont le cœur a besoin du monde extérieur, sans savoir comment ce besoin sera satisfait. `IWordPressClient` demande le `/sitemap` du plugin et la liste complète d'une collection dans une langue, mais ne dit rien de HTTP, de WordPress ni de JSON. Sa réponse est un `Fetch<T>`, une *union* de C# 15 : une valeur qui est exactement l'un des types qu'elle énumère, ici ce qu'on a demandé ou `SourceUnavailable` avec sa raison (erreur de réseau, délai dépassé, statut d'échec, page du pare-feu de l'hébergeur). Le cœur apprend ainsi une panne sans attraper d'exception. `IMarkdownRenderer` rend un Markdown en HTML ; il reçoit la langue du document, dont il a besoin pour réécrire les liens entre documents (ADR-026, point 8). Les implémentations concrètes vivront dans `Portfolio.Infrastructure`, aux lots 3 et 4.
 
 Cette inversion est le principe central de la Clean Architecture. Le cœur dicte ce qu'il veut via des interfaces. La périphérie s'adapte au cœur en implémentant ces interfaces. La dépendance logique va du cœur vers la périphérie (le cœur dit « j'ai besoin de ça »), mais la dépendance de compilation va de la périphérie vers le cœur (la périphérie référence le projet du cœur pour implémenter ses interfaces).
 
-Les **UseCases** (`UseCases/`) sont les handlers de cas d'usage. Chaque fichier représente une opération métier complète : `GetArticleBySlug`, `ListArticles`, `ListProjectsByStack`. Un handler est typiquement une classe avec une unique méthode `ExecuteAsync` qui orchestre les interfaces abstraites pour produire un résultat. Le cas d'usage `GetArticleBySlug` est traité en détail en section quatre.
+Les **cas d'usage** (`UseCases/`) : un par opération, paramétré par la collection, plutôt qu'un jumeau par collection (ADR-026, point 6). `GetDocumentBySlug` et `ListDocuments` lisent le catalogue courant et rien d'autre, et rendent une union : `DocumentLookup` (le document, `NotFound` ou `CatalogNotReady`) et `DocumentListing` (une page, ou `CatalogNotReady`). Leur méthode `Execute` est synchrone : lire un instantané en mémoire n'attend rien. `RefreshCatalog`, qui construit les catalogues à partir du plugin, arrive au lot 5 ; `ListTagUsage` et `ListSkillUsage`, les agrégats, au lot 6.
 
 ### 3.3. `Portfolio.Infrastructure` : les implémentations concrètes
 
-Ce projet contient les implémentations réelles des interfaces déclarées dans `Application`. L'organisation par sous-dossiers suit les responsabilités externes : `WordPress/` pour tout ce qui parle au plugin WordPress via HTTP, `Caching/` pour la couche de cache, `Markdown/` pour le parsing côté C#.
+Ce projet contiendra les implémentations réelles des ports déclarés dans `Application`, par sous-dossier : `WordPress/` pour le client du plugin (lot 3), `Markdown/` pour le rendu côté C# (lot 4). Il n'y a plus de dossier `Caching/` : l'état vit dans le `CatalogStore` du cœur (ADR-026, point 6).
 
-Chaque implémentation dépend de librairies externes concrètes. `WordPressClient` utilise `HttpClient` (avec la configuration typée d'ASP.NET Core via `AddHttpClient`), `MemoryArticleCache` utilise `IMemoryCache` du framework, `MarkdigRenderer` utilise Markdig avec ses extensions. Ces dépendances concrètes sont confinées à ce projet — elles ne remontent jamais jusqu'à `Application` ou `Api`.
+Chaque implémentation dépend de bibliothèques concrètes. `WordPressClient` sera un `HttpClient` typé (configuré par `AddHttpClient`) qui lit le JSON du plugin en snake_case vers des enregistrements internes à ce projet, puis les traduit en documents du cœur ; `MarkdigRenderer` utilisera Markdig et ses extensions. Ces dépendances concrètes sont confinées à ce projet : elles ne remontent jamais jusqu'à `Application`.
 
 ### 3.4. La règle des dépendances
 
@@ -150,46 +153,45 @@ Le graphe de dépendances entre les trois projets suit une règle absolue : **`A
   Portfolio.Api  ─────►  Portfolio.Application  ◄─────  Portfolio.Infrastructure
 ```
 
-Cette règle est matérialisée dans les fichiers `.csproj` via les `ProjectReference`. `Portfolio.Api.csproj` référence à la fois `Application` et `Infrastructure` (il compose les deux au démarrage). `Portfolio.Infrastructure.csproj` référence uniquement `Application` (pour voir les interfaces à implémenter). `Portfolio.Application.csproj` ne référence aucun autre projet.
+Cette règle est matérialisée dans les fichiers `.csproj` via les `ProjectReference`. `Portfolio.Api.csproj` référence à la fois `Application` et `Infrastructure` (il compose les deux au démarrage). `Portfolio.Infrastructure.csproj` référence uniquement `Application` (pour voir les interfaces à implémenter). `Portfolio.Application.csproj` ne référence aucun autre projet, ce que les tests de la règle des dépendances vérifient à chaque construction (§3.2).
 
 L'architecte en toi doit relire cette règle et vérifier mentalement sa cohérence : si `Application` dépendait de `Infrastructure`, le cœur dépendrait des détails, ce qui casserait toute l'indépendance qu'on cherche à obtenir. Si `Application` dépendait d'`Api`, le métier serait couplé à HTTP, ce qui empêcherait la réutilisation multi-frontend évoquée en section neuf.
 
 ---
 
-## 4. Walkthrough : le cas d'usage `GetArticleBySlug`
+## 4. Walkthrough : lire un document dans le catalogue
 
-Ce cas d'usage traverse toute l'architecture et sert de fil rouge pédagogique pour comprendre comment les trois projets collaborent. On suit le parcours d'une requête `GET /api/articles/rust-ownership-intuition` depuis son arrivée jusqu'à la réponse.
+Ce parcours traverse le cœur et sert de fil rouge pour comprendre comment les pièces collaborent. On suit `GET /api/projects/momocad-de?language=fr`, une requête que le plugin sert déjà en production (il rend la fiche française `momocad`). Les étapes deux à quatre sont le code du lot 2 ; la première appartient aux lots 3 et 5, la dernière au lot 5.
 
-**Étape un : l'arrivée de la requête dans `Portfolio.Api`.** La requête HTTP entre dans ASP.NET Core, traverse le pipeline de middlewares (CORS, logging, éventuellement l'authentification), et aboutit à l'endpoint Minimal API déclaré dans `ArticleEndpoints.cs`. L'endpoint reçoit en paramètres le `slug` extrait de la route et une instance de `GetArticleBySlug` fournie par l'injection de dépendances.
+**Étape un : le catalogue est construit, en dehors de toute requête (lots 3 et 5).** Un service de fond lit le `/sitemap` du plugin, puis, pour chaque collection et chaque langue, la liste complète qu'il sert (`IWordPressClient.ListAsync`). Le plugin ancre ses trois listes sur les documents français (ADR-021) : une entrée par document français, au même rang dans les trois listes, chaque liste servant à ce rang le membre du groupe dans sa langue, ou celui vers lequel elle se replie quand la traduction manque. Les trois listes d'une collection entrent dans un `LanguageLists`, et `Catalog.Build` en fait un instantané. Il vérifie d'abord qu'elles s'alignent (même longueur, même clé de traduction à chaque rang) ; sinon le contenu a bougé pendant la lecture, et `Build` rend `RanksMisaligned` au lieu d'un catalogue, le service gardant l'ancien jusqu'au tic suivant. Le nouveau catalogue remplace l'ancien dans le `CatalogStore` par une seule écriture (`Volatile.Write`) : une requête en cours garde celui qu'elle a lu, la suivante voit le nouveau, et aucune ne voit la moitié de chacun, puisqu'un catalogue ne change plus une fois construit.
 
-**Étape deux : l'appel au handler applicatif.** L'endpoint appelle `handler.ExecuteAsync(slug, language)` et attend son résultat. Remarque importante : l'endpoint ne contient aucune logique métier, il se contente de traduire entre HTTP et service applicatif. Si le handler retourne `null`, l'endpoint répond 404. S'il retourne un article, l'endpoint le sérialise en JSON via `Results.Ok(article)`. C'est tout.
-
-**Étape trois : le handler consulte le cache.** Dans `Portfolio.Application`, la classe `GetArticleBySlug` reçoit en dépendances trois interfaces : `IArticleCache`, `IWordPressClient`, et `IMarkdownRenderer`. Son premier geste est d'interroger le cache.
+**Étape deux : la route appelle le cas d'usage.** La route reçoit le slug et la langue, et appelle `GetDocumentBySlug.Execute(CollectionKind.Project, "momocad-de", Language.Fr)`. Le cas d'usage lit le catalogue courant une seule fois. S'il n'y en a pas encore, parce que l'API vient de démarrer et n'a pas encore pu lire le plugin, il rend `CatalogNotReady`.
 
 ```csharp
-public async Task<ArticleDto?> ExecuteAsync(string slug, string language)
+public DocumentLookup Execute(CollectionKind collection, string slug, Language language)
 {
-    // Étape 3 — Cache hit ?
-    var cached = await _cache.GetAsync("articles", language, slug);
-    if (cached is not null)
+    if (store.Current is not { } catalog)
     {
-        return cached;
+        return new CatalogNotReady();
     }
-    // Cache miss, on continue...
+
+    return catalog.Find(collection, slug, language) is { } document ? document : new NotFound();
 }
 ```
 
-**Étape quatre : appel au client WordPress en cas de cache miss.** Si le cache ne contient pas l'article, le handler appelle `_wordPressClient.GetArticleBySlugAsync(slug, language)`, la langue venant de la requête du front (voir §5.3 : elle fait partie de la clé de cache et du contrat du plugin). L'implémentation concrète de cette interface vit dans `Portfolio.Infrastructure.WordPress.WordPressClient`, qui utilise un `HttpClient` typé pour taper `GET /wp-json/portfolio/v1/articles/{slug}` sur l'instance WordPress configurée. La réponse JSON est désérialisée en un objet `WordPressArticle` (une classe interne à l'infrastructure).
+**Étape trois : l'index trouve le document.** `Catalog.Find` s'adresse à la collection demandée, qui consulte un index par langue construit une fois pour toutes avec l'instantané. Cet index mène de chaque slug connu d'un groupe au document servi dans cette langue. Les slugs connus d'un rang sont la réunion, sur les trois langues, du slug de chaque document servi à ce rang et des slugs que listent ses `translations` : pour MoMoCAD, `momocad`, `momocad-de` et `momocad-en`. Dans l'index français, les trois mènent à la fiche française ; dans l'index allemand, à la fiche allemande. `momocad-de` en français rend donc `momocad`, comme le plugin. Les pages, qui ont un slug par langue (`cv`, `lebenslauf`, `resume`), suivent la même règle sans traitement particulier.
 
-Si WordPress retourne 404, le client retourne `null`. Le handler retourne à son tour `null`, et l'endpoint HTTP conclut avec un 404.
+Un seul cas demande un arbitrage : deux documents d'une même langue qui partagent une clé de traduction, une anomalie que `wp portfolio translations reconcile` signale. Le plugin sert alors le plus ancien, celui qui a le plus petit identifiant WordPress ; l'index fait de même pour les slugs que les deux revendiquent (`CollectionSnapshot.Claim`), quel que soit l'ordre des listes. Quand les deux sont français, chacun a son rang et garde son propre slug, comme dans le plugin. Dans une autre langue, le plus jeune n'est servi par aucune liste : le catalogue ne connaît pas son slug, que la route de détail du plugin sert encore, et le rafraîchissement du lot 5 le signalera dans son journal, comme toute ligne du `/sitemap` absente de l'index. C'est le seul usage de l'identifiant WordPress, qui ne sort jamais de l'API (ADR-026, point 5).
 
-**Étape cinq : la transformation.** Si l'article existe, le handler le transforme en `ArticleDto` prêt pour le front. Cette transformation inclut typiquement le rendu du Markdown en HTML via `_markdownRenderer.Render(article.Markdown)`. Le handler décide aussi comment peupler les champs du DTO à partir des données WordPress : mapping des tags, formatage des dates, calcul du temps de lecture si besoin, ajout d'éventuels liens connexes.
+**Étape quatre : le cas d'usage rend une union.** `Find` rend le document ou `null`, et le cas d'usage en fait un `DocumentLookup` : le document, ou `NotFound`. Aucun appel à WordPress, aucune attente : une lecture dans un `FrozenDictionary`, un dictionnaire figé, optimisé pour une table qui ne change plus après sa construction.
 
-**Étape six : mise en cache et retour.** Le DTO construit est stocké dans le cache avec la clé `(collection, language, slug)` (§5.3) et un TTL raisonnable (quelques minutes pour commencer, ajustable). Il est ensuite retourné au endpoint qui le sérialise et l'envoie au client.
+**Étape cinq : la route traduit en HTTP (lot 5).** Un `switch` sur l'union, qui doit en traiter les trois cas (§3.1) : le document devient un DTO sérialisé en JSON, `NotFound` un 404, `CatalogNotReady` un 503, tous deux en `ProblemDetails` (ADR-026, point 5).
 
-Un détail conceptuellement important : pendant toute cette chaîne, `Portfolio.Application` ne sait rien de HTTP ni de WordPress. Le handler parle à des interfaces. C'est `Portfolio.Infrastructure` qui implémente ces interfaces en termes de HttpClient et Markdig. Et c'est `Portfolio.Api` qui câble le tout dans `Program.cs` en disant « l'interface `IWordPressClient` est implémentée par la classe `WordPressClient`, voici sa configuration ».
+Une liste suit le même chemin, avec `ListDocuments` et un `CatalogQuery` : la langue, la page, la taille de page et les filtres `tag`, `status` et `skill`. Le constructeur de `CatalogQuery` refuse ce qui sort des règles du plugin (une page avant la première, une taille hors de 1 à 100, un tag ou une compétence qui n'a pas la forme d'un slug), refus que la route traduira en 400. Le catalogue retient les rangs dont le document **français** passe les filtres, comme le plugin, puisqu'une traduction garde les tags et les compétences de son original ; il coupe la page, puis prend aux rangs retenus les documents de la langue demandée. Une page au-delà de la dernière rend une liste vide avec les vrais totaux, là où le plugin répond 400 : un écart voulu (ADR-026, point 5).
 
-Ce découplage permet de tester le handler `GetArticleBySlug` sans démarrer de serveur HTTP ni accéder à WordPress : on injecte des doubles de test qui implémentent `IArticleCache`, `IWordPressClient`, et `IMarkdownRenderer`, on appelle `ExecuteAsync`, on vérifie le comportement. Les tests s'exécutent en millisecondes.
+Un détail conceptuellement important : pendant toute cette chaîne, `Portfolio.Application` ne sait rien de HTTP ni de WordPress. Il lit un instantané en mémoire et parle à des ports. C'est `Portfolio.Infrastructure` qui implémentera ces ports en termes de `HttpClient` et de Markdig, et `Portfolio.Api` qui câblera le tout dans `Program.cs`.
+
+Ce découplage permet de tester le cœur sans serveur HTTP ni WordPress : les tests construisent des listes de documents à la main (`TestData/TestDocuments.cs`), en font un catalogue et l'interrogent. Ils s'exécutent en moins d'une seconde.
 
 ---
 
@@ -297,23 +299,26 @@ Un futur projet `Portfolio.Desktop` en Avalonia référencerait `Portfolio.Appli
 // Dans Portfolio.Desktop/ViewModels/ArticleListViewModel.cs
 public partial class ArticleListViewModel : ObservableObject
 {
-    private readonly ListArticles _listArticles; // Du projet Application
+    private readonly ListDocuments _listDocuments; // Du projet Application
 
     [ObservableProperty]
-    private ObservableCollection<ArticleDto> articles = new();
+    private ObservableCollection<Document> articles = new();
 
     [RelayCommand]
-    private async Task LoadAsync()
+    private void Load()
     {
-        var result = await _listArticles.ExecuteAsync();
-        Articles = new ObservableCollection<ArticleDto>(result);
+        Articles = _listDocuments.Execute(CollectionKind.Article, new CatalogQuery()) switch
+        {
+            PagedList<Document> page => new ObservableCollection<Document>(page.Items),
+            CatalogNotReady => new ObservableCollection<Document>(), // contenu pas encore chargé
+        };
     }
 }
 ```
 
-Ce ViewModel ne contient **aucune** logique métier. Il orchestre la présentation (notifier les changements à la vue XAML) et délègue tout le reste au handler `ListArticles` qui est le même que celui consommé par `Portfolio.Api`.
+Ce ViewModel ne contient **aucune** logique métier. Il orchestre la présentation (notifier les changements à la vue XAML) et délègue tout le reste au cas d'usage `ListDocuments`, le même que celui qu'appellera `Portfolio.Api`. Comme pour la route HTTP, le compilateur signale un `switch` sur l'union `DocumentListing` qui oublierait le moment où aucun catalogue n'est encore chargé.
 
-Point d'attention : dans cette configuration, le desktop pourrait vouloir parler directement au WordPress (via l'implémentation existante de `IWordPressClient`) plutôt que de passer par l'API C# déployée. C'est une question à trancher au moment où le besoin apparaîtra. Les deux configurations sont possibles parce que `Portfolio.Infrastructure` est référencé séparément.
+Point d'attention : dans cette configuration, le desktop pourrait vouloir parler directement au WordPress (via l'implémentation existante de `IWordPressClient`) plutôt que de passer par l'API C# déployée ; il lui faudrait alors faire tourner lui-même le rafraîchissement (`RefreshCatalog`, lot 5) qui remplit son `CatalogStore`. C'est une question à trancher au moment où le besoin apparaîtra. Les deux configurations sont possibles parce que `Portfolio.Infrastructure` est référencé séparément.
 
 ### 9.3. Autres évolutions imaginables
 
@@ -329,31 +334,27 @@ Aucune de ces évolutions n'est prévue dans la feuille de route actuelle, mais 
 
 ## 10. Dépendances NuGet
 
-Les packages nécessaires pour l'API restent peu nombreux.
+Les paquets nécessaires pour l'API restent peu nombreux ; leurs versions sont centralisées dans `api/Directory.Packages.props`, une seule par paquet pour toute la solution.
 
-`Microsoft.AspNetCore.App` est la meta-référence standard pour une API ASP.NET Core, incluse automatiquement dans `Portfolio.Api.csproj` via `Sdk="Microsoft.NET.Sdk.Web"`.
+`Microsoft.AspNetCore.App` est le framework d'ASP.NET Core, que `Portfolio.Api.csproj` reçoit par `Sdk="Microsoft.NET.Sdk.Web"` : ce n'est pas un paquet à déclarer.
 
-`Markdig` est la seule dépendance externe majeure de `Portfolio.Infrastructure`. Version actuellement stable de la 0.x série, à vérifier au moment de l'implémentation.
+Le projet `Portfolio.Application` n'a **aucune** dépendance : ni paquet, ni autre projet, et deux tests le vérifient (§3.2). Si un paquet s'avérait nécessaire, il faudrait se demander si l'abstraction est correcte : en général, un paquet dans le cœur est le symptôme d'une responsabilité qui devrait être dans l'infrastructure. Le `FrozenDictionary` de l'index et l'expression régulière des slugs, générée à la compilation (`[GeneratedRegex]`), viennent de la bibliothèque de base.
 
-`Microsoft.Extensions.Caching.Memory` est incluse par défaut dans .NET 11 pour `IMemoryCache`.
+`Markdig` sera la dépendance externe majeure de `Portfolio.Infrastructure`, au lot 4. Les paquets de l'exploitation (métriques, OpenAPI) viendront au lot 7. Il n'y a plus de cache : `Microsoft.Extensions.Caching.Memory` et `IMemoryCache` ne servent pas.
 
-En dépendances de test : `xunit` pour les tests, `Microsoft.NET.Test.Sdk` comme runner, `FluentAssertions` pour l'expressivité des assertions, et `NSubstitute` pour les doubles de test (préférable à Moq, plus simple et plus moderne).
-
-Le projet `Portfolio.Application` ne devrait avoir **aucune** dépendance NuGet en dehors des types .NET standards. Si un package s'avérait nécessaire, il faudrait se demander si l'abstraction est correcte — en général, un package dans le cœur est le symptôme d'une responsabilité qui devrait être dans l'infrastructure.
+En dépendances de test : `xunit.v3.mtp-v2`, xUnit v3 sur Microsoft.Testing.Platform, et `Microsoft.AspNetCore.Mvc.Testing` pour `WebApplicationFactory`. Ni bibliothèque de simulation ni bibliothèque d'assertions (ADR-026, point 10) : des doubles de test écrits à la main et les assertions de xUnit. NSubstitute, FluentAssertions et WireMock.Net, que citait la version d'avril de ce document, ne sont pas nécessaires.
 
 ---
 
 ## 11. Tests
 
-La structure en trois projets rend la stratégie de tests directe.
+La structure en trois projets rend la stratégie de tests directe. Les projets de tests tournent sur xUnit v3 et Microsoft.Testing.Platform : `dotnet test --solution Portfolio.slnx` les exécute tous, et l'intégration continue fait de même sur chaque pull request qui touche `api/` (lot 1). En phase de développement, chaque projet peut être testé seul pour un cycle de retour rapide.
 
-**`Portfolio.Application.Tests`** couvre tous les handlers de cas d'usage et les modèles. Ces tests n'ont besoin d'aucun environnement externe. Ils instancient les classes directement, injectent des doubles de test pour les interfaces d'abstraction, et vérifient le comportement. Un test typique : « étant donné un cache qui retourne null et un client WordPress qui retourne un article, le handler appelle le renderer et retourne un DTO avec le bon contenu HTML ». Exécution en millisecondes.
+**`Portfolio.Application.Tests`** couvre le cœur, sans aucun environnement externe. Les tests construisent des listes de documents à la main (`TestData/TestDocuments.cs`), en font un catalogue et l'interrogent : l'alignement des listes, la recherche par slug sous toutes ses formes (le slug du document, celui d'une autre langue, un repli, les pages qui ont un slug par langue, les doublons dans les deux ordres), les listes filtrées et paginées, les règles de `CatalogQuery`, les cas d'usage avant et après le premier catalogue. Leurs noms sont des phrases (`A_slug_of_one_language_finds_the_document_served_in_another`), pour se lire comme une spécification. Ils vérifient l'identité des documents rendus (`Assert.Same`), et examinent les unions par filtrage de motif, jamais par `GetType()`, qui rendrait le type de l'union et non celui du cas (ADR-026, point 6). Le même projet porte les tests de la règle des dépendances (§3.2). Exécution en moins d'une seconde.
 
-**`Portfolio.Infrastructure.Tests`** teste chaque implémentation d'interface contre sa dépendance externe. Pour `WordPressClient`, on peut utiliser `WireMock.Net` pour simuler un serveur WordPress et vérifier que les requêtes HTTP sont bien formées et les réponses bien désérialisées. Pour `MemoryArticleCache`, on teste directement contre `IMemoryCache`. Pour `MarkdigRenderer`, on teste que certains Markdowns produisent le HTML attendu.
+**`Portfolio.Infrastructure.Tests`** arrive au lot 3. Pour le client du plugin, un gestionnaire HTTP de substitution rejouera des réponses enregistrées depuis le vrai plugin, page du pare-feu comprise ; pour le rendu Markdig (lot 4), des Markdowns d'entrée et le HTML attendu.
 
-**`Portfolio.Api.Tests`** teste l'assemblage complet via `WebApplicationFactory<T>`, qui démarre l'API en mémoire sans serveur HTTP réel et permet d'envoyer des requêtes en client virtuel. Ces tests valident le wiring complet : les endpoints sont bien enregistrés, les DI resolvent correctement, les DTOs sont sérialisés comme prévu. On peut y injecter des faux clients WordPress pour isoler l'API de sa dépendance externe.
-
-Les trois projets de tests utilisent tous xUnit comme runner. La commande `dotnet test` les exécute tous. En phase de développement, chaque projet peut être testé indépendamment pour un cycle de feedback rapide.
+**`Portfolio.Api.Tests`** teste l'assemblage complet via `WebApplicationFactory<Program>`, qui démarre l'API en mémoire sans serveur HTTP réel et permet d'envoyer des requêtes en client virtuel. Il vérifie aujourd'hui `/health/live` ; au lot 5, il validera les routes, leurs codes de réponse et la forme du JSON, avec un faux `IWordPressClient` en mémoire à la place du plugin.
 
 ---
 

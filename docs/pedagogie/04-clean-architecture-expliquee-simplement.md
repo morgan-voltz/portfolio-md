@@ -1,7 +1,7 @@
 # 04 — La Clean Architecture expliquée simplement
 
 **Temps de lecture** : environ 12 minutes
-**Dernière mise à jour** : 22 avril 2026
+**Dernière mise à jour** : 22 novembre 2026 (exemples alignés sur le code du cœur de l'API, ADR-026 ; version d'origine du 22 avril 2026)
 
 ---
 
@@ -78,9 +78,9 @@ Cette règle peut paraître contre-intuitive au premier abord. Naturellement, qu
 
 Dans la solution .NET de notre API, cette philosophie se matérialise par trois projets distincts, chacun portant un rôle précis et n'ayant le droit de dépendre que de certains autres.
 
-Le projet `Portfolio.Application` est le cœur de l'oignon. Il contient les modèles métier comme `Article`, `Project`, `Tag`, et les cas d'usage comme `GetArticleBySlug` ou `ListProjects`. Il ne dépend d'aucune bibliothèque externe autre que les types de base de .NET. Si tu ouvrais les fichiers de ce projet, tu ne trouverais aucun `using Microsoft.AspNetCore.*`, aucun `using System.Data.SqlClient`, rien qui ressemble à une technologie concrète. C'est du code pur, portable, qui pourrait être exécuté dans n'importe quel contexte .NET.
+Le projet `Portfolio.Application` est le cœur de l'oignon. Il contient les documents comme `Article`, `Project` ou `Page`, le catalogue qui les garde en mémoire, et les cas d'usage comme `GetDocumentBySlug` ou `ListDocuments`. Il ne dépend d'aucune bibliothèque externe autre que les types de base de .NET. Si tu ouvrais les fichiers de ce projet, tu ne trouverais aucun `using Microsoft.AspNetCore.*`, aucun `using System.Data.SqlClient`, rien qui ressemble à une technologie concrète. C'est du code pur, portable, qui pourrait être exécuté dans n'importe quel contexte .NET.
 
-Le projet `Portfolio.Infrastructure` est la couche externe qui implémente les services techniques. Il contient une classe `WordPressClient` qui sait vraiment parler HTTP à l'instance WordPress, une classe `MemoryArticleCache` qui utilise le cache en mémoire de .NET, une classe `MarkdigRenderer` qui utilise la librairie Markdig pour convertir le Markdown en HTML. C'est ici que vivent tous les détails techniques et toutes les dépendances externes.
+Le projet `Portfolio.Infrastructure` est la couche externe qui implémente les services techniques. Il contient une classe `WordPressClient` qui sait vraiment parler HTTP à l'instance WordPress, et une classe `MarkdigRenderer` qui utilise la librairie Markdig pour convertir le Markdown en HTML. C'est ici que vivent tous les détails techniques et toutes les dépendances externes.
 
 Le projet `Portfolio.Api` est le point d'entrée HTTP. Il contient les endpoints Minimal API, les DTOs de requête et de réponse, les middlewares. Il ne fait lui-même aucune logique métier — il traduit juste entre le monde HTTP et les cas d'usage définis dans le projet `Application`.
 
@@ -91,16 +91,17 @@ Mais alors, comment `Application` fait-il pour récupérer des données depuis W
 Plutôt que le cœur appelle directement une classe technique, il définit une *interface* qui décrit ce qu'il attend comme service.
 
 ```csharp
-// Dans Portfolio.Application/Abstractions/IWordPressClient.cs
+// Dans Portfolio.Application/Ports/IWordPressClient.cs
 public interface IWordPressClient
 {
     // Le cœur dit : « j'ai besoin d'un truc qui sait faire ça »
-    Task<Article?> GetArticleBySlugAsync(string slug);
-    Task<IReadOnlyList<Article>> ListArticlesAsync();
+    Task<Fetch<Sitemap>> GetSitemapAsync(CancellationToken cancellationToken);
+    Task<Fetch<IReadOnlyList<Document>>> ListAsync(
+        CollectionKind collection, Language language, CancellationToken cancellationToken);
 }
 ```
 
-Cette interface dit au reste du monde « j'ai besoin d'un service qui sait me donner des articles par slug et me lister tous les articles ». Elle ne dit absolument rien sur *comment* ce service fait son travail — HTTP, base de données directe, fichiers plats, appels à une API tierce, peu importe. Le projet `Application` ne dépend que de cette interface abstraite, jamais d'une implémentation concrète.
+Cette interface dit au reste du monde « j'ai besoin d'un service qui sait me donner le sommaire du site, et la liste complète d'une collection dans une langue ». Le type de retour `Fetch<T>` ajoute une nuance honnête : la réponse est soit ce qu'on a demandé, soit la raison pour laquelle on n'a pas pu l'obtenir, parce que WordPress peut être en panne et que le cœur veut le savoir sans attraper d'exception. L'interface ne dit absolument rien sur *comment* ce service fait son travail — HTTP, base de données directe, fichiers plats, appels à une API tierce, peu importe. Le projet `Application` ne dépend que de cette interface abstraite, jamais d'une implémentation concrète.
 
 Dans le projet `Portfolio.Infrastructure`, on écrit ensuite l'implémentation réelle qui respecte cette interface :
 
@@ -115,13 +116,13 @@ public class WordPressClient : IWordPressClient
 
 Enfin, au démarrage de l'application, dans `Program.cs`, on connecte les deux mondes en disant à .NET « quand quelqu'un demande un `IWordPressClient`, donne-lui une instance de `WordPressClient` ». C'est le seul endroit du code où les deux mondes se rencontrent, et c'est par choix.
 
-Cette indirection peut paraître une complexité gratuite au premier regard. Pourquoi passer par une interface alors qu'on pourrait appeler directement la classe concrète ? Parce que cette indirection a une conséquence puissante : **la logique métier de `Application` peut être testée sans jamais instancier un vrai `WordPressClient`**. Dans un test unitaire, tu crées un faux client — un *mock* — qui implémente `IWordPressClient` en renvoyant des données prédéfinies, et tu vérifies que ton cas d'usage se comporte correctement dans différentes situations. Les tests s'exécutent en millisecondes au lieu de secondes, ils ne dépendent d'aucun serveur WordPress, et ils ne cassent pas quand le réseau est instable ou quand la base de données est en maintenance.
+Cette indirection peut paraître une complexité gratuite au premier regard. Pourquoi passer par une interface alors qu'on pourrait appeler directement la classe concrète ? Parce que cette indirection a une conséquence puissante : **la logique métier de `Application` peut être testée sans jamais instancier un vrai `WordPressClient`**. Dans un test unitaire, tu crées un faux client — un *double de test*, écrit à la main — qui implémente `IWordPressClient` en renvoyant des données prédéfinies, et tu vérifies que ton cas d'usage se comporte correctement dans différentes situations. Les tests s'exécutent en millisecondes au lieu de secondes, ils ne dépendent d'aucun serveur WordPress, et ils ne cassent pas quand le réseau est instable ou quand la base de données est en maintenance.
 
 ## Les bénéfices concrets à long terme
 
 On parle souvent de Clean Architecture en termes théoriques, mais je veux te décrire ce que ça change concrètement dans ta vie de développeur.
 
-Tu peux **remplacer un composant technique sans toucher au métier**. Si demain tu décides d'utiliser Redis au lieu du cache en mémoire pour gérer le cache des articles, tu écris une nouvelle implémentation de `IArticleCache` dans le projet `Infrastructure`, tu changes une ligne dans `Program.cs`, et c'est fini. Le projet `Application` ne change pas, tes tests existants ne changent pas, tes cas d'usage restent rigoureusement identiques. Essaie d'imaginer le même changement sur le code de la première section de ce chapitre — tu aurais à modifier chaque fonction qui utilisait le cache, partout dans l'application.
+Tu peux **remplacer un composant technique sans toucher au métier**. Si demain tu décides de remplacer Markdig par une autre librairie de rendu Markdown, tu écris une nouvelle implémentation de `IMarkdownRenderer` dans le projet `Infrastructure`, tu changes une ligne dans `Program.cs`, et c'est fini. Le projet `Application` ne change pas, tes tests existants ne changent pas, tes cas d'usage restent rigoureusement identiques. Essaie d'imaginer le même changement sur le code de la première section de ce chapitre — tu aurais à modifier chaque fonction qui appelait Markdig, partout dans l'application.
 
 Tu peux **tester ta logique sans environnement**. Tes tests unitaires tournent sur `Application` en injectant des doubles de tests pour les interfaces. Pas besoin de démarrer WordPress, pas besoin de connecter à une base de données, pas besoin de serveur web. Quelques millisecondes par test, et tu peux en lancer des milliers en quelques secondes sur ta machine de développement.
 
@@ -135,7 +136,7 @@ Je ne veux pas te vendre la Clean Architecture comme une solution miracle. Elle 
 
 Elle demande **plus de fichiers**. Au lieu d'une unique classe `ArticleController` qui fait tout, tu as une interface, une implémentation concrète, un cas d'usage, un DTO de réponse, et la configuration qui les relie dans `Program.cs`. Pour un petit projet avec peu de logique métier, cette multiplication peut paraître disproportionnée par rapport au bénéfice.
 
-Elle demande **une discipline constante**. La règle des dépendances n'est pas magique — rien ne t'empêche techniquement d'ajouter un `using Microsoft.AspNetCore.Http;` dans ton projet `Application` si tu as la flemme de créer une interface. La seule chose qui préserve la propreté de l'architecture, c'est ta discipline et celle de tes collaborateurs. Des outils d'analyse statique comme les règles d'architecture de JetBrains Rider ou NDepend peuvent aider à imposer ces règles, mais ils ne remplacent pas une conscience claire de ce qu'on fait.
+Elle demande **une discipline constante**. La règle des dépendances n'est pas magique. Dans notre projet, le compilateur refuserait bien un `using Microsoft.AspNetCore.Http;` dans `Application`, qui ne référence pas ASP.NET Core ; mais il y accepte sans broncher un `ILogger` de `Microsoft.Extensions.Logging`, parce que .NET 11 range cette bibliothèque dans le framework de base. La porte reste entrouverte. Un test la referme (`DependencyRuleTests`) : il échoue dès que le cœur utilise autre chose que les bibliothèques `System.*` ou dépend d'un paquet. Mais un test ne voit que ce qu'on lui a appris à voir : il ne te dira jamais qu'une classe est rangée au mauvais endroit, ni qu'une règle métier s'est glissée dans un endpoint. Pour cela, il ne reste que ta discipline et celle de tes collaborateurs. Des outils d'analyse statique comme les règles d'architecture de JetBrains Rider ou NDepend peuvent aider, mais ils ne remplacent pas une conscience claire de ce qu'on fait.
 
 Elle demande **une phase d'apprentissage**. Les premiers projets qu'on structure en Clean Architecture demandent du temps de réflexion : « est-ce que cette classe va dans `Application` ou dans `Infrastructure` ? », « est-ce que ce détail est du métier ou de la technique ? », « dois-je créer une interface pour ça ou est-ce que c'est exagéré ? ». Ces questions deviennent naturelles avec l'expérience, mais au début, elles ralentissent visiblement.
 
