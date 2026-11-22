@@ -88,7 +88,7 @@ Le projet fil rouge 4.0.2 suit le même patron avec, en plus, une section **Corr
 
 ## Frontmatter d'une page statique
 
-Les pages `Accueil`, `À propos`, `CV` et `Contact` utilisent le type natif `page` de WordPress ; le plugin y garde la description SEO (recopiée dans la description Yoast) et ses champs internes, rien d'autre :
+Les pages `Accueil`, `À propos`, `CV` et `Contact` utilisent le type natif `page` de WordPress ; le plugin y garde la description SEO (recopiée dans la description Yoast), ses champs internes et, depuis ADR-027, deux clés facultatives, les seules qu'on peut omettre :
 
 ```markdown
 ---
@@ -98,9 +98,13 @@ type: "page"
 lang: "fr"
 translation_key: "a-propos"         # slug de la page française ; facultatif en français
 date: 2026-10-26
+headline: "Une phrase"                # facultatif : le titre que la page affiche en h1 à la place de title
+subtitle: "Une ligne sous le titre" # facultatif : la ligne sous le titre de la page
 seo_description: "Une phrase complète de 160 caractères au plus."
 ---
 ```
+
+`title` nomme la page partout où on la cite : le menu, l'onglet du navigateur, les résultats de recherche (« Accueil - Morgan Voltz »). `headline` est ce que la page dit en haut, à la place du titre : l'accueil s'en sert pour son accroche (« Du câblage d'armoires au code qui tient la route. ») sans que le menu affiche cette phrase. `subtitle` est la ligne sous ce titre. Les deux restent du texte brut, et une page qui n'en a pas l'usage ne les écrit pas : le validateur ne les exige pas, contrairement aux autres clés d'une page. Sur l'accueil d'une langue, le thème ajoute sous la ligne deux boutons, vers les projets et vers le CV de la langue.
 
 Corps en GFM, sans `# Titre` en tête (même règle que les fiches), à la première personne, sans donnée de contact : l'adresse e-mail n'apparaît que sur la page Contact. La page CV est une version web lisible, pas une copie de la mise en page du PDF ; elle renvoie aux fiches projet par des liens relatifs (`../projects/<slug>.md`), que le pipeline réécrit en liens du site au rendu (`/fr/projets/<slug>/`, préfixé de la langue du document).
 
@@ -171,13 +175,13 @@ podman run --rm -v "$PWD:/repo:z" -w /repo docker.io/library/php:8.3-cli \
 
 Il charge d'abord la grille par le chargeur du plugin (`Parsing\SkillsGridLoader` : `official` par référentiel, bloc `i18n` complet, clés inconnues refusées) et s'arrête si elle est refusée ; puis il lit ses listes dans le plugin lui-même (`Validation\ContentValidator` : clés autorisées, types, langues, statuts, forme des slugs, plafond SEO) et vérifie, fichier par fichier puis sur l'arbre entier :
 
-1. les clés du frontmatter et leurs valeurs, dont les codes de compétences de `skills.yaml` ;
+1. les clés du frontmatter et leurs valeurs, dont les codes de compétences de `skills.yaml` ; chaque clé autorisée est écrite, même vide, sauf `reading_time` (article), `headline` et `subtitle` (page) ;
 2. que le nom du fichier est le slug ;
 3. que `lang` est la langue du dossier, et `type` le type du dossier ;
 4. le suffixe `-de` ou `-en` des fiches et des articles, et son absence en français ;
 5. `translation_key` : obligatoire en `de` et en `en`, facultative en français où, si elle est écrite, elle égale le slug ;
 6. `seo_description` de 160 caractères au plus ;
-7. les sections de la langue du document, l'absence de HTML et de h1 dans le corps, de données de contact sur une page ;
+7. les sections de la langue du document, l'absence de HTML et de h1 dans le corps, de données de contact sur une page autre que Contact, cherchées dans son corps, son `headline`, son `subtitle` et sa `seo_description` ;
 8. qu'aucune traduction n'est orpheline et qu'une clé n'est portée qu'une fois par langue ;
 9. qu'un slug n'est pas repris dans une autre langue du même type ;
 10. que chaque lien de la forme `../<dossier>/<slug>.md` ou `../../<lang>/<dossier>/<slug>.md` pointe vers un fichier de `content/` qui existe, et qu'aucun lien vers un `.md` n'a une autre forme : le rendu ne réécrit que ces deux-là ;

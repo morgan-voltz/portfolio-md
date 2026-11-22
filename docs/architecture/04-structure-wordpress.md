@@ -5,7 +5,7 @@
 **Lectorat** : Morgan à froid, contributeurs futurs, et toute personne qui veut comprendre comment WordPress est organisé pour ce projet.
 **Articulation** : ce document complète `01-plugin-php.md` (qui détaille le plugin de conversion Markdown ↔ WordPress) en se concentrant sur la modélisation côté CMS.
 **Temps de lecture** : environ 12 minutes
-**Dernière mise à jour** : 8 novembre 2026 (ouverture des langues, ADR-022 lot 5e : arborescence par langue (section 2), taxonomies non traduites (section 4) ; lot 5d : pages Accueil et Contact en documents, accueil statique et menus par langue, description SEO recopiée vers Yoast ; lot 5c : archive des projets avec repli et sélecteur ; lot 5b : l'option `portfolio_md_published_languages`, une langue fermée servie mais `noindex` et hors sitemap ; lot 5a : archives des trois taxonomies en `noindex` et hors sitemap ; libellés par langue, ADR-020 lot 4 : trois term metas de plus sur `skill`, libellés de statut en trois langues ; la langue dans les routes REST, ADR-021 lot 3 : les deux champs internes de langue conditionnent la visibilité d'un document dans l'API ; le 7 novembre, pont Polylang, ADR-020 lot 2 : types déclarés à Polylang par le plugin, boîte en lecture seule pour les traductions, réconciliation ; langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
+**Dernière mise à jour** : 22 novembre 2026 (ADR-027 : `subtitle` et `headline` sur les pages, section 5.1) ; 8 novembre 2026 (ouverture des langues, ADR-022 lot 5e : arborescence par langue (section 2), taxonomies non traduites (section 4) ; lot 5d : pages Accueil et Contact en documents, accueil statique et menus par langue, description SEO recopiée vers Yoast ; lot 5c : archive des projets avec repli et sélecteur ; lot 5b : l'option `portfolio_md_published_languages`, une langue fermée servie mais `noindex` et hors sitemap ; lot 5a : archives des trois taxonomies en `noindex` et hors sitemap ; libellés par langue, ADR-020 lot 4 : trois term metas de plus sur `skill`, libellés de statut en trois langues ; la langue dans les routes REST, ADR-021 lot 3 : les deux champs internes de langue conditionnent la visibilité d'un document dans l'API ; le 7 novembre, pont Polylang, ADR-020 lot 2 : types déclarés à Polylang par le plugin, boîte en lecture seule pour les traductions, réconciliation ; langue des documents, ADR-020 : deux champs internes, liens préfixés, contenu migré vers `content/fr/` ; porte Git et routes REST publiques en lecture le 29 octobre ; champs personnalisés, taxonomie `skill` et import Markdown le 26 octobre)
 
 ---
 
@@ -237,14 +237,15 @@ Chaque clé est exposée en constante publique sur son registrar (`CommonMetaReg
 
 ### 5.1. Champs publics communs
 
-Enregistrés sur `article` **et** `project` par `CommonMetaRegistrar`. `subtitle` et `reading_time` n'ont de sens éditorial que pour les articles, mais les enregistrer aussi sur les projets ne coûte rien et évite un quatrième registrar pour un champ. La description SEO est enregistrée aussi sur le type natif `page`, dont les documents en portent une (section 3.4) ; les trois autres champs n'ont pas de sens sur une page et n'y sont pas.
+Enregistrés sur `article` **et** `project` par `CommonMetaRegistrar`. `subtitle` et `reading_time` n'ont de sens éditorial que pour les articles, mais les enregistrer aussi sur les projets ne coûte rien et évite un quatrième registrar pour un champ. La description SEO est enregistrée aussi sur le type natif `page`, dont les documents en portent une (section 3.4), et depuis ADR-027 le sous-titre, avec une cinquième clé propre aux pages, `headline` : la ligne et le titre que le haut d'une page affiche (l'accueil s'en sert) ; la mise en avant et le temps de lecture n'ont pas de sens sur une page et n'y sont pas.
 
 | Clé | Type | Défaut | REST | Utilité |
 |---|---|---|---|---|
 | `_portfolio_seo_description` | string | `''` | lecture/écriture | Description meta pour SEO, tronquée à 160 caractères ; recopiée telle quelle dans `_yoast_wpseo_metadesc` par le pipeline (ADR-022 point 13, lot 5d), qui supprime la meta de Yoast quand la description est absente |
 | `_portfolio_featured` | boolean | `false` | lecture/écriture | Mis en avant sur la home |
 | `_portfolio_reading_time` | integer | `0` | lecture/écriture | Temps de lecture estimé en minutes, 0 à 240 |
-| `_portfolio_subtitle` | string | `''` | lecture/écriture | Sous-titre / résumé court |
+| `_portfolio_subtitle` | string | `''` | lecture/écriture | Sous-titre / résumé court ; enregistré aussi sur `page` depuis ADR-027 |
+| `_portfolio_headline` | string | `''` | lecture/écriture | Pages seulement (ADR-027) : le titre que la page affiche en h1 à la place de son titre, qui continue de la nommer dans le menu et les résultats de recherche |
 
 ### 5.2. Champs spécifiques aux projets
 
@@ -379,8 +380,8 @@ WordPress
 │       └── term metas _portfolio_skill_code, _portfolio_skill_name_de, _portfolio_skill_name_en, _portfolio_skill_official
 │
 ├── Champs personnalisés (tous préfixés _portfolio_, ADR-013)
-│   ├── communs (4, article + project ; seo_description aussi sur page) ... Meta/CommonMetaRegistrar
-│   │   └── seo_description, featured, reading_time, subtitle
+│   ├── communs (4, article + project ; seo_description et subtitle aussi sur page, headline sur page seule) ... Meta/CommonMetaRegistrar
+│   │   └── seo_description, featured, reading_time, subtitle, headline
 │   ├── projet (8, project) ................ Meta/ProjectMetaRegistrar
 │   │   └── project_status, role, period_start/end, repo_url, demo_url, client, is_fil_rouge
 │   └── internes (7, article + project + page) ... Meta/InternalMetaRegistrar
