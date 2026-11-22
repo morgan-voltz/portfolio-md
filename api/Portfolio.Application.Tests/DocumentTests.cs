@@ -1,5 +1,5 @@
 using Portfolio.Application.Documents;
-using static Portfolio.Application.Tests.TestData.TestDocuments;
+using static Portfolio.TestSupport.TestDocuments;
 
 namespace Portfolio.Application.Tests;
 

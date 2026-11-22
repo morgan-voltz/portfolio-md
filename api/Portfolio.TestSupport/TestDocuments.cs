@@ -1,13 +1,15 @@
+using Portfolio.Application;
 using Portfolio.Application.Documents;
+using Portfolio.Application.Ports;
 using Portfolio.Application.UseCases;
 
-namespace Portfolio.Application.Tests.TestData;
+namespace Portfolio.TestSupport;
 
 /// <summary>
 /// Hand-written test data (ADR-026, point 10): documents as one list of the
 /// plugin serves them, and the lists of a collection given rank by rank.
 /// </summary>
-internal static class TestDocuments
+public static class TestDocuments
 {
     private static readonly DateTimeOffset SomeDay = new(2026, 11, 1, 0, 0, 0, TimeSpan.Zero);
 
@@ -141,6 +143,38 @@ internal static class TestDocuments
     public static Catalog CatalogOfProjects(LanguageLists projects) =>
         Catalog.Build(LanguageLists.Empty, projects, LanguageLists.Empty).AssertBuilt();
 
+    /// <summary>A catalog without any document: complete all the same, as for a site that publishes nothing.</summary>
+    public static Catalog EmptyCatalog() =>
+        Catalog.Build(LanguageLists.Empty, LanguageLists.Empty, LanguageLists.Empty).AssertBuilt();
+
+    /// <summary>
+    /// A catalog as the store holds it, with the sitemap it was built from
+    /// (none when omitted) and the time it was built.
+    /// </summary>
+    public static CatalogEdition Edition(Catalog catalog, Sitemap? sitemap = null, DateTimeOffset? builtAt = null) =>
+        new(catalog, sitemap ?? new Sitemap([]), builtAt ?? SomeDay);
+
+    /// <summary>
+    /// The sitemap of a site whose documents are given, as the plugin writes it:
+    /// one line per document published in its own language, never a fallback.
+    /// </summary>
+    public static Sitemap SitemapOf(params Document[] documents) =>
+        new([.. documents
+            .Where(document => !document.IsFallback)
+            .DistinctBy(document => (document.Slug, document.Lang))
+            .Select(document => new SitemapLine(CollectionOf(document), document.Slug, document.Lang, document.TranslationKey, document.Updated))]);
+
+    /// <summary>The documents of the lists, each once, for <see cref="SitemapOf"/>.</summary>
+    public static Document[] All(LanguageLists lists) => [.. lists.Fr, .. lists.De, .. lists.En];
+
+    // Full names: in this class, Article, Project and Page are also the builders above.
+    public static CollectionKind CollectionOf(Document document) => document switch
+    {
+        Portfolio.Application.Documents.Article => CollectionKind.Article,
+        Portfolio.Application.Documents.Project => CollectionKind.Project,
+        Portfolio.Application.Documents.Page => CollectionKind.Page,
+    };
+
     public static Catalog AssertBuilt(this CatalogBuildOutcome outcome) => outcome switch
     {
         Catalog catalog => catalog,
@@ -165,5 +199,28 @@ internal static class TestDocuments
     {
         PagedList<Document> page => page,
         CatalogNotReady => throw new InvalidOperationException("Expected a page, got CatalogNotReady."),
+    };
+
+    // A union is examined by pattern matching, never by GetType(), which names the
+    // union and not its case (ADR-026, point 6).
+    public static Unchanged AssertUnchanged(this RefreshOutcome outcome) => outcome switch
+    {
+        Unchanged unchanged => unchanged,
+        Reloaded => throw new InvalidOperationException("Expected Unchanged, got Reloaded."),
+        SourceUnavailable unavailable => throw new InvalidOperationException($"Expected Unchanged, got SourceUnavailable: {unavailable.Reason}"),
+    };
+
+    public static Reloaded AssertReloaded(this RefreshOutcome outcome) => outcome switch
+    {
+        Reloaded reloaded => reloaded,
+        Unchanged => throw new InvalidOperationException("Expected Reloaded, got Unchanged."),
+        SourceUnavailable unavailable => throw new InvalidOperationException($"Expected Reloaded, got SourceUnavailable: {unavailable.Reason}"),
+    };
+
+    public static SourceUnavailable AssertUnavailable(this RefreshOutcome outcome) => outcome switch
+    {
+        SourceUnavailable unavailable => unavailable,
+        Unchanged => throw new InvalidOperationException("Expected SourceUnavailable, got Unchanged."),
+        Reloaded => throw new InvalidOperationException("Expected SourceUnavailable, got Reloaded."),
     };
 }

@@ -5,4 +5,5 @@
   <Project Path="Portfolio.Application/Portfolio.Application.csproj" />
   <Project Path="Portfolio.Infrastructure.Tests/Portfolio.Infrastructure.Tests.csproj" />
   <Project Path="Portfolio.Infrastructure/Portfolio.Infrastructure.csproj" />
+  <Project Path="Portfolio.TestSupport/Portfolio.TestSupport.csproj" />
 </Solution>

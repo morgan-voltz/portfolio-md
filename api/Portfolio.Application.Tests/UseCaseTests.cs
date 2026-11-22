@@ -1,6 +1,6 @@
-using Portfolio.Application.Tests.TestData;
+using Portfolio.TestSupport;
 using Portfolio.Application.UseCases;
-using static Portfolio.Application.Tests.TestData.TestDocuments;
+using static Portfolio.TestSupport.TestDocuments;
 
 namespace Portfolio.Application.Tests;
 
@@ -28,7 +28,7 @@ public sealed class UseCaseTests
     {
         var momocad = TranslatedProject("momocad");
         var store = new CatalogStore();
-        store.Replace(CatalogOfProjects(Ranks(momocad)));
+        store.Replace(Edition(CatalogOfProjects(Ranks(momocad))));
 
         var found = new GetDocumentBySlug(store).Execute(CollectionKind.Project, "momocad-de", Language.Fr).AssertFound();
 
@@ -39,7 +39,7 @@ public sealed class UseCaseTests
     public void An_unknown_slug_is_not_found()
     {
         var store = new CatalogStore();
-        store.Replace(CatalogOfProjects(Ranks(TranslatedProject("momocad"))));
+        store.Replace(Edition(CatalogOfProjects(Ranks(TranslatedProject("momocad")))));
 
         Assert.True(new GetDocumentBySlug(store).Execute(CollectionKind.Project, "atlas", Language.Fr) is NotFound);
     }
@@ -53,9 +53,9 @@ public sealed class UseCaseTests
         var store = new CatalogStore();
         var getDocument = new GetDocumentBySlug(store);
 
-        store.Replace(CatalogOfProjects(Ranks(momocad)));
+        store.Replace(Edition(CatalogOfProjects(Ranks(momocad))));
         var first = getDocument.Execute(CollectionKind.Project, "momocad", Language.Fr);
-        store.Replace(CatalogOfProjects(Ranks(TranslatedProject("atlas"))));
+        store.Replace(Edition(CatalogOfProjects(Ranks(TranslatedProject("atlas")))));
         var second = getDocument.Execute(CollectionKind.Project, "momocad", Language.Fr);
 
         Assert.Same(momocad.Fr, first.AssertFound());
@@ -70,9 +70,9 @@ public sealed class UseCaseTests
         var store = new CatalogStore();
         var listDocuments = new ListDocuments(store);
 
-        store.Replace(CatalogOfProjects(Ranks(previous)));
+        store.Replace(Edition(CatalogOfProjects(Ranks(previous))));
         var first = listDocuments.Execute(CollectionKind.Project, new CatalogQuery(Language.En));
-        store.Replace(CatalogOfProjects(Ranks(latest)));
+        store.Replace(Edition(CatalogOfProjects(Ranks(latest))));
         var second = listDocuments.Execute(CollectionKind.Project, new CatalogQuery(Language.En));
 
         Assert.Same(previous.En, Assert.Single(first.AssertListed().Items));

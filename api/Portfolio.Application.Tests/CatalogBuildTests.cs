@@ -1,6 +1,6 @@
 using Portfolio.Application.Documents;
-using Portfolio.Application.Tests.TestData;
-using static Portfolio.Application.Tests.TestData.TestDocuments;
+using Portfolio.TestSupport;
+using static Portfolio.TestSupport.TestDocuments;
 
 namespace Portfolio.Application.Tests;
 
