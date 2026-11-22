@@ -1,0 +1,52 @@
+# Builds and tests the C# API (api/, ADR-026 point 10) on every pull request
+# that touches it, and on main once such a change is merged: restore, build with
+# the warnings treated as errors (api/Directory.Build.props), run the test suites
+# on Microsoft.Testing.Platform, then check the formatting. No secret and no
+# deployment here: the image is published by a release workflow (lot 8).
+name: API
+
+on:
+  pull_request:
+    paths: ['api/**', '.github/workflows/api-ci.yml']
+  push:
+    branches: [main]
+    paths: ['api/**', '.github/workflows/api-ci.yml']
+
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the running check obsolete.
+concurrency:
+  group: api-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # api/global.json chooses the SDK and the test runner from this folder.
+        working-directory: api
+    steps:
+      - name: Check out the repository
+        # Pinned to a commit, not a moving tag, like the other workflows of the repository.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the .NET SDK that api/global.json names
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: api/global.json
+
+      - name: Restore
+        run: dotnet restore Portfolio.slnx
+
+      - name: Build
+        run: dotnet build Portfolio.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --solution Portfolio.slnx --configuration Release --no-build
+
+      - name: Check the formatting
+        run: dotnet format Portfolio.slnx --verify-no-changes --no-restore
