@@ -4,7 +4,9 @@ slug: "accueil"
 type: "page"
 lang: "fr"
 date: 2026-11-08
-seo_description: "Morgan Voltz, développeur full-stack en formation à l'UHA : projets en C#, Rust, PHP et React, d'électricien à développeur, un stage dès janvier 2027."
+headline: "Du câblage d'armoires au code qui tient la route."
+subtitle: "Développeur full-stack · Rust, C#, PHP · en recherche de stage dès janvier 2027"
+seo_description: "Morgan Voltz, électricien devenu développeur full-stack (Rust, C#, PHP), en formation à l'UHA : ses projets, son parcours, un stage dès janvier 2027."
 ---
 
 Je m'appelle Morgan Voltz. Électricien puis automaticien pendant une quinzaine d'années, je suis aujourd'hui développeur full-stack en formation à l'Université de Haute-Alsace, et je dirige Kovelt, où je développe Vefta, une suite de productivité écrite en Rust. Ce site rassemble ce que je construis et ce que j'en apprends.
