@@ -66,14 +66,17 @@ final class DocumentPresenter
         ];
 
         $language = $document->requestedLanguage;
-        if ($document->type !== ContentType::Page) {
+        if ($document->type === ContentType::Page) {
+            // The heading the page shows instead of its title, then the line under it (ADR-027).
+            $data['headline'] = self::textOrNull($document->headline);
+        } else {
             // The name follows the language of the reader (ADR-024), like the labels of lot 4.
             $data['tags'] = array_map(
                 static fn (DocumentTag $tag): array => ['slug' => $tag->slug, 'name' => $tag->label($language)],
                 $document->tags,
             );
-            $data['subtitle'] = self::textOrNull($document->subtitle);
         }
+        $data['subtitle'] = self::textOrNull($document->subtitle);
 
         $data['seo_description'] = self::textOrNull($document->seoDescription);
 

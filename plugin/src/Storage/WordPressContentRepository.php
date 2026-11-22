@@ -377,11 +377,14 @@ final class WordPressContentRepository implements ContentRepository, DocumentLis
         } else {
             delete_post_meta($postId, self::YOAST_META_DESCRIPTION);
         }
-        if ($frontmatter->type !== ContentType::Page) {
+        // The subtitle is registered on the three types; the headline on pages only (ADR-027).
+        MetaWriter::update($postId, CommonMetaRegistrar::SUBTITLE, $frontmatter->subtitle);
+        if ($frontmatter->type === ContentType::Page) {
+            MetaWriter::update($postId, CommonMetaRegistrar::HEADLINE, $frontmatter->headline);
+        } else {
             // The other public metas are registered on the plugin's types only.
             MetaWriter::update($postId, CommonMetaRegistrar::FEATURED, $frontmatter->featured);
             MetaWriter::update($postId, CommonMetaRegistrar::READING_TIME, $frontmatter->readingTime ?? 0);
-            MetaWriter::update($postId, CommonMetaRegistrar::SUBTITLE, $frontmatter->subtitle);
         }
 
         if ($frontmatter->type === ContentType::Project) {

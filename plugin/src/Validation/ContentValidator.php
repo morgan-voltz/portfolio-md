@@ -304,7 +304,9 @@ final class ContentValidator
 
         if ($type !== null) {
             $allowed = Frontmatter::allowedKeys($type);
-            $required = array_diff($allowed, ['reading_time']);
+            // Every allowed key is written, even empty, except these: the reading time of an article,
+            // and the headline and the subtitle of a page, which only the home page needs (ADR-027).
+            $required = array_diff($allowed, $type === ContentType::Page ? ['headline', 'subtitle'] : ['reading_time']);
             if ($lang->isDefault()) {
                 $required = array_diff($required, ['translation_key']);
             }
@@ -370,7 +372,13 @@ final class ContentValidator
             // validated translation key is the contact group (the slug itself for the French page) and
             // whose slug is the Contact slug of its language; a page merely keyed "contact" is not.
             $isContact = $langOk && $translationKey === CorePages::CONTACT && $slug === CorePages::slug(CorePages::CONTACT, $lang);
-            if (!$isContact && preg_match('/(\+33|0[1-9](?:[ .]?\d{2}){4}|@[a-z0-9.-]+\.[a-z]{2,})/i', $body) === 1) {
+            // What a reader of the page sees: its body, and the texts of its frontmatter that the page or a
+            // search result shows (the headline and the subtitle of ADR-027, the SEO description).
+            $shown = $body;
+            foreach (['headline', 'subtitle', 'seo_description'] as $key) {
+                $shown .= "\n" . (is_string($fm[$key] ?? null) ? $fm[$key] : '');
+            }
+            if (!$isContact && preg_match('/(\+33|0[1-9](?:[ .]?\d{2}){4}|@[a-z0-9.-]+\.[a-z]{2,})/i', $shown) === 1) {
                 $found[] = 'donnée de contact détectée (téléphone ou e-mail)';
             }
         } elseif ($type !== null) {

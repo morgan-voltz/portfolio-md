@@ -84,6 +84,62 @@ final class FrontmatterTest extends TestCase
         self::assertNull($fm->status);
         self::assertFalse($fm->featured);
         self::assertSame([], $fm->tags);
+        self::assertSame('', $fm->headline);
+        self::assertSame('', $fm->subtitle);
+    }
+
+    #[Test]
+    public function a_page_may_carry_a_headline_and_a_subtitle(): void
+    {
+        $fm = Frontmatter::fromArray([
+            'title' => 'Accueil',
+            'slug' => 'accueil',
+            'type' => 'page',
+            'lang' => 'fr',
+            'headline' => '  Du câblage d’armoires au code qui tient la route.  ',
+            'subtitle' => 'Développeur full-stack · Rust, C#, PHP',
+        ]);
+
+        // The title keeps naming the page; the headline is what the page shows above its body.
+        self::assertSame('Accueil', $fm->title);
+        self::assertSame('Du câblage d’armoires au code qui tient la route.', $fm->headline);
+        self::assertSame('Développeur full-stack · Rust, C#, PHP', $fm->subtitle);
+    }
+
+    /** @param array<string, mixed> $data */
+    #[Test]
+    #[DataProvider('headlineOutsidePagesProvider')]
+    public function only_a_page_may_carry_a_headline(array $data): void
+    {
+        $this->expectException(InvalidFrontmatterException::class);
+        $this->expectExceptionMessage('unknown key(s) "headline".');
+
+        Frontmatter::fromArray($data);
+    }
+
+    /** @return iterable<string, array{array<string, mixed>}> */
+    public static function headlineOutsidePagesProvider(): iterable
+    {
+        yield 'project' => [self::project(['headline' => 'Une phrase'])];
+        yield 'article' => [['title' => 'Rust', 'slug' => 'rust-ownership', 'type' => 'article', 'lang' => 'fr', 'subtitle' => 'Une ligne', 'headline' => 'Une phrase']];
+    }
+
+    #[Test]
+    public function a_page_still_refuses_the_keys_of_articles_and_projects(): void
+    {
+        $this->expectException(InvalidFrontmatterException::class);
+        $this->expectExceptionMessage('unknown key(s) "featured"');
+
+        Frontmatter::fromArray(['title' => 'Accueil', 'slug' => 'accueil', 'type' => 'page', 'lang' => 'fr', 'subtitle' => 'Une ligne', 'featured' => true]);
+    }
+
+    #[Test]
+    public function a_headline_must_be_text(): void
+    {
+        $this->expectException(InvalidFrontmatterException::class);
+        $this->expectExceptionMessage('invalid value for "headline"');
+
+        Frontmatter::fromArray(['title' => 'Accueil', 'slug' => 'accueil', 'type' => 'page', 'lang' => 'fr', 'headline' => ['une', 'liste']]);
     }
 
     #[Test]
@@ -284,7 +340,9 @@ final class FrontmatterTest extends TestCase
             self::assertContains('lang', Frontmatter::allowedKeys($type), $type->value);
             self::assertContains('translation_key', Frontmatter::allowedKeys($type), $type->value);
         }
-        self::assertSame(['title', 'slug', 'type', 'date', 'seo_description', 'lang', 'translation_key'], Frontmatter::allowedKeys(ContentType::Page));
+        self::assertSame(['title', 'slug', 'type', 'date', 'headline', 'subtitle', 'seo_description', 'lang', 'translation_key'], Frontmatter::allowedKeys(ContentType::Page));
+        self::assertNotContains('headline', Frontmatter::allowedKeys(ContentType::Article));
+        self::assertNotContains('headline', Frontmatter::allowedKeys(ContentType::Project));
         self::assertContains('reading_time', Frontmatter::allowedKeys(ContentType::Article));
         self::assertNotContains('reading_time', Frontmatter::allowedKeys(ContentType::Project));
     }

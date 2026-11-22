@@ -151,6 +151,52 @@ final class ContentValidatorTest extends TestCase
     }
 
     #[Test]
+    public function a_page_may_leave_out_its_headline_and_its_subtitle_or_write_them(): void
+    {
+        $this->tree->put('fr/pages/cv.md', ContentTree::pageFrontmatter(), 'Mon parcours.');
+        $this->tree->put('fr/pages/accueil.md', ContentTree::pageFrontmatter(['slug' => 'accueil', 'title' => 'Accueil', 'headline' => 'Du câblage au code.', 'subtitle' => 'Développeur full-stack']), 'Bonjour.');
+
+        self::assertClean($this->validate());
+    }
+
+    /** @param array<string, string> $frontmatter */
+    #[Test]
+    #[DataProvider('contactDataInTheFrontmatterProvider')]
+    public function a_page_other_than_contact_shows_no_contact_data_in_its_headline_subtitle_or_description(array $frontmatter): void
+    {
+        $this->tree->put('fr/pages/accueil.md', ContentTree::pageFrontmatter(['slug' => 'accueil', 'title' => 'Accueil', ...$frontmatter]), 'Bonjour.');
+
+        self::assertError($this->validate(), 'fr/pages/accueil.md', 'donnée de contact détectée');
+    }
+
+    /** @return iterable<string, array{array<string, string>}> */
+    public static function contactDataInTheFrontmatterProvider(): iterable
+    {
+        yield 'an address in the headline' => [['headline' => 'Écrivez-moi à moi@example.org']];
+        yield 'a phone number in the subtitle' => [['subtitle' => 'Appelez le 06 12 34 56 78']];
+        yield 'an address in the SEO description' => [['seo_description' => 'Contact : moi@example.org']];
+    }
+
+    #[Test]
+    public function the_contact_page_may_show_its_address_in_its_subtitle(): void
+    {
+        $this->tree->put('fr/pages/contact.md', ContentTree::pageFrontmatter(['slug' => 'contact', 'title' => 'Contact', 'subtitle' => 'contact@example.org']), 'Écrivez-moi.');
+
+        self::assertClean($this->validate());
+    }
+
+    #[Test]
+    public function a_project_still_writes_its_subtitle_and_never_a_headline(): void
+    {
+        $this->tree->put('fr/projects/momocad.md', ContentTree::projectFrontmatter(['subtitle' => null, 'headline' => 'Une phrase']), ContentTree::projectBody());
+
+        $report = $this->validate();
+
+        self::assertError($report, 'fr/projects/momocad.md', 'clé manquante : subtitle');
+        self::assertError($report, 'fr/projects/momocad.md', 'clé inattendue : headline');
+    }
+
+    #[Test]
     public function lang_must_equal_the_language_folder(): void
     {
         $this->tree->put('fr/projects/momocad-de.md', ContentTree::projectFrontmatter(['slug' => 'momocad-de', 'lang' => 'de', 'translation_key' => 'momocad']), ContentTree::projectBody('de'));

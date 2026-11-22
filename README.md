@@ -18,7 +18,7 @@ The **pivot format** is GitHub Flavored Markdown with YAML frontmatter. It is th
 
 The **WordPress plugin** (`plugin/`) accepts Markdown input, stores both the raw Markdown and a derived Gutenberg HTML representation, and exposes a custom read-only REST API that serves the published documents, Markdown source included (`/wp-json/portfolio/v1/`). Written in PHP 8.2+ with PSR-4 autoloading via Composer, and organized in layers inspired by Clean Architecture.
 
-The **WordPress theme** (`theme/portfolio-md-child`) is a child of GeneratePress that renders what the plugin stores and what Polylang routes: the language switcher, the project list with fallback and the FR badge of the trilingual site (ADR-022). It is mounted into the containers like the plugin and has no build step; the design itself comes later in the roadmap.
+The **WordPress theme** (`theme/portfolio-md-child`) is a child of GeneratePress that renders what the plugin stores and what Polylang routes: the language switcher, the project list with fallback and the FR badge of the trilingual site (ADR-022), the page of a project, and the visual identity of the site (ADR-027): its fonts, served by the theme, its colours, its header, the headline and buttons of the home page, its footer and its social image. It is mounted into the containers like the plugin and has no build step.
 
 The **C# API** (`api/`) acts as a gateway between WordPress and the React frontend. Built on .NET 11 with ASP.NET Core Minimal APIs, it is structured in three projects following the Clean Architecture pattern: `Portfolio.Application` (pure business logic), `Portfolio.Infrastructure` (concrete implementations), and `Portfolio.Api` (HTTP surface). The structure is deliberately prepared for future reuse by additional frontends (desktop, mobile, CLI) without duplicating business logic.
 
@@ -203,3 +203,5 @@ The commit convention is [Conventional Commits](https://www.conventionalcommits.
 ## License
 
 Released under the MIT License. See [`LICENSE`](LICENSE) for the full text.
+
+The fonts vendored in `theme/portfolio-md-child/fonts/` (Space Grotesk and Inter) are not covered by it: they are distributed under the SIL Open Font License 1.1, whose text sits beside each family (`OFL.txt`).

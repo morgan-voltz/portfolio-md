@@ -19,9 +19,10 @@ use Voltz\PortfolioMd\Domain\ProjectStatus;
  * built from YAML, and from StoredContent, which is what the import needs to
  * apply the conflict rule. This object looks outward.
  *
- * Only the common fields are set for a page; `tags`, `subtitle`,
- * `readingTime` and `featured` are set for articles and projects; the nine
- * from `status` to `client` are set for projects. The dates are instants in
+ * Every kind may carry a `subtitle`; a page adds its `headline` (ADR-027),
+ * the heading its page shows instead of the title; `tags`, `readingTime` and
+ * `featured` are set for articles and projects; the nine from `status` to
+ * `client` are set for projects. The dates are instants in
  * UTC: the publication date is the frontmatter's calendar day at midnight in
  * the site's timezone, as the import wrote it, and the modification date is
  * WordPress's own.
@@ -56,6 +57,7 @@ final readonly class PublishedDocument
         public string $seoDescription = '',
         public array $tags = [],
         public string $subtitle = '',
+        public string $headline = '',
         public int $readingTime = 0,
         public bool $featured = false,
         public ?ProjectStatus $status = null,

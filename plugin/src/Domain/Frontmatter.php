@@ -17,17 +17,22 @@ use DateTimeZone;
  * caught at import time rather than silently sanitized away at storage time
  * (the meta sanitizers of ADR-013 remain the last line of defence).
  *
- * Keys are grouped by content type. A page only carries the common keys; an
- * article may add reading_time; a project adds its eight specific keys and
- * must declare a status. Every document carries a language, and its
- * translations share a translation key (ADR-020).
+ * Keys are grouped by content type. A page carries the identity keys, its
+ * SEO description and, since ADR-027, a headline and a subtitle; an article
+ * may add reading_time; a project adds its eight specific keys and must
+ * declare a status. Every document carries a language, and its translations
+ * share a translation key (ADR-020).
+ *
+ * The headline of a page is the heading its page shows instead of the title,
+ * which keeps naming the page in the menu, the browser tab and the search
+ * results ("Accueil" in the menu, a sentence at the top of the home page).
  */
 final readonly class Frontmatter
 {
     private const COMMON_KEYS = ['title', 'slug', 'type', 'date', 'subtitle', 'seo_description', 'featured', 'tags', 'skills'];
     private const ARTICLE_KEYS = ['reading_time'];
     private const PROJECT_KEYS = ['status', 'role', 'period_start', 'period_end', 'repo_url', 'demo_url', 'client', 'is_fil_rouge'];
-    private const PAGE_KEYS = ['title', 'slug', 'type', 'date', 'seo_description'];
+    private const PAGE_KEYS = ['title', 'slug', 'type', 'date', 'headline', 'subtitle', 'seo_description'];
     private const LANGUAGE_KEYS = ['lang', 'translation_key'];
 
     /** Google truncates meta descriptions around this length; mirrored by CommonMetaRegistrar. */
@@ -61,6 +66,7 @@ final readonly class Frontmatter
         public string $demoUrl,
         public string $client,
         public bool $isFilRouge,
+        public string $headline = '',
     ) {
     }
 
@@ -154,6 +160,7 @@ final readonly class Frontmatter
             demoUrl: self::url($data, 'demo_url'),
             client: self::text($data, 'client'),
             isFilRouge: self::bool($data, 'is_fil_rouge'),
+            headline: self::text($data, 'headline'),
         );
     }
 

@@ -357,18 +357,21 @@ final class WordPressContentCatalog implements ContentCatalog
             'lang' => self::languageOf($id),
             'translationKey' => self::translationKeyOf($id),
             'seoDescription' => self::text($id, CommonMetaRegistrar::SEO_DESCRIPTION),
+            // Every kind may carry a subtitle; a page, since ADR-027, a headline too.
+            'subtitle' => self::text($id, CommonMetaRegistrar::SUBTITLE),
             'translations' => $translations,
             'isFallback' => $isFallback,
             'requestedLanguage' => $requested,
         ];
 
-        if ($type !== ContentType::Page) {
+        if ($type === ContentType::Page) {
+            $fields['headline'] = self::text($id, CommonMetaRegistrar::HEADLINE);
+        } else {
             $fields += [
                 'tags' => array_map(
                     static fn (WP_Term $term): DocumentTag => new DocumentTag($term->slug, $term->name, self::translations((int) $term->term_id, TaxonomyRegistrar::tagNameMeta(...))),
                     self::terms($post, TaxonomyRegistrar::TECH_TAG),
                 ),
-                'subtitle' => self::text($id, CommonMetaRegistrar::SUBTITLE),
                 'readingTime' => Sanitizer::boundedInt(get_post_meta($id, CommonMetaRegistrar::READING_TIME, true), 0, CommonMetaRegistrar::READING_TIME_MAX_MINUTES),
                 'featured' => Sanitizer::boolean(get_post_meta($id, CommonMetaRegistrar::FEATURED, true)),
             ];

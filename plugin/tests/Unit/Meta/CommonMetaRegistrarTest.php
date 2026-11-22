@@ -29,13 +29,37 @@ final class CommonMetaRegistrarTest extends TestCase
     }
 
     #[Test]
-    public function registers_the_four_shared_metas_on_articles_and_projects_and_the_seo_description_on_pages(): void
+    public function registers_the_four_shared_metas_on_articles_and_projects_and_three_metas_on_pages(): void
     {
         self::assertSame(self::EXPECTED_KEYS, WordPressSpy::postMetaKeys('article'));
         self::assertSame(self::EXPECTED_KEYS, WordPressSpy::postMetaKeys('project'));
-        self::assertSame([CommonMetaRegistrar::SEO_DESCRIPTION], WordPressSpy::postMetaKeys('page'));
+        // A page carries its SEO description, a subtitle and its headline (ADR-027), nothing else.
+        self::assertSame([CommonMetaRegistrar::SEO_DESCRIPTION, CommonMetaRegistrar::SUBTITLE, CommonMetaRegistrar::HEADLINE], WordPressSpy::postMetaKeys('page'));
         self::assertSame([], WordPressSpy::postMetaKeys('post'));
         self::assertSame(WordPressSpy::postMeta('article', CommonMetaRegistrar::SEO_DESCRIPTION), WordPressSpy::postMeta('page', CommonMetaRegistrar::SEO_DESCRIPTION));
+        self::assertSame(WordPressSpy::postMeta('article', CommonMetaRegistrar::SUBTITLE), WordPressSpy::postMeta('page', CommonMetaRegistrar::SUBTITLE));
+    }
+
+    #[Test]
+    public function the_headline_is_a_public_single_text_of_pages_only(): void
+    {
+        $args = WordPressSpy::postMeta('page', CommonMetaRegistrar::HEADLINE);
+
+        self::assertNotNull($args);
+        self::assertSame('string', $args['type']);
+        self::assertTrue($args['single']);
+        self::assertSame('', $args['default']);
+        self::assertTrue($args['show_in_rest']);
+        self::assertSame([MetaRegistration::class, 'authorizeEditPost'], $args['auth_callback']);
+        self::assertSame([CommonMetaRegistrar::class, 'sanitizeHeadline'], $args['sanitize_callback']);
+        self::assertNull(WordPressSpy::postMeta('article', CommonMetaRegistrar::HEADLINE));
+        self::assertNull(WordPressSpy::postMeta('project', CommonMetaRegistrar::HEADLINE));
+    }
+
+    #[Test]
+    public function the_headline_is_single_line_plain_text(): void
+    {
+        self::assertSame('Du câblage au code', CommonMetaRegistrar::sanitizeHeadline("<strong>Du câblage</strong>\nau code"));
     }
 
     #[Test]

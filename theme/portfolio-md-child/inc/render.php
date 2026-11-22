@@ -6,17 +6,33 @@ declare(strict_types=1);
  * What the theme renders from what the plugin and Polylang hand over (ADR-022,
  * points 5, 8 and 10; phase 10): the language switcher, the cards of a list
  * with fallback, the recent projects block of the home page, and the header
- * and footer of the page of a project (its facts, its tags, its skills).
+ * and footer of the page of a project (its facts, its tags, its skills);
+ * since ADR-027, the top of a page (its headline, its deck, its buttons) and
+ * the credit of the footer.
  * Pure functions, arrays and value objects in, HTML out, every value escaped
- * here; they call nothing of WordPress but the escaping functions, so the
- * unit suite of the plugin exercises them without a WordPress. The hooks
- * that feed them are in functions.php.
+ * here; they call nothing of WordPress but the escaping functions and
+ * wptexturize(), so the unit suite of the plugin exercises them without a
+ * WordPress. The hooks that feed them are in functions.php.
  */
 
 use Voltz\PortfolioMd\Domain\Language;
 use Voltz\PortfolioMd\Domain\ProjectStatus;
 use Voltz\PortfolioMd\Service\ListItem;
 use Voltz\PortfolioMd\Service\PublishedDocument;
+
+/**
+ * A text of a document (a title, a subtitle, a headline, a role, a label),
+ * set as WordPress sets the body around it, then escaped (ADR-027): the
+ * straight apostrophe of the Markdown becomes the typographic one, the
+ * French quotation marks get their spaces, as wptexturize() does for the
+ * body and the titles of WordPress. Without it the deck of a project showed
+ * "l'utilisateur" under a body that said "l’utilisateur". esc_html() keeps
+ * the entities wptexturize() writes (it never encodes an entity twice).
+ */
+function portfolio_md_child_esc_text(string $text): string
+{
+    return esc_html(wptexturize($text));
+}
 
 /**
  * The entries of the switcher: the raw elements of pll_the_languages()
@@ -130,10 +146,10 @@ function portfolio_md_child_render_card(ListItem $item, string $language, string
     $documentLanguage = esc_attr($item->lang->value);
     $classes = 'post-' . $item->postId . ' project type-project status-publish hentry portfolio-card' . ($item->isFallback ? ' is-fallback' : '');
     $article = '<article id="post-' . $item->postId . '" class="' . esc_attr($classes) . '"' . ($item->isFallback ? ' lang="' . $documentLanguage . '"' : '') . ' itemtype="https://schema.org/CreativeWork" itemscope>';
-    $link = '<a href="' . esc_url($item->permalink) . '" rel="bookmark"' . ($item->isFallback ? ' hreflang="' . $documentLanguage . '"' : '') . '>' . esc_html($item->title) . '</a>';
+    $link = '<a href="' . esc_url($item->permalink) . '" rel="bookmark"' . ($item->isFallback ? ' hreflang="' . $documentLanguage . '"' : '') . '>' . portfolio_md_child_esc_text($item->title) . '</a>';
     $badge = $item->isFallback ? ' ' . portfolio_md_child_render_badge($item->lang->value, $language) : '';
     $status = $item->status !== null ? '<p class="project-card-status">' . portfolio_md_child_render_status($item->status, $language) . '</p>' : '';
-    $summary = $item->excerpt !== '' ? '<div class="entry-summary"><p>' . esc_html($item->excerpt) . '</p></div>' : '';
+    $summary = $item->excerpt !== '' ? '<div class="entry-summary"><p>' . portfolio_md_child_esc_text($item->excerpt) . '</p></div>' : '';
 
     return $article
         . '<div class="inside-article">'
@@ -259,7 +275,7 @@ function portfolio_md_child_render_project_header(PublishedDocument $document, s
 {
     $html = '';
     if ($document->subtitle !== '') {
-        $html .= '<p class="project-deck">' . esc_html($document->subtitle) . '</p>';
+        $html .= '<p class="project-deck">' . portfolio_md_child_esc_text($document->subtitle) . '</p>';
     }
     if ($document->isFilRouge) {
         $html .= '<p class="project-fil-rouge">' . esc_html(portfolio_md_child_text('fil_rouge', $language)) . '</p>';
@@ -274,10 +290,10 @@ function portfolio_md_child_render_project_header(PublishedDocument $document, s
         $facts['period'] = $period;
     }
     if ($document->role !== '') {
-        $facts['role'] = esc_html($document->role);
+        $facts['role'] = portfolio_md_child_esc_text($document->role);
     }
     if ($document->client !== '') {
-        $facts['client'] = esc_html($document->client);
+        $facts['client'] = portfolio_md_child_esc_text($document->client);
     }
     if ($document->repoUrl !== '') {
         $facts['repository'] = portfolio_md_child_render_external_link($document->repoUrl);
@@ -317,7 +333,7 @@ function portfolio_md_child_render_project_footer(PublishedDocument $document, s
         $items = '';
         foreach ($document->tags as $tag) {
             $wording = $tag->wordingLanguage($page);
-            $items .= '<li class="tech-tag"' . ($wording === $page ? '' : ' lang="' . esc_attr($wording->value) . '"') . '>' . esc_html($tag->label($page)) . '</li>';
+            $items .= '<li class="tech-tag"' . ($wording === $page ? '' : ' lang="' . esc_attr($wording->value) . '"') . '>' . portfolio_md_child_esc_text($tag->label($page)) . '</li>';
         }
         $html .= '<section class="project-tags" aria-labelledby="project-tags-title">'
             . '<h2 id="project-tags-title">' . esc_html(portfolio_md_child_text('technologies', $language)) . '</h2>'
@@ -332,7 +348,7 @@ function portfolio_md_child_render_project_footer(PublishedDocument $document, s
             $provisional = $provisional || !$skill->official;
             $items .= '<li class="skill' . ($skill->official ? '' : ' is-provisional') . '">'
                 . '<span class="skill-code">' . esc_html($skill->code) . '</span> '
-                . '<span class="skill-text"><span class="skill-label"' . ($wording === $page ? '' : ' lang="' . esc_attr($wording->value) . '"') . '>' . esc_html($skill->label($page)) . '</span>'
+                . '<span class="skill-text"><span class="skill-label"' . ($wording === $page ? '' : ' lang="' . esc_attr($wording->value) . '"') . '>' . portfolio_md_child_esc_text($skill->label($page)) . '</span>'
                 . ($skill->official ? '' : '<span class="skill-provisional" title="' . esc_attr(portfolio_md_child_text('provisional', $language)) . '"><span aria-hidden="true">*</span><span class="screen-reader-text"> (' . esc_html(portfolio_md_child_text('provisional', $language)) . ')</span></span>')
                 . '</span></li>';
         }
@@ -344,4 +360,83 @@ function portfolio_md_child_render_project_footer(PublishedDocument $document, s
     }
 
     return $html === '' ? '' : '<div class="project-footer">' . $html . '</div>';
+}
+
+/**
+ * The top of a page the plugin knows (ADR-027), inside the entry header that
+ * GeneratePress prints: the headline of the document as the h1 when it has
+ * one (functions.php then hides the title GeneratePress would print, so the
+ * page keeps a single h1, and the title keeps naming the page in the menu
+ * and the browser tab), the subtitle as a deck under it, then the actions:
+ * links styled as buttons, the first one filled, the others outlined, an
+ * action without address or label left out. Nothing when there is nothing
+ * to say, so a page without headline, subtitle nor action is unchanged.
+ *
+ * @param list<array{url: string, label: string}> $actions the buttons, in their order
+ */
+function portfolio_md_child_render_page_intro(string $headline, string $subtitle, array $actions = []): string
+{
+    $html = '';
+    if ($headline !== '') {
+        $html .= '<h1 class="entry-title page-headline" itemprop="headline">' . portfolio_md_child_esc_text($headline) . '</h1>';
+    }
+    if ($subtitle !== '') {
+        $html .= '<p class="page-deck">' . portfolio_md_child_esc_text($subtitle) . '</p>';
+    }
+
+    $buttons = '';
+    foreach ($actions as $action) {
+        $url = (string) ($action['url'] ?? '');
+        $label = (string) ($action['label'] ?? '');
+        if ($url === '' || $label === '') {
+            continue;
+        }
+        $buttons .= '<a class="pm-button ' . ($buttons === '' ? 'is-primary' : 'is-secondary') . '" href="' . esc_url($url) . '">' . esc_html($label) . '</a>';
+    }
+    if ($buttons !== '') {
+        $html .= '<p class="page-actions">' . $buttons . '</p>';
+    }
+
+    return $html;
+}
+
+/**
+ * The logo of the header (ADR-027), the whole markup GeneratePress prints
+ * for its own logo (`.site-logo`, `.header-image`), so that its header rules
+ * apply: a link to the home of the language, an image shipped in the theme
+ * with its 2x version, its size written out so the header does not move
+ * when it loads, and the name of the site as its text, which a screen
+ * reader reads as the name of the link. The logo carries the name of the
+ * site, so the header prints no title beside it (functions.php).
+ */
+function portfolio_md_child_render_logo(string $homeUrl, string $src, string $src2x, int $width, int $height, string $alt): string
+{
+    return '<div class="site-logo"><a href="' . esc_url($homeUrl) . '" rel="home">'
+        . '<img class="header-image is-logo-image" src="' . esc_url($src) . '"'
+        . ($src2x !== '' ? ' srcset="' . esc_url($src) . ' 1x, ' . esc_url($src2x) . ' 2x"' : '')
+        . ' width="' . $width . '" height="' . $height . '" alt="' . esc_attr($alt) . '">'
+        . '</a></div>';
+}
+
+/**
+ * The credit of the footer (ADR-027), in place of GeneratePress's "Built
+ * with GeneratePress": the copyright of the site, then its links (the
+ * profiles of portfolio_md_child_profiles(), the Contact page) as a named
+ * list, a link without address left out.
+ *
+ * @param array<string, string> $links label => URL, in their order
+ * @param string                $label the accessible name of the list, in the language of the page
+ */
+function portfolio_md_child_render_footer_credit(string $siteName, int $year, array $links, string $label): string
+{
+    $items = '';
+    foreach ($links as $text => $url) {
+        if ($url === '') {
+            continue;
+        }
+        $items .= '<li><a href="' . esc_url($url) . '">' . esc_html((string) $text) . '</a></li>';
+    }
+
+    return '<span class="copyright">&copy; ' . $year . ' ' . esc_html($siteName) . '</span>'
+        . ($items !== '' ? '<nav class="footer-links" aria-label="' . esc_attr($label) . '"><ul>' . $items . '</ul></nav>' : '');
 }
