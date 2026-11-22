@@ -5,7 +5,9 @@
 **Prérequis** : avoir lu [`00-overview.md`](00-overview.md)
 **Lectorat** : contributeur .NET, Morgan en phase d'implémentation, relecteur technique
 **Temps de lecture** : environ vingt-cinq minutes
-**Dernière mise à jour** : 22 novembre 2026 (ADR-025 : .NET 11 et C# 15 à la place de .NET 10 ; le 8 novembre, ADR-023 : .NET 10, en-têtes transmis, HTTPS par Traefik, santé et observation, configuration par l'environnement ; libellés dans la langue demandée et clé `official` des compétences, ADR-020 lot 4 ; la langue dans les routes du plugin et dans les clés de cache, ADR-021 ; contrat réel des routes du plugin le 29 octobre, phase 5 ; version d'origine du 22 avril 2026)
+**Dernière mise à jour** : 22 novembre 2026 (ADR-026 : un catalogue en mémoire remplace le cache par clé, bandeau de renvoi en tête, sections à réécrire lot par lot ; ADR-025 : .NET 11 et C# 15 à la place de .NET 10 ; le 8 novembre, ADR-023 : .NET 10, en-têtes transmis, HTTPS par Traefik, santé et observation, configuration par l'environnement ; libellés dans la langue demandée et clé `official` des compétences, ADR-020 lot 4 ; la langue dans les routes du plugin et dans les clés de cache, ADR-021 ; contrat réel des routes du plugin le 29 octobre, phase 5 ; version d'origine du 22 avril 2026)
+
+> **À lire d'abord : ADR-026 (22 novembre 2026) révise ce document.** L'API ne tient plus un cache par clé rempli à la demande : elle garde en mémoire un catalogue complet du contenu publié, qu'un service de fond recharge quand le `/sitemap` change, et une requête ne déclenche jamais d'appel à WordPress. Les sections 3 à 8, 10 et 11 décrivent encore l'ancienne conception ; elles seront réécrites lot par lot, avec le code. Là où ce document et ADR-026 se contredisent, ADR-026 fait foi ([`99-decisions.md`](99-decisions.md)).
 
 ---
 
