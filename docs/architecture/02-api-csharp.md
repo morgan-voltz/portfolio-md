@@ -7,7 +7,7 @@
 **Temps de lecture** : environ vingt-cinq minutes
 **Dernière mise à jour** : 22 novembre 2026 (lot 4 d'ADR-026 : le rendu Markdown, section 6 réécrite, sections 3, 10 et 11 complétées ; lot 3 : le client du plugin, sections 3, 3.3, 10 et 11 ; lot 2 : le cœur de l'API, sections 3, 4, 9.2, 10 et 11 réécrites d'après le code ; ADR-026 : un catalogue en mémoire remplace le cache par clé, bandeau de renvoi en tête, sections à réécrire lot par lot ; ADR-025 : .NET 11 et C# 15 à la place de .NET 10 ; le 8 novembre, ADR-023 : .NET 10, en-têtes transmis, HTTPS par Traefik, santé et observation, configuration par l'environnement ; libellés dans la langue demandée et clé `official` des compétences, ADR-020 lot 4 ; la langue dans les routes du plugin et dans les clés de cache, ADR-021 ; contrat réel des routes du plugin le 29 octobre, phase 5 ; version d'origine du 22 avril 2026)
 
-> **À lire d'abord : ADR-026 (22 novembre 2026) révise ce document.** L'API ne tient plus un cache par clé rempli à la demande : elle garde en mémoire un catalogue complet du contenu publié, qu'un service de fond recharge quand le `/sitemap` change, et une requête ne déclenche jamais d'appel à WordPress. Depuis les lots 2 à 4, les sections 3, 4, 6, 9.2, 10 et 11 décrivent le code. Les sections 5, 7 et 8 décrivent encore l'ancienne conception ; elles seront réécrites avec les lots qui les concernent : le rafraîchissement et les routes au lot 5, l'exploitation au lot 7. Là où ce document et ADR-026 se contredisent, ADR-026 fait foi ([`99-decisions.md`](99-decisions.md)).
+> **À lire d'abord : ADR-026 (22 novembre 2026) révise ce document.** L'API ne tient plus un cache par clé rempli à la demande : elle garde en mémoire un catalogue complet du contenu publié, qu'un service de fond recharge quand le `/sitemap` change, et une requête ne déclenche jamais d'appel à WordPress. Depuis les lots 2 à 5a, les sections 3 à 6, 9.2, 10 et 11 décrivent le code, comme les paragraphes de la section 8 sur la santé et la configuration. La section 7 et le reste de la section 8 décrivent encore l'ancienne conception ; ils seront réécrits avec les lots qui les concernent : les routes au lot 5b, l'exploitation au lot 7. Là où ce document et ADR-026 se contredisent, ADR-026 fait foi ([`99-decisions.md`](99-decisions.md)).
 
 ---
 
@@ -59,7 +59,7 @@ Clean Architecture en version légère (trois projets au lieu des quatre canoniq
 
 ## 3. La structure en trois projets
 
-La solution `api/Portfolio.slnx` contient trois projets qui forment un graphe de dépendances strict, et un projet de tests pour chacun. L'arbre montre le code des lots 1 à 3 ; les lignes entre parenthèses annoncent ce qu'apportent les lots suivants d'ADR-026.
+La solution `api/Portfolio.slnx` contient trois projets qui forment un graphe de dépendances strict, un projet de tests pour chacun, et une bibliothèque que les tests partagent. L'arbre montre le code des lots 1 à 5a ; les lignes entre parenthèses annoncent ce qu'apportent les lots suivants d'ADR-026.
 
 ```
 api/
@@ -67,9 +67,12 @@ api/
 ├── global.json, Directory.Build.props, Directory.Packages.props
 │
 ├── Portfolio.Api/                     # Entrée HTTP, ASP.NET Core Minimal APIs
-│   └── Program.cs                     # Composition root : services, routes, démarrage
-│                                      # (lot 5 : routes des collections et /health/ready ;
-│                                      #  lot 7 : options, CORS, limitation de débit, métriques)
+│   ├── Program.cs                     # Composition root : services, routes, démarrage
+│   ├── PortfolioOptions.cs            # Les réglages PORTFOLIO__… (patron Options, §8)
+│   ├── CatalogRefreshWorker.cs        # Le service de fond qui lance le rafraîchissement (§5)
+│   └── CatalogReadinessCheck.cs       # /health/ready : prêt dès le premier catalogue (§8)
+│                                      # (lot 5b : routes des collections ;
+│                                      #  lot 7 : validation des options, CORS, limitation de débit, métriques)
 │
 ├── Portfolio.Application/             # Le cœur : aucun paquet, aucun autre projet
 │   ├── Documents/                     # Document, hiérarchie fermée : Article, Project, Page,
@@ -77,7 +80,8 @@ api/
 │   │                                  #   (ProjectStatusSlugs : en-cours <-> EnCours…)
 │   ├── Catalog.cs                     # L'instantané immuable du contenu publié
 │   ├── CollectionSnapshot.cs          # Une collection de l'instantané : listes et index des slugs
-│   ├── CatalogStore.cs                # Le catalogue courant, remplacé d'un seul geste
+│   ├── CatalogStore.cs                # L'édition courante du catalogue, remplacée d'un seul geste
+│   ├── CatalogEdition.cs              # Un catalogue, le sitemap dont il vient, l'heure de sa construction
 │   ├── CatalogQuery.cs, PagedList.cs  # Ce qu'un lecteur demande, ce qu'il reçoit
 │   ├── LanguageLists.cs               # Les trois listes d'une collection, entrée du catalogue
 │   ├── CatalogBuildOutcome.cs         # Un catalogue, ou des rangs qui ne s'alignent pas
@@ -90,8 +94,10 @@ api/
 │   │   └── Sitemap.cs
 │   └── UseCases/                      # Un cas d'usage par opération, paramétré par la collection
 │       ├── GetDocumentBySlug.cs       #   rend DocumentLookup : Document | NotFound | CatalogNotReady
-│       └── ListDocuments.cs           #   rend DocumentListing : PagedList<Document> | CatalogNotReady
-│                                      # (lot 5 : RefreshCatalog ; lot 6 : ListTagUsage, ListSkillUsage)
+│       ├── ListDocuments.cs           #   rend DocumentListing : PagedList<Document> | CatalogNotReady
+│       ├── RefreshCatalog.cs          #   le rafraîchissement (§5)
+│       └── RefreshOutcome.cs          #   ce qu'il rend : Unchanged | Reloaded | SourceUnavailable
+│                                      # (lot 6 : ListTagUsage, ListSkillUsage)
 │
 ├── Portfolio.Infrastructure/          # Les implémentations des ports
 │   ├── WordPress/                     # Le client du plugin (lot 3)
@@ -105,6 +111,7 @@ api/
 ├── Portfolio.Application.Tests/       # Le cœur, et la règle des dépendances
 ├── Portfolio.Infrastructure.Tests/    # Le client et le rendu, sur des réponses enregistrées du plugin (Recorded/)
 ├── Portfolio.Api.Tests/               # L'API démarrée en mémoire (WebApplicationFactory)
+├── Portfolio.TestSupport/             # Ce que les tests partagent : doubles écrits à la main, documents de test
 └── deploy/                            # Image et compose de production (ADR-023)
 ```
 
@@ -112,10 +119,10 @@ Les dossiers `Models/` et `Abstractions/` de la version d'avril sont devenus `Do
 
 ### 3.1. `Portfolio.Api` : la surface HTTP
 
-Ce projet contient uniquement ce qui concerne la communication HTTP. Aujourd'hui il ne sert que `GET /health/live` (lot 1) ; les routes des trois collections arrivent au lot 5, déclarées en Minimal APIs. Une route de détail tiendra en quelques lignes, de cette forme :
+Ce projet contient uniquement ce qui concerne la communication HTTP, et la composition. Aujourd'hui il sert `GET /health/live` (lot 1) et `GET /health/ready` (lot 5a, §8), et fait tourner le service de fond qui rafraîchit le catalogue (§5) ; les routes des trois collections arrivent au lot 5b, déclarées en Minimal APIs. Une route de détail tiendra en quelques lignes, de cette forme :
 
 ```csharp
-// Forme visée d'une route de détail (lot 5), à titre d'illustration
+// Forme visée d'une route de détail (lot 5b), à titre d'illustration
 group.MapGet("/{slug}", (string slug, GetDocumentBySlug getDocument) =>
     getDocument.Execute(CollectionKind.Project, slug, Language.Fr) switch
     {
@@ -139,13 +146,13 @@ Le cœur contient quatre sortes d'éléments.
 
 Les **documents** (`Documents/`). `Document` est un `closed record class` de C# 15 : une hiérarchie fermée, dont les seules sous-classes sont `Article`, `Project` et `Page`, parce qu'aucun autre assemblage ne peut en dériver. Un `switch` qui traite ces trois cas n'a donc pas besoin de bras par défaut, et une quatrième sorte de document ferait échouer la compilation de chaque `switch` qui l'oublie (vérifié : avertissement CS8509, traité en erreur). Un document est tel qu'une liste du plugin le sert : `RequestedLanguage` est la langue de cette liste, `Lang` celle du document, et `IsFallback` se calcule de l'écart entre les deux, pour ne jamais les contredire. Les libellés (`Tag.Name`, `Skill.Label`, `Status.Label`) arrivent déjà dans la langue demandée. Ce sont des `record` pour leur immuabilité ; leur égalité « par valeur » s'arrête aux listes et aux dictionnaires, que C# compare par référence, si bien que les tests vérifient qu'un document rendu est le même objet que celui donné au catalogue (`Assert.Same`), jamais que deux documents sont égaux. Un enregistrement n'est d'ailleurs immuable qu'en surface : ses listes ne le sont que si personne d'autre ne les tient. Un document recopie donc les listes et le dictionnaire qu'on lui donne, dans l'accesseur `init` de chaque propriété (`init => field = [.. value];`, où `field`, apparu avec C# 14, désigne le champ caché de la propriété) : ce que l'appelant fait ensuite de ses propres collections ne change plus ni le document, ni le catalogue qui le tient.
 
-Le **catalogue**. `Catalog` est l'instantané immuable du contenu publié : `Catalog.Build` le construit à partir des neuf listes du plugin (trois collections, trois langues), et `CatalogStore` tient l'instantané courant. La section quatre suit une lecture de bout en bout.
+Le **catalogue**. `Catalog` est l'instantané immuable du contenu publié : `Catalog.Build` le construit à partir des neuf listes du plugin (trois collections, trois langues), et `CatalogStore` tient l'édition courante, une `CatalogEdition` : le catalogue, le sitemap dont il a été construit et l'heure de sa construction, que le rafraîchissement compare (§5). La section quatre suit une lecture de bout en bout.
 
 Les **ports** (`Ports/`) sont des interfaces qui définissent ce dont le cœur a besoin du monde extérieur, sans savoir comment ce besoin sera satisfait. `IWordPressClient` demande le `/sitemap` du plugin et la liste complète d'une collection dans une langue, mais ne dit rien de HTTP, de WordPress ni de JSON. Sa réponse est un `Fetch<T>`, une *union* de C# 15 : une valeur qui est exactement l'un des types qu'elle énumère, ici ce qu'on a demandé ou `SourceUnavailable` avec sa raison (erreur de réseau, délai dépassé, statut d'échec, page du pare-feu de l'hébergeur). Le cœur apprend ainsi une panne sans attraper d'exception. `IMarkdownRenderer` rend un Markdown en HTML ; il reçoit la langue du document, dont il a besoin pour réécrire les liens entre documents (ADR-026, point 8). Leurs implémentations concrètes vivent dans `Portfolio.Infrastructure` : le client du plugin depuis le lot 3 (§3.3), le rendu depuis le lot 4 (§6).
 
 Cette inversion est le principe central de la Clean Architecture. Le cœur dicte ce qu'il veut via des interfaces. La périphérie s'adapte au cœur en implémentant ces interfaces. La dépendance logique va du cœur vers la périphérie (le cœur dit « j'ai besoin de ça »), mais la dépendance de compilation va de la périphérie vers le cœur (la périphérie référence le projet du cœur pour implémenter ses interfaces).
 
-Les **cas d'usage** (`UseCases/`) : un par opération, paramétré par la collection, plutôt qu'un jumeau par collection (ADR-026, point 6). `GetDocumentBySlug` et `ListDocuments` lisent le catalogue courant et rien d'autre, et rendent une union : `DocumentLookup` (le document, `NotFound` ou `CatalogNotReady`) et `DocumentListing` (une page, ou `CatalogNotReady`). Leur méthode `Execute` est synchrone : lire un instantané en mémoire n'attend rien. `RefreshCatalog`, qui construit les catalogues à partir du plugin, arrive au lot 5 ; `ListTagUsage` et `ListSkillUsage`, les agrégats, au lot 6.
+Les **cas d'usage** (`UseCases/`) : un par opération, paramétré par la collection, plutôt qu'un jumeau par collection (ADR-026, point 6). `GetDocumentBySlug` et `ListDocuments` lisent le catalogue courant et rien d'autre, et rendent une union : `DocumentLookup` (le document, `NotFound` ou `CatalogNotReady`) et `DocumentListing` (une page, ou `CatalogNotReady`). Leur méthode `Execute` est synchrone : lire un instantané en mémoire n'attend rien. `RefreshCatalog` construit les catalogues à partir du plugin (§5) ; il est asynchrone, lui, puisqu'il attend le plugin. `ListTagUsage` et `ListSkillUsage`, les agrégats, arrivent au lot 6.
 
 ### 3.3. `Portfolio.Infrastructure` : les implémentations concrètes
 
@@ -175,9 +182,9 @@ L'architecte en toi doit relire cette règle et vérifier mentalement sa cohére
 
 ## 4. Walkthrough : lire un document dans le catalogue
 
-Ce parcours traverse le cœur et sert de fil rouge pour comprendre comment les pièces collaborent. On suit `GET /api/projects/momocad-de?language=fr`, une requête que le plugin sert déjà en production (il rend la fiche française `momocad`). Les étapes deux à quatre sont le code du lot 2 ; la première appartient aux lots 3 et 5, la dernière au lot 5.
+Ce parcours traverse le cœur et sert de fil rouge pour comprendre comment les pièces collaborent. On suit `GET /api/projects/momocad-de?language=fr`, une requête que le plugin sert déjà en production (il rend la fiche française `momocad`). Les étapes deux à quatre sont le code du lot 2 ; la première appartient aux lots 3 à 5a (§5), la dernière au lot 5b.
 
-**Étape un : le catalogue est construit, en dehors de toute requête (lots 3 et 5).** Un service de fond lit le `/sitemap` du plugin, puis, pour chaque collection et chaque langue, la liste complète qu'il sert (`IWordPressClient.ListAsync`). Le plugin ancre ses trois listes sur les documents français (ADR-021) : une entrée par document français, au même rang dans les trois listes, chaque liste servant à ce rang le membre du groupe dans sa langue, ou celui vers lequel elle se replie quand la traduction manque. Les trois listes d'une collection entrent dans un `LanguageLists`, et `Catalog.Build` en fait un instantané. Il vérifie d'abord qu'elles s'alignent (même longueur, même clé de traduction à chaque rang) ; sinon le contenu a bougé pendant la lecture, et `Build` rend `RanksMisaligned` au lieu d'un catalogue, le service gardant l'ancien jusqu'au tic suivant. Le nouveau catalogue remplace l'ancien dans le `CatalogStore` par une seule écriture (`Volatile.Write`) : une requête en cours garde celui qu'elle a lu, la suivante voit le nouveau, et aucune ne voit la moitié de chacun, puisqu'un catalogue ne change plus une fois construit.
+**Étape un : le catalogue est construit, en dehors de toute requête (lots 3 à 5a, §5).** Un service de fond lit le `/sitemap` du plugin, puis, pour chaque collection et chaque langue, la liste complète qu'il sert (`IWordPressClient.ListAsync`). Le plugin ancre ses trois listes sur les documents français (ADR-021) : une entrée par document français, au même rang dans les trois listes, chaque liste servant à ce rang le membre du groupe dans sa langue, ou celui vers lequel elle se replie quand la traduction manque. Les trois listes d'une collection entrent dans un `LanguageLists`, et `Catalog.Build` en fait un instantané. Il vérifie d'abord qu'elles s'alignent (même longueur, même clé de traduction à chaque rang) ; sinon le contenu a bougé pendant la lecture, et `Build` rend `RanksMisaligned` au lieu d'un catalogue, le service gardant l'ancien jusqu'au tic suivant. Le nouveau catalogue remplace l'ancien dans le `CatalogStore` par une seule écriture (`Volatile.Write`) : une requête en cours garde celui qu'elle a lu, la suivante voit le nouveau, et aucune ne voit la moitié de chacun, puisqu'un catalogue ne change plus une fois construit.
 
 **Étape deux : la route appelle le cas d'usage.** La route reçoit le slug et la langue, et appelle `GetDocumentBySlug.Execute(CollectionKind.Project, "momocad-de", Language.Fr)`. Le cas d'usage lit le catalogue courant une seule fois. S'il n'y en a pas encore, parce que l'API vient de démarrer et n'a pas encore pu lire le plugin, il rend `CatalogNotReady`.
 
@@ -199,7 +206,7 @@ Un seul cas demande un arbitrage : deux documents d'une même langue qui partage
 
 **Étape quatre : le cas d'usage rend une union.** `Find` rend le document ou `null`, et le cas d'usage en fait un `DocumentLookup` : le document, ou `NotFound`. Aucun appel à WordPress, aucune attente : une lecture dans un `FrozenDictionary`, un dictionnaire figé, optimisé pour une table qui ne change plus après sa construction.
 
-**Étape cinq : la route traduit en HTTP (lot 5).** Un `switch` sur l'union, qui doit en traiter les trois cas (§3.1) : le document devient un DTO sérialisé en JSON, `NotFound` un 404, `CatalogNotReady` un 503, tous deux en `ProblemDetails` (ADR-026, point 5).
+**Étape cinq : la route traduit en HTTP (lot 5b).** Un `switch` sur l'union, qui doit en traiter les trois cas (§3.1) : le document devient un DTO sérialisé en JSON, `NotFound` un 404, `CatalogNotReady` un 503, tous deux en `ProblemDetails` (ADR-026, point 5).
 
 Une liste suit le même chemin, avec `ListDocuments` et un `CatalogQuery` : la langue, la page, la taille de page et les filtres `tag`, `status` et `skill`. Le constructeur de `CatalogQuery` refuse ce qui sort des règles du plugin (une page avant la première, une taille hors de 1 à 100, un tag ou une compétence qui n'a pas la forme d'un slug), refus que la route traduira en 400. Le catalogue retient les rangs dont le document **français** passe les filtres, comme le plugin, puisqu'une traduction garde les tags et les compétences de son original ; il coupe la page, puis prend aux rangs retenus les documents de la langue demandée. Une page au-delà de la dernière rend une liste vide avec les vrais totaux, là où le plugin répond 400 : un écart voulu (ADR-026, point 5).
 
@@ -209,31 +216,43 @@ Ce découplage permet de tester le cœur sans serveur HTTP ni WordPress : les te
 
 ---
 
-## 5. Stratégie de cache
+## 5. Le rafraîchissement du catalogue
 
-Le cache est essentiel pour que l'API absorbe le trafic du front sans marteler le WordPress à chaque requête. La stratégie retenue est simple et progressivement améliorable.
+L'API ne garde pas un cache rempli à la demande : elle tient en mémoire une réplique complète du contenu publié, et un service de fond la tient à jour (ADR-026, points 1 et 2). Une requête ne déclenche donc jamais d'appel à WordPress, et une panne de WordPress ne coûte que de la fraîcheur. Le cache par clé de la version d'avril (`IMemoryCache` derrière une interface `IArticleCache`, invalidé clé par clé) a été écarté par ADR-026 : le catalogue est plus simple à raisonner, et il ne peut pas servir une liste et un détail qui se contredisent. Cette section décrit le code du lot 5a.
 
-### 5.1. Implémentation initiale : `IMemoryCache`
+### 5.1. Le rythme : un service de fond
 
-Pour la version initiale de l'API, un cache en mémoire (`IMemoryCache` fourni nativement par .NET) suffit. Il est rapide, ne demande aucune infrastructure supplémentaire, et convient parfaitement à un processus unique. Les limitations sont connues : la mémoire est finie, le cache est perdu au redémarrage, et il ne peut pas être partagé entre plusieurs instances.
+`CatalogRefreshWorker`, dans `Portfolio.Api`, est un `BackgroundService` d'ASP.NET Core : un objet que l'hôte démarre avec l'API et qui tourne en boucle tant qu'elle vit. Il lance un premier tic dès le démarrage, puis un tic toutes les `PORTFOLIO__CACHE__SITEMAPREFRESHSECONDS` secondes (60 par défaut). Tant qu'aucun catalogue n'existe, les essais se suivent après 5, 15, 45, puis toutes les 60 secondes : l'API qui vient de démarrer devient prête dès que le plugin répond, sans le harceler s'il ne répond pas.
 
-Pour un portfolio avec quelques dizaines d'articles et un trafic modeste, ces limitations n'ont aucun impact. Le jour où l'API tournerait derrière plusieurs instances (scaling horizontal), on migrerait vers un cache distribué — Redis typiquement. Cette migration est peu coûteuse parce que l'interface `IArticleCache` abstrait l'implémentation : il suffit d'ajouter une `RedisArticleCache` dans `Portfolio.Infrastructure` et de changer le câblage dans `Program.cs`.
+Trois précautions, chacune vérifiée par un test (§11) :
 
-### 5.2. L'invalidation intelligente via `/sitemap`
+- **Chaque tic est attrapé en entier.** Sous .NET 11, une exception qui s'échappe d'un service de fond arrête tout l'hôte (ADR-025) : un bogue inattendu dans un tic écrit une erreur au journal, et le tic suivant vient à son heure. Seule l'annulation demandée par l'arrêt de l'API passe, sans bruit.
+- **Le service demande un `RefreshCatalog` neuf à chaque tic**, dans une portée (*scope*) de l'injection de dépendances qui lui est propre, au lieu de le recevoir dans son constructeur. L'hôte construit ses services de fond pendant qu'il démarre : construire alors le client du plugin, avec une adresse absente ou mal formée, empêcherait l'API de démarrer, `/health/live` compris. Demandée dans le tic, la même erreur n'est qu'une ligne d'erreur à chaque tic, qui nomme la variable à renseigner, et `/health/ready` reste à 503. Le client, que fabrique `IHttpClientFactory`, est d'ailleurs fait pour vivre peu.
+- **L'attente passe par un `TimeProvider`**, l'horloge abstraite de .NET : en production l'horloge du système, dans les tests une horloge manuelle que le test avance, pour vérifier la cadence sans attendre.
 
-Un cache qui ne s'invalide jamais sert du contenu périmé. La stratégie classique est de mettre un TTL court et d'accepter que chaque entrée soit recalculée périodiquement. Cette approche fonctionne mais elle est brutale : un article qui n'a pas changé depuis des mois est quand même reconstruit toutes les quelques minutes.
+### 5.2. Un tic : comparer, recharger, remplacer
 
-Une stratégie plus fine exploite l'endpoint `/wp-json/portfolio/v1/sitemap` du plugin WordPress, qui retourne, sans pagination, une liste par collection des documents publiés avec l'instant de leur dernière modification : `{ "articles": [{ "slug", "updated" }], "projects": [...], "pages": [...] }`, `updated` étant la modification du post en ISO 8601 UTC (`2026-10-27T12:28:27Z`), et la clé d'un document le couple collection + slug (`01-plugin-php.md` §7.1). Un service de fond dans l'API appelle ce sitemap toutes les trente secondes (ou à l'intervalle qu'on choisira) et compare les instants avec ceux des entrées en cache. Les entrées dont l'instant WordPress a avancé sont invalidées. Les autres restent en cache plus longtemps.
+`RefreshCatalog`, dans `Portfolio.Application`, fait le travail d'un tic. Il lit d'abord le `/sitemap` du plugin. Si l'ensemble de ses lignes (collection, slug, langue, clé de traduction, `updated`) est celui dont le catalogue courant a été construit, et que ce catalogue a moins de `PORTFOLIO__CACHE__FULLREFRESHMINUTES` minutes (360 par défaut), il ne fait rien. Les lignes se comparent comme deux ensembles, sans tenir compte de leur ordre, et entières, jamais par leurs seuls instants (ADR-026, contexte) : une ligne qui apparaît, change ou disparaît suffit. Le rechargement périodique rattrape ce que le `/sitemap` ne montre pas : un tag ou une compétence renommés changent des documents sans toucher une seule ligne.
 
-Cette approche a un coût de requête faible (une seule requête au sitemap périodiquement, indépendamment du nombre d'articles) et un bénéfice important : le cache reste efficace, mais la fraîcheur des données est garantie à la granularité du polling. Pour un portfolio où le contenu est mis à jour manuellement, trente secondes de latence est invisible pour l'utilisateur.
+Sinon il recharge tout : pour chaque collection, les listes française, allemande et anglaise, l'une après l'autre, neuf lectures en tout. Le premier échec arrête le tic : aucun visiteur n'attend ces lectures, et le pare-feu de l'hébergeur, qui répond parfois à une rafale par sa page de contrôle, préfère qu'on lui demande une chose à la fois. Les trois listes d'une collection doivent s'aligner (même longueur, même clé de traduction à chaque rang, §4) ; sinon le contenu a bougé pendant la lecture, et le tic s'arrête aussi, avant tout rendu.
 
-Le service qui fait le polling est enregistré comme `BackgroundService` hébergé par ASP.NET Core. C'est un pattern standard pour les tâches de fond associées à un serveur web.
+Chaque document est ensuite rendu en HTML une fois (§6), avec sa propre langue. Le plugin envoie un document de repli une fois par liste qui le sert, chaque copie portant la langue de sa liste ; le rendu ne dépend que du Markdown et de la langue du document, si bien qu'un rang rend chaque paire une seule fois, et que chaque copie reçoit le même HTML en gardant sa langue. Quand un rendu lève une exception, le rang entier est écarté, dans les trois langues : retirer un seul document désalignerait les listes, que `Catalog.Build` refuse, et chaque rang s'ancre sur son document français. Chaque document du rang est noté comme écarté, avec sa raison : son propre rendu, ou ceux des documents du rang qui ont échoué, tous nommés. Les autres rangs restent.
 
-Depuis ADR-021 (8 novembre 2026), chaque ligne du sitemap porte aussi `lang` et `translation_key` : `{ "slug", "updated", "lang", "translation_key" }`, pour les documents réels de toutes les langues, jamais les replis. La règle d'invalidation en découle : **toute ligne ajoutée, modifiée ou disparue pour une `translation_key` invalide tout le groupe**, c'est-à-dire les entrées de détail de toutes les langues pour cette clé (une entrée allemande peut servir le document français en repli, elle change donc quand le français change) ; et **tout changement d'une collection invalide ses listes** dans toutes les langues, pas seulement la ligne du document français. Le service de fond compare donc l'ensemble des lignes, pas seulement les instants : une ligne qui disparaît (document dépublié ou supprimé) invalide autant qu'une ligne qui avance.
+Le nouveau catalogue remplace alors l'ancien d'un seul geste (`CatalogStore.Replace`, une écriture `Volatile`), avec le sitemap dont il vient et l'heure de sa construction : c'est la `CatalogEdition` que le tic suivant compare. Enfin `RefreshCatalog` relève les autres lignes du sitemap qui ne mènent à aucun document du nouveau catalogue, celle d'un document sans original français par exemple (ADR-026, point 3) : chaque ligne absente du catalogue reçoit ainsi un avertissement, et un seul.
 
-### 5.3. La langue dans toutes les clés de cache
+Tout échec de l'amont laisse le catalogue tel qu'il était : erreur de réseau, délai de vingt secondes dépassé, statut d'échec, corps qui n'est pas du JSON, page du pare-feu, listes désalignées. Avant le premier catalogue, il n'y a rien à garder, et `/health/ready` reste à 503.
 
-Le plugin ne sert qu'une langue à la fois (`language=fr|de|en`, `fr` quand le paramètre est absent) et n'ajoute aucun en-tête de cache : c'est à l'API de ne jamais mélanger deux langues sous une même clé. Les clés de `IArticleCache` sont donc `(collection, language, slug)` pour un document et `(collection, language, page, per_page, filtres)` pour une liste. Le même document dans deux langues est deux entrées, invalidées ensemble par la règle de groupe ci-dessus.
+### 5.3. Ce que dit le journal
+
+Le cœur n'a pas de journal : `Portfolio.Application` n'utilise aucun type `Microsoft.Extensions.*`, ce qu'un test vérifie (§3.4). `RefreshCatalog` rend donc une union, `RefreshOutcome`, qui porte ce que le service de fond doit écrire :
+
+| Cas | Ce qui s'est passé | Ce que le service écrit |
+|---|---|---|
+| `Unchanged` | même sitemap, catalogue assez jeune | une ligne de débogage |
+| `Reloaded` | un nouveau catalogue, avec la liste des documents écartés (chacun avec sa raison) et celle des autres lignes du sitemap sans document | une information, puis un avertissement par document écarté et par ligne sans document |
+| `SourceUnavailable` | le plugin n'a pas pu être lu ; le catalogue reste | un avertissement, avec la raison |
+
+Une exception hors de ces trois cas devient une erreur, avec sa pile. Comme toute union, `RefreshOutcome` se lit par une expression `switch`, que le compilateur vérifie exhaustive.
 
 ---
 
@@ -301,9 +320,9 @@ L'API est publique en lecture et n'a pas besoin d'authentification pour l'usage 
 
 **Pas d'exposition du token WordPress.** Le token qui permet à l'API d'appeler `/sync` du plugin (si jamais l'API devait pousser quelque chose vers WordPress, ce qui n'est pas le cas actuel) serait stocké dans les secrets ASP.NET Core (`user-secrets` en dev, variables d'environnement ou coffre-fort en production). Jamais dans `appsettings.json` committé.
 
-**Santé et observation (ADR-023).** `GET /health/live` répond 200 dès que le processus tourne ; `GET /health/ready` répond 503 jusqu'à la première lecture réussie du `/sitemap` du plugin, puis 200, et le reste : une panne ultérieure de WordPress fait servir le cache tel quel plutôt que couper l'API. Traefik sonde `/health/ready` et Uptime Kuma la surveille. `GET /metrics` (format Prometheus) est servi **sur un second port, `9090`**, que Kestrel écoute en plus de `8080` (`ASPNETCORE_HTTP_PORTS=8080;9090`) et qu'aucune route publique n'atteint : Prometheus le scrute sur le réseau interne du VPS. Les journaux vont sur la sortie standard ; la version de l'API est écrite dans le journal de démarrage. Pas de `HEALTHCHECK` dans l'image : la santé se lit de l'extérieur. Le détail côté serveur est dans [`04-deployment.md`](04-deployment.md) §3.
+**Santé et observation (ADR-023).** `GET /health/live` répond 200 dès que le processus tourne ; `GET /health/ready` répond 503 jusqu'au premier catalogue complet, les neuf listes du plugin et pas seulement son `/sitemap` (ADR-026, point 4), puis 200 pour toujours : une panne ultérieure de WordPress fait servir le catalogue tel quel plutôt que couper l'API, et l'âge du catalogue, publié en métrique au lot 7, montrera une panne qui dure. `/health/live` n'exécute aucune vérification, `/health/ready` seulement celle du catalogue (`CatalogReadinessCheck`) : une vérification ajoutée plus tard ne fermera aucune des deux routes par surprise. Traefik sonde `/health/ready` et Uptime Kuma la surveille. `GET /metrics` (format Prometheus) est servi **sur un second port, `9090`**, que Kestrel écoute en plus de `8080` (`ASPNETCORE_HTTP_PORTS=8080;9090`) et qu'aucune route publique n'atteint : Prometheus le scrute sur le réseau interne du VPS. Les journaux vont sur la sortie standard ; la version de l'API est écrite dans le journal de démarrage. Pas de `HEALTHCHECK` dans l'image : la santé se lit de l'extérieur. Le détail côté serveur est dans [`04-deployment.md`](04-deployment.md) §3.
 
-**Configuration par l'environnement (ADR-023).** Patron Options, préfixe `PORTFOLIO__`, `__` comme séparateur de section, une liste en clés indexées : `PORTFOLIO__WORDPRESSBASEURL` (la racine des routes du plugin, `https://morganvoltz.dev/wp-json/portfolio/v1/`), `PORTFOLIO__ALLOWEDORIGINS__0`, `__1`… (les origines CORS ; `https://app.morganvoltz.dev` en production, `localhost` en développement), `PORTFOLIO__CACHE__SITEMAPREFRESHSECONDS` (le rythme de relecture du `/sitemap`, §5). En production, l'API refuse de démarrer sans origine CORS : mieux vaut un conteneur qui s'arrête qu'un front bloqué en silence. Aucun secret aujourd'hui ; le jour où il y en a un, il va dans le `.env` du serveur, mode 600.
+**Configuration par l'environnement (ADR-023).** Patron Options, préfixe `PORTFOLIO__`, `__` comme séparateur de section, une liste en clés indexées : `PORTFOLIO__WORDPRESSBASEURL` (la racine des routes du plugin, `https://morganvoltz.dev/wp-json/portfolio/v1/`), `PORTFOLIO__ALLOWEDORIGINS__0`, `__1`… (les origines CORS ; `https://app.morganvoltz.dev` en production, `localhost` en développement), `PORTFOLIO__CACHE__SITEMAPREFRESHSECONDS` (le rythme de relecture du `/sitemap`, 60 secondes par défaut, §5) et `PORTFOLIO__CACHE__FULLREFRESHMINUTES` (l'âge au-delà duquel le catalogue est rechargé en entier, 360 minutes par défaut). Les réglages ont leurs valeurs par défaut dans `PortfolioOptions`, sauf l'adresse du plugin. Les deux périodes sont vérifiées au démarrage : une période de rafraîchissement hors de 1 à 86 400 secondes, ou un rechargement complet à moins d'une minute, empêchent l'API de démarrer, avec un message qui nomme la variable ; zéro ferait interroger le plugin sans pause, une valeur négative arrêterait l'API après son premier catalogue. Les autres réglages ne sont vérifiés qu'au lot 7 : sans l'adresse du plugin, l'API démarre, mais chaque tic écrit l'erreur qui nomme la variable, et `/health/ready` reste à 503. En production, l'API refusera de démarrer sans origine CORS : mieux vaut un conteneur qui s'arrête qu'un front bloqué en silence. Aucun secret aujourd'hui ; le jour où il y en a un, il va dans le `.env` du serveur, mode 600.
 
 ---
 
@@ -376,11 +395,13 @@ En dépendances de test : `xunit.v3.mtp-v2`, xUnit v3 sur Microsoft.Testing.Plat
 
 La structure en trois projets rend la stratégie de tests directe. Les projets de tests tournent sur xUnit v3 et Microsoft.Testing.Platform : `dotnet test --solution Portfolio.slnx` les exécute tous, et l'intégration continue fait de même sur chaque pull request qui touche `api/` (lot 1). En phase de développement, chaque projet peut être testé seul pour un cycle de retour rapide.
 
-**`Portfolio.Application.Tests`** couvre le cœur, sans aucun environnement externe. Les tests construisent des listes de documents à la main (`TestData/TestDocuments.cs`), en font un catalogue et l'interrogent : l'alignement des listes, la recherche par slug sous toutes ses formes (le slug du document, celui d'une autre langue, un repli, les pages qui ont un slug par langue, les doublons dans les deux ordres), les listes filtrées et paginées, les règles de `CatalogQuery`, les cas d'usage avant et après le premier catalogue. Leurs noms sont des phrases (`A_slug_of_one_language_finds_the_document_served_in_another`), pour se lire comme une spécification. Ils vérifient l'identité des documents rendus (`Assert.Same`), et examinent les unions par filtrage de motif, jamais par `GetType()`, qui rendrait le type de l'union et non celui du cas (ADR-026, point 6). Le même projet porte les tests de la règle des dépendances (§3.2). Exécution en moins d'une seconde.
+**`Portfolio.Application.Tests`** couvre le cœur, sans aucun environnement externe. Les tests construisent des listes de documents à la main (`TestDocuments`, dans `Portfolio.TestSupport`), en font un catalogue et l'interrogent : l'alignement des listes, la recherche par slug sous toutes ses formes (le slug du document, celui d'une autre langue, un repli, les pages qui ont un slug par langue, les doublons dans les deux ordres), les listes filtrées et paginées, les règles de `CatalogQuery`, les cas d'usage avant et après le premier catalogue. Leurs noms sont des phrases (`A_slug_of_one_language_finds_the_document_served_in_another`), pour se lire comme une spécification. Ils vérifient l'identité des documents rendus (`Assert.Same`), et examinent les unions par filtrage de motif, jamais par `GetType()`, qui rendrait le type de l'union et non celui du cas (ADR-026, point 6). Le même projet porte les tests de la règle des dépendances (§3.4), et ceux du rafraîchissement (lot 5a), avec un faux plugin, un faux rendu et une horloge manuelle : le premier tic, un sitemap identique ou réordonné, une ligne modifiée, ajoutée ou retirée, le rechargement périodique et sa borne, chaque échec de l'amont, des listes désalignées, un rendu qui échoue (le rang écarté, chacun de ses documents avec sa raison, un document de repli une seule fois), chaque copie gardant la langue de sa liste, deux traductions au même Markdown rendues chacune dans sa langue, une ligne orpheline, l'annulation. Exécution en une seconde.
 
 **`Portfolio.Infrastructure.Tests`** teste le client du plugin sans appeler le site. Un faux plugin écrit à la main (`FakePlugin`, un `HttpMessageHandler`) rejoue les réponses que le vrai plugin a données le 22 novembre 2026, enregistrées dans `Recorded/` avec les requêtes exactes du client (son README dit comment les refaire), et retient les requêtes reçues, pour qu'un test vérifie ce que le client demande. La page du pare-feu, qu'on ne peut pas provoquer, y est la même reconstitution minimale que dans les tests du script de synchronisation. Les échecs (délai, réseau, statut, contrat rompu, liste qui change) sont fabriqués à partir de ces réponses. Deux tests branchent le client sur le cœur : les neuf listes enregistrées forment un catalogue aligné, qui répond comme les routes de détail du plugin ont répondu le même jour, et chaque ligne du sitemap enregistré y mène à un document. Le rendu (lot 4) y est testé de deux façons : des Markdowns d'entrée et le HTML exact attendu, branche par branche de la passe sur les liens, vecteurs d'attaque compris ; et le Markdown des 54 documents enregistrés, où chaque lien entre documents doit mener à la route du document qu'il nomme, chaque lien absolu du site au même chemin sur WordPress, et où aucun lien ne doit perdre son adresse.
 
-**`Portfolio.Api.Tests`** teste l'assemblage complet via `WebApplicationFactory<Program>`, qui démarre l'API en mémoire sans serveur HTTP réel et permet d'envoyer des requêtes en client virtuel. Il vérifie aujourd'hui `/health/live` ; au lot 5, il validera les routes, leurs codes de réponse et la forme du JSON, avec un faux `IWordPressClient` en mémoire à la place du plugin.
+**`Portfolio.Api.Tests`** teste l'assemblage complet via `WebApplicationFactory<Program>`, qui démarre l'API en mémoire sans serveur HTTP réel et permet d'envoyer des requêtes en client virtuel. Tous ses tests passent par `PortfolioApiFactory`, qui garde la vraie composition mais remplace le plugin par le faux client en mémoire et l'horloge par l'horloge manuelle : aucun test ne peut atteindre le vrai site, et le service de fond n'attend que si le test fait passer le temps. Le test apprend qu'un tic est fini quand le service demande sa prochaine attente, et il en lit la durée. Il vérifie ainsi la cadence (5, 15, 45 puis 60 secondes avant le premier catalogue, la période des réglages ensuite), le rechargement à l'âge des réglages, `/health/ready` (503, puis 200 pour toujours), une exception attrapée, le journal d'un rechargement, qu'un arrêt de l'API en plein tic n'est pas écrit comme une erreur, qu'une période hors bornes empêche l'API de démarrer, et qu'une adresse du plugin manquante ne l'en empêche pas. Au lot 5b, il validera les routes, leurs codes de réponse et la forme du JSON.
+
+**`Portfolio.TestSupport`** n'est pas un projet de tests mais une bibliothèque que les tests partagent, sans aucun cadre de test (choix de Morgan, lot 5) : les doubles écrits à la main (`FakeWordPressClient`, `FakeMarkdownRenderer`, `ManualTimeProvider`) et les documents de test (`TestDocuments`). Au lot 5b, les réponses enregistrées du plugin et `FakePlugin` y passeront, pour le test de bout en bout de l'API.
 
 ---
 
