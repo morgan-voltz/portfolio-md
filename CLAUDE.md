@@ -2,7 +2,7 @@
 
 **Destinataire** : Claude Code (et toute instance de Claude travaillant sur ce projet).
 **Auteur** : Morgan.
-**Version** : 1.1 — 26 octobre 2026 (révision du mode de collaboration, voir ADR-012). Version 1.0 du 22 avril 2026.
+**Version** : 1.2 — 22 novembre 2026 (rappel de la stack aligné sur ADR-025 et ADR-026). Version 1.1 du 26 octobre 2026 (révision du mode de collaboration, voir ADR-012), version 1.0 du 22 avril 2026.
 **Statut** : Document contractuel. Lu intégralement au début de chaque session.
 
 ---
@@ -152,7 +152,7 @@ Tu ne prends pas d'initiative avant d'avoir cette direction. Même si tu vois de
 
 Plugin WordPress : **PHP 8.2+**, organisé en PSR-4 avec Composer, utilise `league/commonmark` pour le parsing Markdown et `symfony/yaml` pour le frontmatter. WordPress **6.x+** avec MariaDB. Architecture interne en couches (Domain, Parsing, Storage, Admin, Rest, Service) inspirée de la Clean Architecture.
 
-API C# : **.NET 8+**, ASP.NET Core en **Minimal APIs**, organisée en trois projets (`Portfolio.Api`, `Portfolio.Application`, `Portfolio.Infrastructure`) selon la Clean Architecture. Librairie `Markdig` pour le parsing Markdown côté C#, `IMemoryCache` pour le cache.
+API C# : **.NET 11** et C# 15 (ADR-025), ASP.NET Core en **Minimal APIs**, organisée en trois projets (`Portfolio.Api`, `Portfolio.Application`, `Portfolio.Infrastructure`) selon la Clean Architecture. Librairie `Markdig` pour le parsing Markdown côté C#, et un **catalogue en mémoire** du contenu publié, rechargé d'après le `/sitemap` du plugin (ADR-026).
 
 Front React : **React 18+ avec TypeScript**, bundler **Vite**, routing via **React Router**, gestion d'état serveur via **TanStack Query**. Pas de framework de rendu serveur — le SEO est assuré par le site WordPress.
 
