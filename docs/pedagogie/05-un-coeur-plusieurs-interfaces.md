@@ -1,7 +1,7 @@
 # 05 — Un cœur, plusieurs interfaces
 
 **Temps de lecture** : environ 9 minutes
-**Dernière mise à jour** : 22 avril 2026
+**Dernière mise à jour** : 22 novembre 2026 (exemples alignés sur le code du cœur de l'API, ADR-026 ; version d'origine du 22 avril 2026)
 
 ---
 
@@ -25,9 +25,9 @@ Cette réorganisation change complètement les possibilités. Parce que la logiq
 
 Il est important de préciser ce qui circule entre les interfaces et ce qui reste spécifique, parce que cette frontière éclaire toute l'architecture.
 
-Le projet `Portfolio.Application` est partagé intégralement. Il contient les modèles de données comme `Article`, `Project` ou `Tag`, les interfaces qui décrivent les services externes nécessaires comme `IWordPressClient` ou `IArticleCache`, et les cas d'usage qui orchestrent tout ça comme `GetArticleBySlug` ou `ListArticles`. Toute cette matière reste rigoureusement identique quelle que soit l'interface qui la consomme. Cent pour cent partagé.
+Le projet `Portfolio.Application` est partagé intégralement. Il contient les documents comme `Article`, `Project` ou `Page`, le catalogue qui les garde en mémoire, les interfaces qui décrivent les services externes nécessaires comme `IWordPressClient` ou `IMarkdownRenderer`, et les cas d'usage qui orchestrent tout ça comme `GetDocumentBySlug` ou `ListDocuments`. Toute cette matière reste rigoureusement identique quelle que soit l'interface qui la consomme. Cent pour cent partagé.
 
-Le projet `Portfolio.Infrastructure` est partagé selon les besoins. Les implémentations concrètes qu'il contient — le client HTTP pour parler à WordPress, le cache mémoire, le renderer Markdig — peuvent être réutilisées par plusieurs interfaces qui ont les mêmes besoins techniques. Une application desktop pourrait réutiliser exactement le même `WordPressClient` pour parler au serveur distant, tout en ajoutant ses propres implémentations pour ses besoins spécifiques, comme un cache local persisté sur disque au lieu d'un cache en mémoire volatile.
+Le projet `Portfolio.Infrastructure` est partagé selon les besoins. Les implémentations concrètes qu'il contient — le client HTTP pour parler à WordPress, le renderer Markdig — peuvent être réutilisées par plusieurs interfaces qui ont les mêmes besoins techniques. Une application desktop pourrait réutiliser exactement le même `WordPressClient` pour parler au serveur distant, tout en ajoutant ses propres implémentations pour ses besoins spécifiques, comme une copie du contenu enregistrée sur disque pour travailler hors ligne.
 
 Chaque interface a son propre projet dédié qui n'est pas partagé avec les autres. `Portfolio.Api` contient les endpoints HTTP et leurs DTOs. Un hypothétique `Portfolio.Desktop` contiendrait les écrans Avalonia et leurs ViewModels. Un `Portfolio.Cli` contiendrait les commandes en ligne de commande et leur parseur d'arguments. Ces projets sont spécifiques à leur mode de présentation et ne partagent entre eux que leur référence commune aux couches inférieures.
 
@@ -42,26 +42,31 @@ Pour sentir comment ça fonctionne en pratique, regarde à quoi ressemblerait un
 public partial class ArticleListViewModel : ObservableObject
 {
     // La dépendance au cas d'usage qui vient du projet Application
-    private readonly ListArticles _listArticles;
+    private readonly ListDocuments _listDocuments;
 
     // Collection observable liée à la vue XAML via MVVM
     [ObservableProperty]
-    private ObservableCollection<ArticleDto> articles = new();
+    private ObservableCollection<Document> articles = new();
 
     // Commande déclenchée par l'utilisateur (par exemple bouton Recharger)
     [RelayCommand]
-    private async Task LoadAsync()
+    private void Load()
     {
         // Appel au cas d'usage du projet Application : même code que l'API !
-        var result = await _listArticles.ExecuteAsync();
-        Articles = new ObservableCollection<ArticleDto>(result);
+        Articles = _listDocuments.Execute(CollectionKind.Article, new CatalogQuery()) switch
+        {
+            PagedList<Document> page => new ObservableCollection<Document>(page.Items),
+            CatalogNotReady => new ObservableCollection<Document>(), // contenu pas encore chargé
+        };
     }
 }
 ```
 
-Regarde bien ce qui se passe ici. La classe est manifestement spécifique à Avalonia — elle hérite d'`ObservableObject`, elle utilise les attributs `[ObservableProperty]` et `[RelayCommand]` qui sont des conventions spécifiques au MVVM. Mais la **logique métier** qu'elle exécute, cet appel à `_listArticles.ExecuteAsync()`, est exactement celle appelée par l'endpoint HTTP de l'API. Aucune duplication, aucune adaptation, aucun pont à construire entre les deux mondes.
+Regarde bien ce qui se passe ici. La classe est manifestement spécifique à Avalonia — elle hérite d'`ObservableObject`, elle utilise les attributs `[ObservableProperty]` et `[RelayCommand]` qui sont des conventions spécifiques au MVVM. Mais la **logique métier** qu'elle exécute, cet appel à `_listDocuments.Execute(...)`, est exactement celle qu'appelle l'endpoint HTTP de l'API. Aucune duplication, aucune adaptation, aucun pont à construire entre les deux mondes.
 
-Le ViewModel ne fait que deux choses spécifiques à son contexte. D'abord, il présente les données dans un format que l'interface graphique sait consommer — une `ObservableCollection` qui notifie les changements à la vue XAML chaque fois qu'un élément est ajouté ou supprimé. Ensuite, il expose une commande `LoadAsync` que l'utilisateur peut déclencher en cliquant sur un bouton de rafraîchissement. Tout le reste — la façon dont les articles sont vraiment récupérés, éventuellement cachés, parsés — vient du cœur et ne concerne pas le ViewModel.
+Le `switch` final montre une autre propriété du cœur. `ListDocuments` rend une *union* : soit une page de documents, soit `CatalogNotReady`, quand le contenu n'a pas encore été chargé. Le compilateur signale un `switch` qui oublierait l'un des deux cas (c'est un avertissement, que notre projet traite comme une erreur), si bien que l'écran desktop ne peut pas plus oublier ce démarrage à vide que la route HTTP de l'API.
+
+Le ViewModel ne fait que deux choses spécifiques à son contexte. D'abord, il présente les données dans un format que l'interface graphique sait consommer — une `ObservableCollection` qui notifie les changements à la vue XAML chaque fois qu'un élément est ajouté ou supprimé. Ensuite, il expose une commande `Load` que l'utilisateur peut déclencher en cliquant sur un bouton de rafraîchissement. Tout le reste — la façon dont les articles sont récupérés, tenus à jour, filtrés et paginés — vient du cœur et ne concerne pas le ViewModel.
 
 Si un bug est découvert dans la logique de récupération des articles, il est corrigé une seule fois dans `Portfolio.Application`, et l'API comme le desktop bénéficient de la correction sans intervention supplémentaire. C'est le genre de propriété qui paraît abstraite jusqu'à ce qu'on l'ait vécue une fois — et à ce moment, on ne veut plus jamais coder autrement.
 
