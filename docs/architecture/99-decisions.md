@@ -4,7 +4,7 @@
 **Rôle** : trace des décisions structurantes, avec leur contexte et leur justification
 **Format** : inspiré d'ADR (Architecture Decision Records) de Michael Nygard
 **Lectorat** : contributeur, Morgan lui-même à froid, recruteur attentif
-**Dernière mise à jour** : 7 novembre 2026
+**Dernière mise à jour** : 22 novembre 2026
 
 ---
 
@@ -56,6 +56,7 @@ Les entrées ne sont jamais supprimées. Si une décision est révisée, on ajou
 | ADR-022 | Ouvrir une langue au public : l'option de publication, le thème enfant et la configuration du site | 2026-11-08 | Accepté |
 | ADR-023 | Déploiement : WordPress chez o2switch, l'API en service Kovelt derrière Traefik, le front sur Cloudflare Pages | 2026-11-08 | Accepté |
 | ADR-024 | Les noms des tags techniques viennent d'un fichier trilingue, `content/tags.yaml` | 2026-11-08 | Accepté |
+| ADR-025 | L'API cible .NET 11 et C# 15 | 2026-11-22 | Accepté |
 
 ---
 
@@ -785,7 +786,7 @@ Ordre de déploiement : plugin, thème, importation du contenu (réimport des 14
 ## ADR-023 — Déploiement : WordPress chez o2switch, l'API en service Kovelt derrière Traefik, le front sur Cloudflare Pages, un domaine et trois hôtes
 
 **Date** : 2026-11-08
-**Statut** : Accepté (8 novembre 2026 ; les quatre points ouverts, noms `api` et `app`, zone DNS chez Cloudflare, compte GHCR `morgan-voltz`, paquet public, tranchés par Morgan tels que proposés)
+**Statut** : Accepté (8 novembre 2026 ; les quatre points ouverts, noms `api` et `app`, zone DNS chez Cloudflare, compte GHCR `morgan-voltz`, paquet public, tranchés par Morgan tels que proposés ; point 3 remplacé le 22 novembre 2026 par ADR-025 : .NET 11 au lieu de .NET 10)
 
 ### Contexte
 
@@ -849,6 +850,40 @@ Les fiches citent leurs technologies par slug (`tags: [csharp, dotnet, architect
 ### Conséquences
 
 Le dépôt gagne `content/tags.yaml` (84 tags le 8 novembre 2026, tous ceux des quatorze fiches ; deux slugs, `api-rest` et `rest-api`, nomment la même notion et reçoivent le même nom), la commande et ses classes, les term metas, la règle du validateur, les tests (chargeur, synchroniseur avec passerelle en mémoire, libellé du tag, présentateur, thème, validateur). Documents : `content/README.md` (le fichier, la règle 11, l'ordre des commandes), `01-plugin-php.md` (§4.4, §7.3, §9.2, arborescence), `04-structure-wordpress.md` §4.1, `plugin/plugin-README.md`, `theme/theme-README.md`, le runbook (parties 1.2, 2.2 et 2.4). En production : déployer le plugin puis `wp portfolio tags sync ~/portfolio-content/tags.yaml`, une fois.
+
+---
+
+## ADR-025 — L'API cible .NET 11 et C# 15
+
+**Date** : 2026-11-22
+**Statut** : Accepté (22 novembre 2026 ; choix de Morgan, « .NET 11 maintenant », parmi trois voies présentées ; remplace le point 3 d'ADR-023)
+
+### Contexte
+
+Le point 3 d'ADR-023 fixait, le 8 novembre 2026, le « runtime .NET 10 LTS, celui de `global.json` et des autres projets de Morgan ». Deux jours plus tard, le 10 novembre, .NET 11.0.0 est sorti. Trois faits, lus le 22 novembre 2026 dans les métadonnées de publication de Microsoft (`releases-index.json`), changent le calcul. .NET 11 est une version STS et .NET 10 une LTS, mais une STS est supportée vingt-quatre mois, comme .NET 9 l'a déjà été, et **les deux s'arrêtent le même jour, le 14 novembre 2028** : l'étiquette LTS n'achète plus de durée. .NET 10 en est à sa seizième version (10.0.15), .NET 11 à sa première. Et **aucune ligne de C# n'existe encore** dans `api/` : changer de cible ne coûte aujourd'hui que deux lignes de configuration et de la documentation. Plus tard, il faudrait aussi reprendre la cible des projets, les paquets et repasser les tests ; rien de difficile, mais un lot de plus.
+
+Ce que .NET 11 apporte à cette API précise : C# 15, dont les **types union** et les **hiérarchies fermées**, qui permettent à un cas d'usage de dire dans son type de retour qu'un document est trouvé, introuvable ou que la source est indisponible, et au compilateur de vérifier que l'appelant traite chaque cas ; les mesures intégrées de `MemoryCache` (requêtes servies ou manquées, évictions, nombre d'entrées, taille estimée), à activer par `MemoryCacheOptions.TrackStatistics = true`, alors que `02-api-csharp.md` prévoit justement `IMemoryCache` et une route `/metrics` ; un `Retry-After` exact pour le limiteur de débit à fenêtre fixe ; OpenAPI 3.2 par défaut. Aucun de ces gains n'est décisif pris seul.
+
+### Décision
+
+1. **L'API cible `net11.0` et C# 15**, le langage par défaut de cette cible. Le reste d'ADR-023 est inchangé : les trois hôtes, le service derrière Traefik, les deux ports, la santé, les métriques, la configuration par l'environnement.
+2. **`api/global.json` épingle le SDK 11.0.100**, avec `rollForward: latestFeature` comme avant : un poste qui a un SDK 11 plus récent s'en sert, un poste qui n'a que le SDK 10 refuse de construire plutôt que de produire autre chose.
+3. **Le Dockerfile construit et exécute sur les images 11.0**, `mcr.microsoft.com/dotnet/sdk:11.0` et `aspnet:11.0`, dont la présence sur le registre a été vérifiée : une ligne, l'argument `DOTNET_VERSION`.
+4. **La cible sera écrite à un seul endroit** quand la solution de la phase six sera créée, dans un fichier de propriétés commun aux projets, pour que le prochain changement de version tienne en une ligne.
+5. **Prochain rendez-vous : .NET 12 LTS**, attendu en novembre 2027. L'API devra y être passée avant le 14 novembre 2028, fin de support commune de .NET 10 et de .NET 11.
+
+### Alternatives considérées
+
+- **Écrire la phase six sur .NET 10, puis passer à .NET 11 dans un lot isolé** après ses premiers correctifs : la recommandation initiale de l'assistant, pour la maturité (seize versions contre une). Écartée par Morgan : le coût est au plus bas tant qu'aucun code n'existe, et C# 15 sert dès la conception des cas d'usage.
+- **Rester sur .NET 10 jusqu'à .NET 12 LTS** : aucun changement et la même date de fin de support ; on y perd C# 15 pendant un an sans rien gagner en durée.
+
+### Conséquences
+
+Fichiers touchés : `api/global.json`, `api/deploy/Dockerfile`, et les mentions de la version dans `README.md`, `00-overview.md` (§2.2, §6, §9), `02-api-csharp.md` (§1.3, §10) et `04-deployment.md` (§3.1) ; le statut d'ADR-023 dit que son point 3 est remplacé. Les fiches du contenu qui citent .NET 10 parlent d'autres projets et ne changent pas.
+
+**Vérifié avant d'accepter** (22 novembre 2026, SDK 11.0.100, hors dépôt) : une solution d'essai compilée sans avertissement et ses six tests verts, avec un type union et une hiérarchie fermée parcourus par un `switch` exhaustif, une Minimal API qui sérialise une union (le cas tel quel, sans discriminant, et `anyOf` dans le document OpenAPI 3.2), les compteurs de `MemoryCache` lus par un exporteur Prometheus, Markdig 1.6.0 (tableaux, cases à cocher, texte barré, frontmatter écarté), xUnit v3 4.0.3 sur Microsoft.Testing.Platform, NSubstitute, AwesomeAssertions, WireMock.Net et `WebApplicationFactory`. Ces paquets ciblent .NET 8, .NET 10 ou .NET Standard et se chargent sur .NET 11. La sonde s'est servie d'AwesomeAssertions parce que FluentAssertions, que cite `02-api-csharp.md` §10, est sous licence propriétaire depuis sa version 8 ; le choix de la bibliothèque d'assertions n'est pas pris ici, il sera soumis à Morgan avec les décisions de la phase six.
+
+**Ce que la décision coûte et laisse ouvert.** Chaque poste de développement doit avoir le SDK 11, qui s'installe à côté du 10 ; sur un tel poste, un projet sans `global.json` est construit par le SDK le plus récent même s'il cible `net10.0` : ce dépôt épingle le sien, mais c'est à savoir pour les autres projets de Morgan, restés en .NET 10. La version 11.0.0 n'a encore reçu aucun correctif : les mises à jour mensuelles sont à suivre, et l'image de l'API les prend à chaque publication. L'étiquette `11.0` des images repose sur Ubuntu 26.04, là où `10.0` reposait sur Ubuntu 24.04 : sans effet attendu sur une API qui n'installe aucun paquet système, à constater à la première construction de l'image. La prise en charge de la syntaxe C# 15 par l'IDE n'a pas été vérifiée. Deux comportements propres à .NET 11 comptent pour le code de la phase six. Quand un service de fond échoue, l'hôte s'arrête désormais sur une exception et un code de sortie non nul : le service qui relit `/sitemap` doit attraper ses erreurs, sinon une panne de WordPress redémarrerait l'API en boucle. Et neuf bibliothèques `Microsoft.Extensions.*` d'abstractions (journalisation, options, configuration, injection de dépendances, cache, hébergement…) font maintenant partie du framework de base : un projet `net11.0` les utilise sans référence de paquet, et en déclarer une lève l'avertissement NU1510.
 
 ---
 

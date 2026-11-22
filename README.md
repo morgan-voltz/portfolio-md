@@ -20,7 +20,7 @@ The **WordPress plugin** (`plugin/`) accepts Markdown input, stores both the raw
 
 The **WordPress theme** (`theme/portfolio-md-child`) is a child of GeneratePress that renders what the plugin stores and what Polylang routes: the language switcher, the project list with fallback and the FR badge of the trilingual site (ADR-022). It is mounted into the containers like the plugin and has no build step; the design itself comes later in the roadmap.
 
-The **C# API** (`api/`) acts as a gateway between WordPress and the React frontend. Built on .NET 10 with ASP.NET Core Minimal APIs, it is structured in three projects following the Clean Architecture pattern: `Portfolio.Application` (pure business logic), `Portfolio.Infrastructure` (concrete implementations), and `Portfolio.Api` (HTTP surface). The structure is deliberately prepared for future reuse by additional frontends (desktop, mobile, CLI) without duplicating business logic.
+The **C# API** (`api/`) acts as a gateway between WordPress and the React frontend. Built on .NET 11 with ASP.NET Core Minimal APIs, it is structured in three projects following the Clean Architecture pattern: `Portfolio.Application` (pure business logic), `Portfolio.Infrastructure` (concrete implementations), and `Portfolio.Api` (HTTP surface). The structure is deliberately prepared for future reuse by additional frontends (desktop, mobile, CLI) without duplicating business logic.
 
 The **React frontend** (`frontend/`) is the technical portfolio surface. Stack: Vite, React 18, TypeScript, React Router, TanStack Query, Tailwind CSS. It consumes the C# API exclusively and has no direct knowledge of WordPress. SEO is not a concern here since the parallel WordPress site handles it.
 
@@ -32,7 +32,7 @@ The development environment runs WordPress and MariaDB in containers (Podman roo
 
 - Podman 4+ with `podman-compose`, or Docker 24+ with Docker Compose v2
 - PHP 8.2+ and Composer 2 for the WordPress plugin, or no PHP at all: [`plugin/plugin-README.md`](plugin/plugin-README.md) shows how to run Composer and PHPUnit through containers
-- .NET 10 SDK (for the C# API)
+- .NET 11 SDK (for the C# API)
 - Node.js 20+ and npm (for the React frontend, and to build the Markdown editor of the WordPress admin)
 - A `.env` file at the repository root (copy from `.env.example` if provided, otherwise set `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, and optionally `WP_PORT`)
 
@@ -191,7 +191,7 @@ Until October 2026, Claude only guided, explained and reviewed: the author wrote
 |---|-------------------------------------------------------------------------|
 | WordPress plugin | PHP 8.2+, Composer, PSR-4, league/commonmark, symfony/yaml              |
 | CMS | WordPress 6.x, MariaDB, GeneratePress theme (child)                     |
-| API | .NET 10, ASP.NET Core Minimal APIs, Markdig                             |
+| API | .NET 11, ASP.NET Core Minimal APIs, Markdig                             |
 | Frontend | React 18, TypeScript, Vite, TanStack Query, React Router, Tailwind CSS  |
 | Tooling | Git, GitHub, Conventional Commits, PHPUnit, xUnit, Vitest               |
 | Deployment | Shared hosting for WP, Linux VPS for API, Cloudflare Pages for frontend |

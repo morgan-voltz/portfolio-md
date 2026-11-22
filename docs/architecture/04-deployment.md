@@ -5,7 +5,7 @@
 **Prérequis** : avoir lu `00-overview.md` ; pour WordPress, le runbook `docs/guides/02-exploitation-site-trilingue.md`
 **Lectorat** : Morgan, seul à tenir le clavier en production ; un relecteur qui veut savoir ce qui est en ligne et comment
 **Statut** : Accepté avec ADR-023 (8 novembre 2026) ; complété à chaque pas réel du premier déploiement. **Le site WordPress est en ligne depuis le 8 novembre 2026** sur `https://morganvoltz.dev` ; l'API et le front suivront leurs phases
-**Dernière mise à jour** : 8 novembre 2026
+**Dernière mise à jour** : 22 novembre 2026 (ADR-025 : images .NET 11)
 
 Ce dépôt est public : aucun identifiant, aucune adresse IP, aucun nom de serveur, aucun secret n'y figure. Ce document dit **où** chaque chose vit et **comment** on y va, pas **avec quoi** on s'y connecte.
 
@@ -31,7 +31,7 @@ La porte Git (ADR-019) s'active avec trois secrets GitHub, `PORTFOLIO_SYNC_URL`,
 
 ### 3.1. L'image
 
-Construite depuis `api/` par `api/deploy/Dockerfile` (`api/.dockerignore` tient les `bin/` et `obj/` de la machine hors du contexte) : étage SDK .NET 10 (restauration sur les fichiers de projet seuls, puis `dotnet publish` en Release), étage d'exécution `aspnet:10.0`, utilisateur non root de l'image, écoute sur `8080` (l'API) et `9090` (`/metrics`, §3.4), pas de `HEALTHCHECK` (la santé se lit de l'extérieur). Publiée sur GHCR sous `ghcr.io/morgan-voltz/portfolio-api:X.Y.Z` par une action GitHub de ce dépôt déclenchée par un tag `api-vX.Y.Z` (le dépôt tient trois composants : un préfixe par composant). **Le paquet GHCR est rendu public une fois, après la première publication** : un paquet créé par une action naît privé, et le `pull` du serveur échouerait sinon ; l'image ne contient aucun secret, et le label `org.opencontainers.image.source` la relie au dépôt. Le workflow s'ajoute quand la solution de la phase six existe ; sa forme :
+Construite depuis `api/` par `api/deploy/Dockerfile` (`api/.dockerignore` tient les `bin/` et `obj/` de la machine hors du contexte) : étage SDK .NET 11 (ADR-025 ; restauration sur les fichiers de projet seuls, puis `dotnet publish` en Release), étage d'exécution `aspnet:11.0` (sur Ubuntu 26.04, contre 24.04 pour la 10.0), utilisateur non root de l'image, écoute sur `8080` (l'API) et `9090` (`/metrics`, §3.4), pas de `HEALTHCHECK` (la santé se lit de l'extérieur). Publiée sur GHCR sous `ghcr.io/morgan-voltz/portfolio-api:X.Y.Z` par une action GitHub de ce dépôt déclenchée par un tag `api-vX.Y.Z` (le dépôt tient trois composants : un préfixe par composant). **Le paquet GHCR est rendu public une fois, après la première publication** : un paquet créé par une action naît privé, et le `pull` du serveur échouerait sinon ; l'image ne contient aucun secret, et le label `org.opencontainers.image.source` la relie au dépôt. Le workflow s'ajoute quand la solution de la phase six existe ; sa forme :
 
 ```yaml
 # .github/workflows/release-api.yml (à ajouter avec la phase six)

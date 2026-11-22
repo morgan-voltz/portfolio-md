@@ -14,7 +14,7 @@
 #     -e PORTFOLIO__WORDPRESSBASEURL=http://host.containers.internal:8000/wp-json/portfolio/v1/ \
 #     portfolio-api:dev
 
-ARG DOTNET_VERSION=10.0
+ARG DOTNET_VERSION=11.0
 
 # ---- build --------------------------------------------------------------------
 FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS build
