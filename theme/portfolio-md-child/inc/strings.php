@@ -11,7 +11,9 @@ declare(strict_types=1);
  * project, the labels of its facts (status, period, role, client,
  * repository, demo), the fil rouge mention, the headings of its tags and
  * skills, the asterisk and the note of a provisional wording and the names
- * of the months.
+ * of the months; since ADR-027, the two buttons under the headline of the
+ * home page, the links of the footer and the description of the project
+ * archive in search results.
  * Everything else on a page comes from the documents. French is the
  * fallback of an unknown language.
  */
@@ -42,6 +44,11 @@ function portfolio_md_child_strings(): array
             'skills' => 'Compétences démontrées',
             'provisional' => 'intitulé provisoire',
             'provisional_note' => 'Les intitulés marqués d’un astérisque sont provisoires : la feuille de suivi officielle de l’année n’est pas encore publiée.',
+            'see_projects' => 'Voir mes projets',
+            'see_cv' => 'Voir mon CV',
+            'footer_links' => 'Liens',
+            'contact' => 'Contact',
+            'projects_description' => 'Les projets de Morgan Voltz, développeur full-stack : C#, Rust, PHP. Pour chaque fiche, le problème, les décisions techniques et les leçons tirées.',
         ],
         'de' => [
             'projects' => 'Projekte',
@@ -63,6 +70,11 @@ function portfolio_md_child_strings(): array
             'skills' => 'Nachgewiesene Kompetenzen',
             'provisional' => 'vorläufige Bezeichnung',
             'provisional_note' => 'Mit einem Sternchen markierte Bezeichnungen sind vorläufig: Der offizielle Kompetenzbogen des Jahrgangs ist noch nicht veröffentlicht.',
+            'see_projects' => 'Meine Projekte ansehen',
+            'see_cv' => 'Meinen Lebenslauf ansehen',
+            'footer_links' => 'Links',
+            'contact' => 'Kontakt',
+            'projects_description' => 'Projekte von Morgan Voltz, Full-Stack-Entwickler: C#, Rust, PHP. Zu jedem Projekt das Problem, die technischen Entscheidungen und die Erkenntnisse.',
         ],
         'en' => [
             'projects' => 'Projects',
@@ -84,7 +96,27 @@ function portfolio_md_child_strings(): array
             'skills' => 'Skills demonstrated',
             'provisional' => 'provisional wording',
             'provisional_note' => 'Wordings marked with an asterisk are provisional: the official skills sheet of the year is not published yet.',
+            'see_projects' => 'See my projects',
+            'see_cv' => 'See my résumé',
+            'footer_links' => 'Links',
+            'contact' => 'Contact',
+            'projects_description' => 'Projects by Morgan Voltz, full-stack developer: C#, Rust, PHP. Each sheet tells the problem, the technical decisions and the lessons learned.',
         ],
+    ];
+}
+
+/**
+ * The profiles the footer links to, in their order (ADR-027): addresses, not
+ * words, so the same in every language. The e-mail address is not one of
+ * them: it lives on the Contact page alone (content/README.md), which the
+ * footer links to instead.
+ *
+ * @return array<string, string> label => URL
+ */
+function portfolio_md_child_profiles(): array
+{
+    return [
+        'GitHub' => 'https://github.com/morgan-voltz',
     ];
 }
 

@@ -1,0 +1,90 @@
+<!doctype html>
+<!--
+  The source of theme/portfolio-md-child/assets/og-image.png, the default image of the social
+  cards (ADR-027). Not deployed: deploy-o2switch.sh ships theme/portfolio-md-child/ only.
+  Language-neutral on purpose: one image serves the three languages of the site.
+  To regenerate it, from the root of the repository:
+    chromium-browser --headless=new --disable-gpu --hide-scrollbars --virtual-time-budget=3000 \
+      --window-size=1200,630 --screenshot=theme/portfolio-md-child/assets/og-image.png \
+      "file://$PWD/theme/og-image/og-image.html"
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Morgan Voltz</title>
+<style>
+	@font-face {
+		font-family: "Space Grotesk Variable";
+		font-weight: 300 700;
+		src: url("../portfolio-md-child/fonts/space-grotesk/space-grotesk-latin-wght-normal.woff2") format("woff2-variations");
+	}
+	@font-face {
+		font-family: "Inter Variable";
+		font-weight: 100 900;
+		src: url("../portfolio-md-child/fonts/inter/inter-latin-wght-normal.woff2") format("woff2-variations");
+	}
+	html, body {
+		margin: 0;
+		width: 1200px;
+		height: 630px;
+		overflow: hidden;
+	}
+	body {
+		display: flex;
+		align-items: center;
+		gap: 64px;
+		box-sizing: border-box;
+		padding: 0 96px;
+		background: linear-gradient(135deg, #0b1f3a 0%, #12305a 100%);
+		color: #ffffff;
+		font-family: "Inter Variable", sans-serif;
+	}
+	img {
+		width: 208px;
+		height: 208px;
+		flex: none;
+	}
+	.line {
+		width: 64px;
+		height: 6px;
+		margin-bottom: 28px;
+		border-radius: 999px;
+		background: #22d3ee;
+	}
+	h1 {
+		margin: 0;
+		font-size: 96px;
+		font-weight: 700;
+		line-height: 1;
+		letter-spacing: -0.02em;
+	}
+	h1 span {
+		font-weight: 300;
+		color: #22d3ee;
+	}
+	p {
+		margin: 28px 0 0;
+		font-family: "Space Grotesk Variable", sans-serif;
+		font-size: 40px;
+		font-weight: 500;
+		color: #cbd5e1;
+	}
+	p.site {
+		margin-top: 36px;
+		font-family: "Inter Variable", sans-serif;
+		font-size: 28px;
+		font-weight: 600;
+		color: #22d3ee;
+	}
+</style>
+</head>
+<body>
+	<img src="icone-signal-512.png" alt="">
+	<div>
+		<div class="line"></div>
+		<h1>Morgan <span>Voltz</span></h1>
+		<p>Full-stack · Rust · C# · PHP</p>
+		<p class="site">morganvoltz.dev</p>
+	</div>
+</body>
+</html>

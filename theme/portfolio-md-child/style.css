@@ -1,11 +1,11 @@
 /*
 Theme Name: Portfolio MD
 Theme URI: https://github.com/morgan-voltz/portfolio-md
-Description: Child theme of GeneratePress for the WordPress portfolio (ADR-022, phase 10): the language switcher, the lists with fallback and the FR badge of a trilingual site whose content comes from the portfolio-md plugin, the page of a project with its facts, tags and skills, and the sober design of the site.
+Description: Child theme of GeneratePress for the WordPress portfolio (ADR-022, phase 10, ADR-027): the language switcher, the lists with fallback and the FR badge of a trilingual site whose content comes from the portfolio-md plugin, the page of a project with its facts, tags and skills, and the visual identity of the site: its fonts served by the theme, its colours, its header, the top of its pages and its footer.
 Author: Morgan Voltz
 Author URI: https://github.com/morgan-voltz
 Template: generatepress
-Version: 0.3.0
+Version: 0.4.0
 Requires at least: 7.0
 Requires PHP: 8.2
 License: MIT
@@ -14,57 +14,394 @@ Text Domain: portfolio-md-child
 */
 
 /*
- * GeneratePress enqueues this stylesheet itself after its own
- * (inc/general.php, filter generate_load_child_theme_stylesheet): nothing
- * to enqueue in functions.php.
+ * GeneratePress enqueues this stylesheet itself after its own and after the
+ * CSS its Customizer generates (inc/general.php: handle generate-child,
+ * which depends on generate-style): nothing to enqueue in functions.php.
  *
- * The design (phase 10) leans on GeneratePress: its global colours
- * (--contrast, --contrast-2, --base, --base-2, --base-3, --accent, set by
- * the Customizer, with their defaults as fallbacks here), its typography and
- * its containers. The theme adds its own few tokens and the rules of what it
- * renders: the switcher, the badge, the grid of cards, the status pill, the
- * facts, tags and skills of a project page, the recent projects panel of the
- * home. Status colours are the only colours of the theme's own.
+ * The visual identity lives here, not in the Customizer (ADR-027): a rule of
+ * this file wins over a Customizer rule of the same weight because it comes
+ * later, so the selectors that override the Customizer's output repeat its
+ * own (h1, `.main-navigation a, ...`, `.separate-containers .inside-article,
+ * ...`). The Customizer's colours and typography can then be reset to the
+ * defaults of GeneratePress without changing anything on the page.
+ *
+ * The brand comes from the logo: night blue #0B1F3A and cyan #22D3EE. The
+ * cyan is pale: 1.8:1 on white, so it is never the colour of a text on a
+ * light background; it draws accents, and texts on the night blue of the
+ * footer (9.1:1). On light backgrounds, two darker cyans of the same hue
+ * take over: #0891B2 for lines and focus rings (3.7:1, enough for a
+ * non-text element), #0E7490 for a text (5.4:1).
+ *
+ * Two families (the rule of two): Space Grotesk for the headings, Inter for
+ * the text and the menu. Both are variable fonts served from fonts/ (Latin
+ * and Latin Extended subsets, SIL Open Font License: the OFL.txt of each
+ * folder); functions.php preloads the two Latin files and removes the Google Fonts
+ * stylesheet of GeneratePress. While a font loads, the text is set in a
+ * local Arial whose metrics are adjusted to the font's (size-adjust and the
+ * three overrides, computed from the average character width as Next.js
+ * and Fontaine do), so the page barely moves when the font arrives.
  */
 
+/* ---------------------------------------------------------------------------
+ * The fonts.
+ * ------------------------------------------------------------------------- */
+
+@font-face {
+	font-family: "Space Grotesk Variable";
+	font-style: normal;
+	font-weight: 300 700;
+	font-display: swap;
+	src: url("fonts/space-grotesk/space-grotesk-latin-wght-normal.woff2") format("woff2-variations");
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: "Space Grotesk Variable";
+	font-style: normal;
+	font-weight: 300 700;
+	font-display: swap;
+	src: url("fonts/space-grotesk/space-grotesk-latin-ext-wght-normal.woff2") format("woff2-variations");
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+	font-family: "Inter Variable";
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url("fonts/inter/inter-latin-wght-normal.woff2") format("woff2-variations");
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: "Inter Variable";
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url("fonts/inter/inter-latin-ext-wght-normal.woff2") format("woff2-variations");
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* The stand-ins while the fonts load: Arial (or its metric twin Liberation Sans on Linux), resized to the font. */
+@font-face {
+	font-family: "Space Grotesk Fallback";
+	src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans");
+	size-adjust: 109.69%;
+	ascent-override: 89.71%;
+	descent-override: 26.62%;
+	line-gap-override: 0%;
+}
+
+@font-face {
+	font-family: "Inter Fallback";
+	src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans");
+	size-adjust: 107.12%;
+	ascent-override: 90.44%;
+	descent-override: 22.52%;
+	line-gap-override: 0%;
+}
+
+/* ---------------------------------------------------------------------------
+ * The tokens: the brand, GeneratePress's palette redefined from it (its CSS
+ * and the Customizer's read these variables, so every var(--accent) of the
+ * page follows), and the theme's own.
+ * ------------------------------------------------------------------------- */
+
 :root {
-	--pm-text-muted: var(--contrast-2, #575760);
-	/* --base is a background token of GeneratePress (#f0f0f0): too close to its
-	   surfaces for a border. The line is a lightened --contrast-3 instead. */
-	--pm-line: #d8d8de;
-	--pm-surface: var(--base-2, #f7f8f9);
-	--pm-surface-raised: var(--base-3, #ffffff);
-	--pm-accent: var(--accent, #1e73be);
+	--pm-night: #0b1f3a;
+	--pm-night-hover: #163a66;
+	--pm-cyan: #22d3ee;
+	--pm-cyan-line: #0891b2;
+	--pm-cyan-text: #0e7490;
+	--pm-cyan-wash: #ecfeff;
+	--pm-slate: #475569;
+	--pm-mist: #cbd5e1;
+	--pm-page: #f5f7fb;
+	--pm-white: #ffffff;
+
+	--pm-font-display: "Space Grotesk Variable", "Space Grotesk Fallback", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+	--pm-font-text: "Inter Variable", "Inter Fallback", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+	--pm-font-mono: ui-monospace, "Cascadia Mono", "Fira Code", Menlo, Consolas, monospace;
+
+	--contrast: var(--pm-night);
+	--contrast-2: var(--pm-slate);
+	--contrast-3: #94a3b8;
+	--base: var(--pm-page);
+	--base-2: var(--pm-page);
+	--base-3: var(--pm-white);
+	--accent: var(--pm-cyan-text);
+
+	--pm-ink: var(--pm-night);
+	--pm-text-muted: var(--pm-slate);
+	--pm-line: #dbe3ee;
+	--pm-surface: #f1f5f9;
+	--pm-surface-raised: var(--pm-white);
+	--pm-accent: var(--pm-cyan-text);
 	--pm-radius: 0.4rem;
-	--pm-status-en-cours: var(--accent, #1e73be);
+	--pm-radius-lg: 0.75rem;
+	--pm-status-en-cours: var(--pm-cyan-line);
 	--pm-status-stable: #2e7d32;
 	--pm-status-archive: #6b6b76;
 	--pm-status-prototype: #b26a00;
 }
 
-@supports (color: color-mix(in srgb, red 50%, transparent)) {
-	:root {
-		--pm-line: color-mix(in srgb, var(--contrast-3, #b2b2be) 55%, transparent);
-	}
+/* ---------------------------------------------------------------------------
+ * The text and the headings. The selectors repeat those of the Customizer's
+ * typography, whose rules come earlier (h1 to h3, the body's).
+ * ------------------------------------------------------------------------- */
+
+body,
+button,
+input,
+select,
+textarea {
+	font-family: var(--pm-font-text);
+	font-weight: 400;
+}
+
+body {
+	background-color: var(--pm-page);
+	color: var(--pm-ink);
+	font-size: 1.0625rem;
+	line-height: 1.65;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	font-family: var(--pm-font-display);
+	color: var(--pm-ink);
+	letter-spacing: -0.01em;
+	text-decoration: none;
+}
+
+/* Space Grotesk stops at 700: a heavier weight would be drawn by the browser, smudged. */
+h1 {
+	font-weight: 700;
+	font-size: clamp(2rem, 1.55rem + 1.9vw, 2.75rem);
+	line-height: 1.15;
+}
+
+h2 {
+	font-weight: 700;
+	font-size: clamp(1.45rem, 1.25rem + 0.85vw, 1.9rem);
+	line-height: 1.25;
+}
+
+h3 {
+	font-weight: 600;
+	font-size: 1.25rem;
+	line-height: 1.3;
+}
+
+h4,
+h5,
+h6 {
+	font-weight: 600;
+}
+
+code,
+kbd,
+pre,
+samp {
+	font-family: var(--pm-font-mono);
+}
+
+/* ---------------------------------------------------------------------------
+ * The links: the colour of the text, underlined in cyan, so that a link is
+ * told by its underline and not by its colour alone (WCAG 1.4.1); the focus
+ * ring of every control, in the darker cyan.
+ * ------------------------------------------------------------------------- */
+
+a {
+	color: var(--pm-ink);
+	text-decoration-line: underline;
+	text-decoration-color: var(--pm-cyan-line);
+	text-decoration-thickness: 2px;
+	text-underline-offset: 0.2em;
+}
+
+a:hover,
+a:focus,
+a:active {
+	color: var(--pm-cyan-text);
+	text-decoration-color: currentColor;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+	outline: 3px solid var(--pm-cyan-line);
+	outline-offset: 2px;
+}
+
+/* Links whose place says they are links: a title, the logo, the menu, a button. */
+.entry-title a,
+.site-logo a,
+.main-navigation a,
+.pm-button {
+	text-decoration: none;
 }
 
 /* ---------------------------------------------------------------------------
  * The layout (phase 10): one column (functions.php filters
- * generate_sidebar_layout to no-sidebar), the content of GeneratePress held
- * to a comfortable width, and the body text of a page or a project kept to a
- * readable measure while the grids of cards use the whole width.
+ * generate_sidebar_layout to no-sidebar), every container of GeneratePress
+ * held to the same width, so that the logo starts where the text starts;
+ * the white surfaces of the content on the light page (the selector of the
+ * Customizer's content background, which held a pink), and the body text
+ * of a page or a project kept to a readable measure while the grids of
+ * cards use the whole width.
  * ------------------------------------------------------------------------- */
 
-.site-content {
+.grid-container {
 	max-width: 64rem;
-	margin-left: auto;
-	margin-right: auto;
+}
+
+/* The header and the footer: GeneratePress widens their inner box by its padding (its container
+   width plus 2 × 40px, from the Customizer), so that their content starts at the edge of the
+   content box. The same rule, from the width of this theme. */
+.inside-header.grid-container,
+.inside-site-info.grid-container {
+	max-width: calc(64rem + 80px);
+}
+
+.inside-header,
+.inside-site-info {
+	padding-left: 40px;
+	padding-right: 40px;
+}
+
+@media (max-width: 768px) {
+	.inside-header,
+	.inside-site-info {
+		padding-left: 30px;
+		padding-right: 30px;
+	}
+}
+
+.separate-containers .inside-article,
+.separate-containers .comments-area,
+.separate-containers .page-header,
+.one-container .container,
+.separate-containers .paging-navigation,
+.inside-page-header {
+	background-color: var(--pm-surface-raised);
+}
+
+.separate-containers .site-main > article > .inside-article,
+.separate-containers .page-header {
+	border: 1px solid var(--pm-line);
+	border-radius: var(--pm-radius-lg);
+}
+
+/* On a phone the content runs from edge to edge: no rounded side borders against the screen. */
+@media (max-width: 768px) {
+	.separate-containers .site-main > article > .inside-article,
+	.separate-containers .page-header {
+		border-right: 0;
+		border-left: 0;
+		border-radius: 0;
+	}
 }
 
 .single .entry-content,
 .page .entry-content,
 .project-header {
 	max-width: 46em;
+}
+
+/* ---------------------------------------------------------------------------
+ * The header (ADR-027): a white band across the page, the logo of the theme
+ * on the left, the menu on its right (functions.php sets the navigation
+ * location), the mobile menu button in the same line. The band is full
+ * width even when the Customizer contains the header; its content keeps
+ * the width of the page.
+ * ------------------------------------------------------------------------- */
+
+.site-header {
+	background-color: var(--pm-surface-raised);
+	border-bottom: 1px solid var(--pm-line);
+}
+
+.site-header.grid-container {
+	max-width: none;
+}
+
+.inside-header {
+	padding-top: 0.75rem;
+	padding-bottom: 0.75rem;
+}
+
+.site-logo {
+	line-height: 0;
+}
+
+.site-header .header-image {
+	width: 240px;
+	height: auto;
+}
+
+.main-navigation,
+.main-navigation ul ul {
+	background-color: var(--pm-surface-raised);
+}
+
+.main-navigation a,
+.main-navigation .menu-toggle,
+.main-navigation .menu-bar-items {
+	font-family: var(--pm-font-text);
+	font-weight: 500;
+	font-style: normal;
+	font-size: 1.0625rem;
+}
+
+/* The colours of the menu, every state given, the backgrounds of the Customizer's included. */
+.main-navigation .main-nav ul li a,
+.main-navigation .menu-toggle,
+.main-navigation .menu-bar-items {
+	color: var(--pm-ink);
+	background-color: transparent;
+}
+
+.main-navigation .main-nav ul li:not([class*="current-menu-"]):hover > a,
+.main-navigation .main-nav ul li:not([class*="current-menu-"]):focus > a,
+.main-navigation .main-nav ul li.sfHover:not([class*="current-menu-"]) > a,
+.main-navigation .menu-bar-item:hover > a,
+.main-navigation .menu-bar-item.sfHover > a,
+button.menu-toggle:hover,
+button.menu-toggle:focus {
+	color: var(--pm-cyan-text);
+	background-color: transparent;
+}
+
+/* The page you are on: the colour of the text, a cyan underline (not the colour alone). */
+.main-navigation .main-nav ul li[class*="current-menu-"] > a,
+.main-navigation .main-nav ul ul li[class*="current-menu-"] > a {
+	color: var(--pm-ink);
+	background-color: transparent;
+	text-decoration-line: underline;
+	text-decoration-color: var(--pm-cyan-line);
+	text-decoration-thickness: 3px;
+	text-underline-offset: 0.45em;
+}
+
+@media (max-width: 768px) {
+	.inside-header {
+		padding-top: 0.5rem;
+		padding-bottom: 0.5rem;
+	}
+
+	.site-header .header-image {
+		width: 180px;
+	}
 }
 
 /* ---------------------------------------------------------------------------
@@ -103,6 +440,92 @@ Text Domain: portfolio-md-child
 }
 
 /* ---------------------------------------------------------------------------
+ * The top of a page (ADR-027): the headline of the document as the h1, a
+ * short cyan line above it (the line of the logo), the subtitle as a deck,
+ * and on the home page the two buttons, the first filled in night blue, the
+ * second outlined, both at least 44 pixels high for a finger.
+ * ------------------------------------------------------------------------- */
+
+.page-headline {
+	max-width: 20ch;
+	margin-bottom: 0.4em;
+	font-size: clamp(2.25rem, 1.55rem + 2.9vw, 3.5rem);
+	line-height: 1.08;
+	letter-spacing: -0.02em;
+}
+
+.page-headline::before {
+	content: "";
+	display: block;
+	width: 3rem;
+	height: 0.25rem;
+	margin-bottom: 1.25rem;
+	border-radius: 999px;
+	background-color: var(--pm-cyan);
+}
+
+.page-deck {
+	max-width: 42em;
+	margin: 0 0 1.75rem;
+	font-size: clamp(1.1rem, 1rem + 0.4vw, 1.3rem);
+	font-weight: 500;
+	line-height: 1.5;
+	color: var(--pm-text-muted);
+}
+
+.page-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	margin: 0;
+}
+
+.home .site-main > article > .inside-article > .entry-header {
+	margin-bottom: 2.25rem;
+	padding-bottom: 2.25rem;
+	border-bottom: 1px solid var(--pm-line);
+}
+
+.pm-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 2.75rem;
+	padding: 0.65rem 1.35rem;
+	border: 2px solid var(--pm-night);
+	border-radius: 0.6rem;
+	font-family: var(--pm-font-text);
+	font-size: 1rem;
+	font-weight: 600;
+	line-height: 1.2;
+	text-decoration: none;
+	transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.pm-button.is-primary {
+	background-color: var(--pm-night);
+	color: var(--pm-white);
+}
+
+.pm-button.is-primary:hover,
+.pm-button.is-primary:focus {
+	background-color: var(--pm-night-hover);
+	border-color: var(--pm-night-hover);
+	color: var(--pm-white);
+}
+
+.pm-button.is-secondary {
+	background-color: transparent;
+	color: var(--pm-night);
+}
+
+.pm-button.is-secondary:hover,
+.pm-button.is-secondary:focus {
+	background-color: var(--pm-cyan-wash);
+	color: var(--pm-night);
+}
+
+/* ---------------------------------------------------------------------------
  * The cards (points 6 and 8; phase 10): a grid that fills the width with
  * cards of at least 17rem, every card as tall as its row, title, status,
  * then the subtitle. The markup is the one GeneratePress gives a post, so
@@ -127,7 +550,21 @@ Text Domain: portfolio-md-child
 	flex-direction: column;
 	height: 100%;
 	border: 1px solid var(--pm-line);
-	border-radius: var(--pm-radius);
+	border-radius: var(--pm-radius-lg);
+	background-color: var(--pm-surface-raised);
+	transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.portfolio-card .inside-article:hover,
+.portfolio-card .inside-article:focus-within {
+	border-color: var(--pm-cyan-line);
+	box-shadow: 0 0.75rem 1.5rem -1rem rgba(11, 31, 58, 0.35);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.portfolio-card .inside-article:hover {
+		transform: translateY(-2px);
+	}
 }
 
 .portfolio-card .inside-article > .entry-header {
@@ -137,6 +574,20 @@ Text Domain: portfolio-md-child
 .portfolio-card .entry-title {
 	font-size: 1.25em;
 	margin-bottom: 0.35em;
+}
+
+.portfolio-card .entry-title a {
+	color: var(--pm-ink);
+	text-decoration: none;
+}
+
+.portfolio-card .entry-title a:hover,
+.portfolio-card .entry-title a:focus {
+	color: var(--pm-cyan-text);
+	text-decoration: underline;
+	text-decoration-color: currentColor;
+	text-decoration-thickness: 2px;
+	text-underline-offset: 0.2em;
 }
 
 .portfolio-card .project-card-status {
@@ -321,7 +772,7 @@ Text Domain: portfolio-md-child
 }
 
 .skill-code {
-	font-family: ui-monospace, "Cascadia Mono", "Fira Code", Menlo, Consolas, monospace;
+	font-family: var(--pm-font-mono);
 	font-size: 0.85em;
 	color: var(--pm-text-muted);
 }
@@ -367,12 +818,73 @@ Text Domain: portfolio-md-child
 
 .home-projects .portfolio-card .inside-article {
 	padding: 1.25em;
-	background: var(--pm-surface-raised);
 }
 
 .home-projects-more {
 	margin: 0;
 	font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------------
+ * The footer (ADR-027): a night-blue band, the copyright on the left and the
+ * links on the right (functions.php writes them instead of GeneratePress's
+ * credit), the brand cyan as the colour of the links, legible on this
+ * background.
+ * ------------------------------------------------------------------------- */
+
+.site-info {
+	background-color: var(--pm-night);
+	color: var(--pm-mist);
+	font-size: 0.95rem;
+}
+
+.inside-site-info {
+	padding-top: 1.75rem;
+	padding-bottom: 1.75rem;
+}
+
+.copyright-bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem 1.5rem;
+	width: 100%;
+}
+
+.footer-links ul {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem 1.5rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+/* Underlined like every link, in their own colour: the cyan alone would not tell them from the text. */
+.site-info a {
+	color: var(--pm-cyan);
+	text-decoration-line: underline;
+	text-decoration-color: currentColor;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 0.25em;
+}
+
+.site-info a:hover,
+.site-info a:focus {
+	color: var(--pm-white);
+	text-decoration-thickness: 2px;
+}
+
+.site-info a:focus-visible {
+	outline-color: var(--pm-cyan);
+}
+
+@media (max-width: 768px) {
+	.copyright-bar {
+		justify-content: center;
+		text-align: center;
+	}
 }
 
 /* WordPress's own hidden-text class, as GeneratePress defines it, in case a parent update drops it. */
