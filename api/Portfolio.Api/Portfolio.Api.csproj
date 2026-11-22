@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <!--
+        The HTTP surface and the composition root (Program.cs): the only project
+        that knows both the core and its implementations, because it wires one
+        to the other.
+    -->
+    <ItemGroup>
+        <ProjectReference Include="..\Portfolio.Application\Portfolio.Application.csproj" />
+        <ProjectReference Include="..\Portfolio.Infrastructure\Portfolio.Infrastructure.csproj" />
+    </ItemGroup>
+
+</Project>

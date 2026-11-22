@@ -4,6 +4,9 @@
 **/obj/
 **/.vs/
 **/*.user
+# The image publishes Portfolio.Api alone: the test projects stay out, so that
+# a change of a test never invalidates the layers of the image.
+*.Tests/
 deploy/
 .env
 .env.*
