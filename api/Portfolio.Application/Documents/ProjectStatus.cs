@@ -5,9 +5,8 @@ namespace Portfolio.Application.Documents;
 /// <c>stable</c>, <c>archive</c>, <c>prototype</c>).
 /// </summary>
 /// <remarks>
-/// Reading the slug of the plugin's answers into this type, and writing it
-/// back in the API's, belongs to the client of the plugin (lot 3) and to the
-/// HTTP routes (lot 5).
+/// <see cref="ProjectStatusSlugs"/> translates between this type and those
+/// slugs, for the client of the plugin and for the HTTP routes.
 /// </remarks>
 public enum ProjectStatus
 {
