@@ -126,9 +126,11 @@ final class ChildThemeIdentityRenderTest extends TestCase
     }
 
     #[Test]
-    public function a_logo_without_a_2x_file_has_no_srcset_and_its_text_is_escaped(): void
+    public function a_vector_logo_has_no_srcset_and_its_text_is_escaped(): void
     {
-        $html = portfolio_md_child_render_logo('http://example.test/', 'http://example.test/logo.png', '', 240, 69, 'Morgan "MV" Voltz');
+        $html = portfolio_md_child_render_logo('http://example.test/', 'http://example.test/logo-morgan-voltz.svg', '', 240, 69, 'Morgan "MV" Voltz');
+
+        self::assertStringContainsString('src="http://example.test/logo-morgan-voltz.svg" width="240" height="69"', $html);
 
         self::assertStringNotContainsString('srcset', $html);
         self::assertStringContainsString('alt="Morgan &quot;MV&quot; Voltz"', $html);

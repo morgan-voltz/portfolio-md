@@ -404,9 +404,10 @@ function portfolio_md_child_render_page_intro(string $headline, string $subtitle
  * The logo of the header (ADR-027), the whole markup GeneratePress prints
  * for its own logo (`.site-logo`, `.header-image`), so that its header rules
  * apply: a link to the home of the language, an image shipped in the theme
- * with its 2x version, its size written out so the header does not move
- * when it loads, and the name of the site as its text, which a screen
- * reader reads as the name of the link. The logo carries the name of the
+ * (a vector file, or a bitmap with its 2x version when $src2x is given),
+ * its size written out so the header does not move when it loads, and the
+ * name of the site as its text, which a screen reader reads as the name of
+ * the link. The logo carries the name of the
  * site, so the header prints no title beside it (functions.php).
  */
 function portfolio_md_child_render_logo(string $homeUrl, string $src, string $src2x, int $width, int $height, string $alt): string

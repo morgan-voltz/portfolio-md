@@ -36,7 +36,11 @@ use Voltz\PortfolioMd\Domain\Language;
 require_once __DIR__ . '/inc/strings.php';
 require_once __DIR__ . '/inc/render.php';
 
-/** The logo of the header, shipped in assets/ at 1x and 2x: its CSS width, in pixels, and its height at that width. */
+/**
+ * The logo of the header, a vector file in assets/ (the brand's logo of theme/logos/, its
+ * viewBox trimmed to the drawing, 892 × 256): its CSS width, in pixels, and its height at that width.
+ */
+const PORTFOLIO_MD_CHILD_LOGO = 'assets/logo-morgan-voltz.svg';
 const PORTFOLIO_MD_CHILD_LOGO_WIDTH = 240;
 const PORTFOLIO_MD_CHILD_LOGO_HEIGHT = 69;
 
@@ -265,22 +269,21 @@ add_filter('generate_navigation_location', 'portfolio_md_child_navigation_locati
  * The logo of the header is the theme's (ADR-027). GeneratePress prints a
  * logo only when it has an address for one: the filter gives it the
  * theme's, then the output filter replaces its markup by the theme's own,
- * whose size does not depend on a logo set in the Customizer.
+ * whose size does not depend on a logo set in the Customizer. A vector
+ * file is sharp on every screen, so it needs no 2x version.
  */
 function portfolio_md_child_logo_url(): string
 {
-    return get_stylesheet_directory_uri() . '/assets/logo-240.png';
+    return get_stylesheet_directory_uri() . '/' . PORTFOLIO_MD_CHILD_LOGO;
 }
 add_filter('generate_logo', 'portfolio_md_child_logo_url');
 
 function portfolio_md_child_logo_output(): string
 {
-    $assets = get_stylesheet_directory_uri() . '/assets/';
-
     return portfolio_md_child_render_logo(
         home_url('/'),
-        $assets . 'logo-240.png',
-        $assets . 'logo-480.png',
+        portfolio_md_child_logo_url(),
+        '',
         PORTFOLIO_MD_CHILD_LOGO_WIDTH,
         PORTFOLIO_MD_CHILD_LOGO_HEIGHT,
         (string) get_bloginfo('name'),
