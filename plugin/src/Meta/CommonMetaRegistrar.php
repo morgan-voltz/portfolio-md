@@ -5,16 +5,19 @@ declare(strict_types=1);
 namespace Voltz\PortfolioMd\Meta;
 
 use Voltz\PortfolioMd\Domain\Frontmatter;
+use Voltz\PortfolioMd\PostTypes\PostTypeRegistrar;
 
 /**
- * Registers the post metas shared by articles and projects.
+ * Registers the post metas shared by articles and projects, and those of the
+ * native pages.
  *
- * Four public fields (exposed in the REST API, editable by anyone allowed to
- * edit the post). `subtitle` and `reading_time` only make editorial sense on
- * articles but are registered on both post types: an unused meta on a project
- * costs nothing, while a fourth registrar for a single field would. The SEO
- * description is also registered on the native page type, whose documents
- * (content/fr/pages) carry one.
+ * Five public fields (exposed in the REST API, editable by anyone allowed to
+ * edit the post). `reading_time` only makes editorial sense on articles but
+ * is registered on both post types: an unused meta on a project costs
+ * nothing, while a fourth registrar for a single field would. The SEO
+ * description and the subtitle are also registered on the native page type,
+ * whose documents (content/<lang>/pages) may carry them, and the headline
+ * on that type only (ADR-027): the heading a page shows instead of its title.
  *
  * Hooked on the WordPress `init` action by the composition root (`Plugin`).
  * See docs/architecture/04-structure-wordpress.md section 5.1.
@@ -25,14 +28,15 @@ final class CommonMetaRegistrar
     public const FEATURED = '_portfolio_featured';
     public const READING_TIME = '_portfolio_reading_time';
     public const SUBTITLE = '_portfolio_subtitle';
+    public const HEADLINE = '_portfolio_headline';
 
     /** Same bounds as the frontmatter contract: the domain owns them, this adapter applies them. */
     public const SEO_DESCRIPTION_MAX_LENGTH = Frontmatter::SEO_DESCRIPTION_MAX_LENGTH;
     public const READING_TIME_MAX_MINUTES = Frontmatter::READING_TIME_MAX_MINUTES;
 
     /**
-     * Registers all shared post metas on both post types, and the SEO
-     * description on pages as well.
+     * Registers all shared post metas on both post types, the SEO description
+     * and the subtitle on pages as well, and the headline on pages only.
      */
     public function register(): void
     {
@@ -65,8 +69,18 @@ final class CommonMetaRegistrar
             self::SUBTITLE,
             'string',
             '',
-            'Short subtitle or summary line for articles.',
+            'Short subtitle or summary line of an article, a project or a page.',
             [self::class, 'sanitizeSubtitle'],
+            MetaRegistration::MARKDOWN_POST_TYPES,
+        );
+
+        $this->registerMeta(
+            self::HEADLINE,
+            'string',
+            '',
+            'Heading shown on the page instead of its title, which still names it in menus and search results.',
+            [self::class, 'sanitizeHeadline'],
+            [PostTypeRegistrar::PAGE],
         );
     }
 
@@ -117,6 +131,11 @@ final class CommonMetaRegistrar
     }
 
     public static function sanitizeSubtitle(mixed $value): string
+    {
+        return Sanitizer::text($value);
+    }
+
+    public static function sanitizeHeadline(mixed $value): string
     {
         return Sanitizer::text($value);
     }

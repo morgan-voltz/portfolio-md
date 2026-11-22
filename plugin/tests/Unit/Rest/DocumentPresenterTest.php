@@ -111,10 +111,11 @@ final class DocumentPresenterTest extends TestCase
     }
 
     #[Test]
-    public function a_page_carries_the_common_fields_only(): void
+    public function a_page_carries_the_common_fields_its_headline_and_its_subtitle(): void
     {
         $page = Documents::page();
 
+        // A page without headline nor subtitle says so with nulls, like every optional text.
         self::assertSame([
             'id' => 195,
             'type' => 'page',
@@ -128,9 +129,30 @@ final class DocumentPresenterTest extends TestCase
             'link' => 'http://example.test/a-propos/',
             'date' => '2026-10-25T22:00:00Z',
             'updated' => '2026-10-27T12:07:00Z',
+            'headline' => null,
+            'subtitle' => null,
             'seo_description' => 'Qui je suis.',
             'markdown' => $page->markdown,
         ], $this->presenter->present($page));
+    }
+
+    #[Test]
+    public function the_headline_and_the_subtitle_of_a_page_come_after_the_dates(): void
+    {
+        $data = $this->presenter->present(Documents::page(['headline' => 'Du câblage au code.', 'subtitle' => 'Développeur full-stack']));
+
+        self::assertSame('Du câblage au code.', $data['headline']);
+        self::assertSame('Développeur full-stack', $data['subtitle']);
+        self::assertSame(['updated', 'headline', 'subtitle', 'seo_description'], array_slice(array_keys($data), 11, 4));
+        self::assertArrayNotHasKey('tags', $data);
+        self::assertArrayNotHasKey('featured', $data);
+    }
+
+    #[Test]
+    public function only_a_page_carries_a_headline(): void
+    {
+        self::assertArrayNotHasKey('headline', $this->presenter->present(Documents::article()));
+        self::assertArrayNotHasKey('headline', $this->presenter->present(Documents::project()));
     }
 
     #[Test]

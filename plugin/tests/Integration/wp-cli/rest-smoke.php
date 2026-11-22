@@ -186,6 +186,8 @@ slug: "zz-smoke-page"
 type: "page"
 lang: "fr"
 date: 2026-10-24
+headline: "Accroche de la page de fumée."
+subtitle: "Sous-titre de la page de fumée"
 seo_description: "Description de la page de fumée."
 ---
 
@@ -385,8 +387,8 @@ try {
 
     $response = $get('/pages/zz-smoke-page');
     $data = $response->get_data();
-    $check('GET /pages/{slug} answers 200 with the common fields only', $response->get_status() === 200 && array_keys($data) === ['id', 'type', 'slug', 'lang', 'translation_key', 'translations', 'is_fallback', 'requested_language', 'title', 'link', 'date', 'updated', 'seo_description', 'markdown'], implode(',', array_keys((array) $data)));
-    $check('and the page\'s values', ($data['id'] ?? null) === $pageId && ($data['type'] ?? null) === 'page' && ($data['seo_description'] ?? null) === 'Description de la page de fumée.' && ($data['markdown'] ?? null) === $page);
+    $check('GET /pages/{slug} answers 200 with the common fields, the headline and the subtitle (ADR-027)', $response->get_status() === 200 && array_keys($data) === ['id', 'type', 'slug', 'lang', 'translation_key', 'translations', 'is_fallback', 'requested_language', 'title', 'link', 'date', 'updated', 'headline', 'subtitle', 'seo_description', 'markdown'], implode(',', array_keys((array) $data)));
+    $check('and the page\'s values', ($data['id'] ?? null) === $pageId && ($data['type'] ?? null) === 'page' && ($data['headline'] ?? null) === 'Accroche de la page de fumée.' && ($data['subtitle'] ?? null) === 'Sous-titre de la page de fumée' && ($data['seo_description'] ?? null) === 'Description de la page de fumée.' && ($data['markdown'] ?? null) === $page);
     $check('GET /pages lists the documented page and not the hand-made one', in_array('zz-smoke-page', $slugsOf($get('/pages', ['per_page' => '100'])), true) && !in_array('zz-smoke-handmade-page', $slugsOf($get('/pages', ['per_page' => '100'])), true));
 
     // 6. What is not served -----------------------------------------------------------------------------
