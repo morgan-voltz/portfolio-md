@@ -5,9 +5,9 @@
 **Prérequis** : avoir lu [`00-overview.md`](00-overview.md)
 **Lectorat** : contributeur .NET, Morgan en phase d'implémentation, relecteur technique
 **Temps de lecture** : environ vingt-cinq minutes
-**Dernière mise à jour** : 22 novembre 2026 (lot 2 d'ADR-026 : le cœur de l'API, sections 3, 4, 9.2, 10 et 11 réécrites d'après le code ; ADR-026 : un catalogue en mémoire remplace le cache par clé, bandeau de renvoi en tête, sections à réécrire lot par lot ; ADR-025 : .NET 11 et C# 15 à la place de .NET 10 ; le 8 novembre, ADR-023 : .NET 10, en-têtes transmis, HTTPS par Traefik, santé et observation, configuration par l'environnement ; libellés dans la langue demandée et clé `official` des compétences, ADR-020 lot 4 ; la langue dans les routes du plugin et dans les clés de cache, ADR-021 ; contrat réel des routes du plugin le 29 octobre, phase 5 ; version d'origine du 22 avril 2026)
+**Dernière mise à jour** : 22 novembre 2026 (lot 3 d'ADR-026 : le client du plugin, sections 3, 3.3, 10 et 11 ; lot 2 : le cœur de l'API, sections 3, 4, 9.2, 10 et 11 réécrites d'après le code ; ADR-026 : un catalogue en mémoire remplace le cache par clé, bandeau de renvoi en tête, sections à réécrire lot par lot ; ADR-025 : .NET 11 et C# 15 à la place de .NET 10 ; le 8 novembre, ADR-023 : .NET 10, en-têtes transmis, HTTPS par Traefik, santé et observation, configuration par l'environnement ; libellés dans la langue demandée et clé `official` des compétences, ADR-020 lot 4 ; la langue dans les routes du plugin et dans les clés de cache, ADR-021 ; contrat réel des routes du plugin le 29 octobre, phase 5 ; version d'origine du 22 avril 2026)
 
-> **À lire d'abord : ADR-026 (22 novembre 2026) révise ce document.** L'API ne tient plus un cache par clé rempli à la demande : elle garde en mémoire un catalogue complet du contenu publié, qu'un service de fond recharge quand le `/sitemap` change, et une requête ne déclenche jamais d'appel à WordPress. Depuis le lot 2, les sections 3, 4, 9.2, 10 et 11 décrivent le code. Les sections 5 à 8 décrivent encore l'ancienne conception ; elles seront réécrites avec les lots qui les concernent : le rendu Markdown au lot 4, le rafraîchissement et les routes au lot 5, l'exploitation au lot 7. Là où ce document et ADR-026 se contredisent, ADR-026 fait foi ([`99-decisions.md`](99-decisions.md)).
+> **À lire d'abord : ADR-026 (22 novembre 2026) révise ce document.** L'API ne tient plus un cache par clé rempli à la demande : elle garde en mémoire un catalogue complet du contenu publié, qu'un service de fond recharge quand le `/sitemap` change, et une requête ne déclenche jamais d'appel à WordPress. Depuis les lots 2 et 3, les sections 3, 4, 9.2, 10 et 11 décrivent le code. Les sections 5 à 8 décrivent encore l'ancienne conception ; elles seront réécrites avec les lots qui les concernent : le rendu Markdown au lot 4, le rafraîchissement et les routes au lot 5, l'exploitation au lot 7. Là où ce document et ADR-026 se contredisent, ADR-026 fait foi ([`99-decisions.md`](99-decisions.md)).
 
 ---
 
@@ -59,7 +59,7 @@ Clean Architecture en version légère (trois projets au lieu des quatre canoniq
 
 ## 3. La structure en trois projets
 
-La solution `api/Portfolio.slnx` contient trois projets qui forment un graphe de dépendances strict, et deux projets de tests ; le troisième arrive avec le lot 3. L'arbre montre le code des lots 1 et 2 ; les lignes entre parenthèses annoncent ce qu'apportent les lots suivants d'ADR-026.
+La solution `api/Portfolio.slnx` contient trois projets qui forment un graphe de dépendances strict, et un projet de tests pour chacun. L'arbre montre le code des lots 1 à 3 ; les lignes entre parenthèses annoncent ce qu'apportent les lots suivants d'ADR-026.
 
 ```
 api/
@@ -74,13 +74,15 @@ api/
 ├── Portfolio.Application/             # Le cœur : aucun paquet, aucun autre projet
 │   ├── Documents/                     # Document, hiérarchie fermée : Article, Project, Page,
 │   │                                  #   et leurs valeurs : Tag, Skill, Status, ProjectStatus
+│   │                                  #   (ProjectStatusSlugs : en-cours <-> EnCours…)
 │   ├── Catalog.cs                     # L'instantané immuable du contenu publié
 │   ├── CollectionSnapshot.cs          # Une collection de l'instantané : listes et index des slugs
 │   ├── CatalogStore.cs                # Le catalogue courant, remplacé d'un seul geste
 │   ├── CatalogQuery.cs, PagedList.cs  # Ce qu'un lecteur demande, ce qu'il reçoit
 │   ├── LanguageLists.cs               # Les trois listes d'une collection, entrée du catalogue
 │   ├── CatalogBuildOutcome.cs         # Un catalogue, ou des rangs qui ne s'alignent pas
-│   ├── Language.cs, CollectionKind.cs, Slugs.cs
+│   ├── Language.cs, LanguageCodes.cs  # Les langues du site, et leurs codes fr, de, en
+│   ├── CollectionKind.cs, Slugs.cs
 │   ├── Ports/                         # Ce que le cœur attend du monde extérieur
 │   │   ├── IWordPressClient.cs        #   le plugin (implémenté au lot 3)
 │   │   ├── IMarkdownRenderer.cs       #   le rendu HTML (implémenté au lot 4)
@@ -91,11 +93,16 @@ api/
 │       └── ListDocuments.cs           #   rend DocumentListing : PagedList<Document> | CatalogNotReady
 │                                      # (lot 5 : RefreshCatalog ; lot 6 : ListTagUsage, ListSkillUsage)
 │
-├── Portfolio.Infrastructure/          # Les implémentations des ports, vide jusqu'au lot 3
-│                                      # (lot 3 : WordPress/, le client du plugin ;
-│                                      #  lot 4 : Markdown/, le rendu par Markdig)
+├── Portfolio.Infrastructure/          # Les implémentations des ports
+│   └── WordPress/                     # Le client du plugin (lot 3)
+│       ├── WordPressClient.cs         #   implémente IWordPressClient avec un HttpClient
+│       ├── PluginJson.cs              #   le JSON du plugin, tel qu'il arrive
+│       ├── PluginMapping.cs           #   ce JSON traduit en documents du cœur, et vérifié
+│       └── FirewallChallenge.cs       #   la page du pare-feu de l'hébergeur, reconnue
+│                                      # (lot 4 : Markdown/, le rendu par Markdig)
 │
 ├── Portfolio.Application.Tests/       # Le cœur, et la règle des dépendances
+├── Portfolio.Infrastructure.Tests/    # Le client, sur des réponses enregistrées du plugin (Recorded/)
 ├── Portfolio.Api.Tests/               # L'API démarrée en mémoire (WebApplicationFactory)
 └── deploy/                            # Image et compose de production (ADR-023)
 ```
@@ -133,7 +140,7 @@ Les **documents** (`Documents/`). `Document` est un `closed record class` de C# 
 
 Le **catalogue**. `Catalog` est l'instantané immuable du contenu publié : `Catalog.Build` le construit à partir des neuf listes du plugin (trois collections, trois langues), et `CatalogStore` tient l'instantané courant. La section quatre suit une lecture de bout en bout.
 
-Les **ports** (`Ports/`) sont des interfaces qui définissent ce dont le cœur a besoin du monde extérieur, sans savoir comment ce besoin sera satisfait. `IWordPressClient` demande le `/sitemap` du plugin et la liste complète d'une collection dans une langue, mais ne dit rien de HTTP, de WordPress ni de JSON. Sa réponse est un `Fetch<T>`, une *union* de C# 15 : une valeur qui est exactement l'un des types qu'elle énumère, ici ce qu'on a demandé ou `SourceUnavailable` avec sa raison (erreur de réseau, délai dépassé, statut d'échec, page du pare-feu de l'hébergeur). Le cœur apprend ainsi une panne sans attraper d'exception. `IMarkdownRenderer` rend un Markdown en HTML ; il reçoit la langue du document, dont il a besoin pour réécrire les liens entre documents (ADR-026, point 8). Les implémentations concrètes vivront dans `Portfolio.Infrastructure`, aux lots 3 et 4.
+Les **ports** (`Ports/`) sont des interfaces qui définissent ce dont le cœur a besoin du monde extérieur, sans savoir comment ce besoin sera satisfait. `IWordPressClient` demande le `/sitemap` du plugin et la liste complète d'une collection dans une langue, mais ne dit rien de HTTP, de WordPress ni de JSON. Sa réponse est un `Fetch<T>`, une *union* de C# 15 : une valeur qui est exactement l'un des types qu'elle énumère, ici ce qu'on a demandé ou `SourceUnavailable` avec sa raison (erreur de réseau, délai dépassé, statut d'échec, page du pare-feu de l'hébergeur). Le cœur apprend ainsi une panne sans attraper d'exception. `IMarkdownRenderer` rend un Markdown en HTML ; il reçoit la langue du document, dont il a besoin pour réécrire les liens entre documents (ADR-026, point 8). Leurs implémentations concrètes vivent dans `Portfolio.Infrastructure` : le client du plugin depuis le lot 3 (§3.3), le rendu au lot 4.
 
 Cette inversion est le principe central de la Clean Architecture. Le cœur dicte ce qu'il veut via des interfaces. La périphérie s'adapte au cœur en implémentant ces interfaces. La dépendance logique va du cœur vers la périphérie (le cœur dit « j'ai besoin de ça »), mais la dépendance de compilation va de la périphérie vers le cœur (la périphérie référence le projet du cœur pour implémenter ses interfaces).
 
@@ -141,9 +148,15 @@ Les **cas d'usage** (`UseCases/`) : un par opération, paramétré par la collec
 
 ### 3.3. `Portfolio.Infrastructure` : les implémentations concrètes
 
-Ce projet contiendra les implémentations réelles des ports déclarés dans `Application`, par sous-dossier : `WordPress/` pour le client du plugin (lot 3), `Markdown/` pour le rendu côté C# (lot 4). Il n'y a plus de dossier `Caching/` : l'état vit dans le `CatalogStore` du cœur (ADR-026, point 6).
+Ce projet contient les implémentations réelles des ports déclarés dans `Application`, par sous-dossier : `WordPress/` pour le client du plugin (lot 3), `Markdown/` pour le rendu côté C# (lot 4). Il n'y a plus de dossier `Caching/` : l'état vit dans le `CatalogStore` du cœur (ADR-026, point 6).
 
-Chaque implémentation dépend de bibliothèques concrètes. `WordPressClient` sera un `HttpClient` typé (configuré par `AddHttpClient`) qui lit le JSON du plugin en snake_case vers des enregistrements internes à ce projet, puis les traduit en documents du cœur ; `MarkdigRenderer` utilisera Markdig et ses extensions. Ces dépendances concrètes sont confinées à ce projet : elles ne remontent jamais jusqu'à `Application`.
+**Le client du plugin** (`WordPressClient`) implémente `IWordPressClient`. C'est un client typé : au lot 5, la couche HTTP lui donnera un `HttpClient` dont l'adresse de base est la racine des routes du plugin, `https://morganvoltz.dev/wp-json/portfolio/v1/`, sans préfixe de langue et avec sa barre oblique finale ; sans elle, une requête relative `projects` remplacerait `v1` au lieu de le suivre, et le constructeur refuse donc une autre adresse. Il lit une liste en entier, cent documents par page, et vérifie que le total annoncé par `X-WP-Total` tient jusqu'à la dernière page et que les documents lus y correspondent ; sinon le contenu a changé pendant la lecture. Il ne demande que `language`, `page` et `per_page` (§7), et se présente par son `User-Agent`, `portfolio-md-api/1.0`, comme le fait le script de synchronisation.
+
+Le JSON est lu en snake_case vers des enregistrements internes à ce projet (`PluginJson.cs`), que le cœur ne voit jamais. Chaque clé que le plugin écrit toujours y est obligatoire, même celles qui peuvent valoir `null` : une clé renommée par une version future du plugin fait échouer la lecture, au lieu de devenir `null` partout sans bruit. `PluginMapping` traduit ensuite ces enregistrements en documents du cœur, en vérifiant ce dont le catalogue dépend : un document de la bonne collection, servi dans la langue demandée (un proxy qui perdrait le paramètre `language` ferait servir du français partout), un `is_fallback` cohérent avec les deux langues, des langues et des états de projet connus. Les codes de langue et les slugs des états viennent du cœur (`LanguageCodes`, `ProjectStatusSlugs`), que les routes du lot 5 réutiliseront.
+
+Le client ne lève jamais d'exception pour une défaillance du plugin. Pas de réponse, pas de réponse en vingt secondes, un statut d'échec, un corps qui n'est pas du JSON, la page du pare-feu de l'hébergeur (reconnue comme le fait le script de synchronisation, et nommée en une ligne), un JSON qui ne tient pas le contrat, une liste qui change pendant sa lecture : chaque cas donne un `SourceUnavailable` avec un motif pour le journal, et le rafraîchissement du lot 5 garde le catalogue qu'il a. Une liste est lue en entier ou pas du tout, puisque `Catalog.Build` exige trois listes alignées. Seule l'annulation demandée par l'appelant, quand l'API s'arrête, est levée. Pas de nouvel essai ici : la boucle du rafraîchissement en tient lieu (ADR-026, point 7).
+
+Chaque implémentation dépend de bibliothèques concrètes, confinées à ce projet : elles ne remontent jamais jusqu'à `Application`. Le client n'en ajoute aucune, puisque `HttpClient` et `System.Text.Json` font partie de la bibliothèque de base ; `MarkdigRenderer` utilisera Markdig et ses extensions.
 
 ### 3.4. La règle des dépendances
 
@@ -340,7 +353,7 @@ Les paquets nécessaires pour l'API restent peu nombreux ; leurs versions sont c
 
 Le projet `Portfolio.Application` n'a **aucune** dépendance : ni paquet, ni autre projet, et deux tests le vérifient (§3.2). Si un paquet s'avérait nécessaire, il faudrait se demander si l'abstraction est correcte : en général, un paquet dans le cœur est le symptôme d'une responsabilité qui devrait être dans l'infrastructure. Le `FrozenDictionary` de l'index et l'expression régulière des slugs, générée à la compilation (`[GeneratedRegex]`), viennent de la bibliothèque de base.
 
-`Markdig` sera la dépendance externe majeure de `Portfolio.Infrastructure`, au lot 4. Les paquets de l'exploitation (métriques, OpenAPI) viendront au lot 7. Il n'y a plus de cache : `Microsoft.Extensions.Caching.Memory` et `IMemoryCache` ne servent pas.
+`Markdig` sera la dépendance externe majeure de `Portfolio.Infrastructure`, au lot 4 ; le client du plugin (lot 3) n'en demande aucune, `HttpClient` et `System.Text.Json` venant de la bibliothèque de base. Les paquets de l'exploitation (métriques, OpenAPI) viendront au lot 7. Il n'y a plus de cache : `Microsoft.Extensions.Caching.Memory` et `IMemoryCache` ne servent pas.
 
 En dépendances de test : `xunit.v3.mtp-v2`, xUnit v3 sur Microsoft.Testing.Platform, et `Microsoft.AspNetCore.Mvc.Testing` pour `WebApplicationFactory`. Ni bibliothèque de simulation ni bibliothèque d'assertions (ADR-026, point 10) : des doubles de test écrits à la main et les assertions de xUnit. NSubstitute, FluentAssertions et WireMock.Net, que citait la version d'avril de ce document, ne sont pas nécessaires.
 
@@ -352,7 +365,7 @@ La structure en trois projets rend la stratégie de tests directe. Les projets d
 
 **`Portfolio.Application.Tests`** couvre le cœur, sans aucun environnement externe. Les tests construisent des listes de documents à la main (`TestData/TestDocuments.cs`), en font un catalogue et l'interrogent : l'alignement des listes, la recherche par slug sous toutes ses formes (le slug du document, celui d'une autre langue, un repli, les pages qui ont un slug par langue, les doublons dans les deux ordres), les listes filtrées et paginées, les règles de `CatalogQuery`, les cas d'usage avant et après le premier catalogue. Leurs noms sont des phrases (`A_slug_of_one_language_finds_the_document_served_in_another`), pour se lire comme une spécification. Ils vérifient l'identité des documents rendus (`Assert.Same`), et examinent les unions par filtrage de motif, jamais par `GetType()`, qui rendrait le type de l'union et non celui du cas (ADR-026, point 6). Le même projet porte les tests de la règle des dépendances (§3.2). Exécution en moins d'une seconde.
 
-**`Portfolio.Infrastructure.Tests`** arrive au lot 3. Pour le client du plugin, un gestionnaire HTTP de substitution rejouera des réponses enregistrées depuis le vrai plugin, page du pare-feu comprise ; pour le rendu Markdig (lot 4), des Markdowns d'entrée et le HTML attendu.
+**`Portfolio.Infrastructure.Tests`** teste le client du plugin sans appeler le site. Un faux plugin écrit à la main (`FakePlugin`, un `HttpMessageHandler`) rejoue les réponses que le vrai plugin a données le 22 novembre 2026, enregistrées dans `Recorded/` avec les requêtes exactes du client (son README dit comment les refaire), et retient les requêtes reçues, pour qu'un test vérifie ce que le client demande. La page du pare-feu, qu'on ne peut pas provoquer, y est la même reconstitution minimale que dans les tests du script de synchronisation. Les échecs (délai, réseau, statut, contrat rompu, liste qui change) sont fabriqués à partir de ces réponses. Deux tests branchent le client sur le cœur : les neuf listes enregistrées forment un catalogue aligné, qui répond comme les routes de détail du plugin ont répondu le même jour, et chaque ligne du sitemap enregistré y mène à un document. Le rendu Markdig (lot 4) y sera testé sur des Markdowns d'entrée et le HTML attendu.
 
 **`Portfolio.Api.Tests`** teste l'assemblage complet via `WebApplicationFactory<Program>`, qui démarre l'API en mémoire sans serveur HTTP réel et permet d'envoyer des requêtes en client virtuel. Il vérifie aujourd'hui `/health/live` ; au lot 5, il validera les routes, leurs codes de réponse et la forme du JSON, avec un faux `IWordPressClient` en mémoire à la place du plugin.
 

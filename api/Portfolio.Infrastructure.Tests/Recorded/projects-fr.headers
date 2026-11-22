@@ -1,0 +1,13 @@
+HTTP/2 200 
+date: Sun, 22 Nov 2026 14:32:31 GMT
+content-type: application/json; charset=UTF-8
+x-robots-tag: noindex
+link: <https://morganvoltz.dev/wp-json/>; rel="https://api.w.org/"
+x-content-type-options: nosniff
+access-control-expose-headers: X-WP-Total, X-WP-TotalPages, Link
+access-control-allow-headers: Authorization, X-WP-Nonce, Content-Disposition, Content-MD5, Content-Type
+x-wp-total: 14
+x-wp-totalpages: 1
+allow: GET
+server: o2switch-PowerBoost-v3
+

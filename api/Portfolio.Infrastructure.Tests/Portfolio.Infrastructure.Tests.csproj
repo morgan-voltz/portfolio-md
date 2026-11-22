@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <!-- xUnit v3 on Microsoft.Testing.Platform: a test project is an executable. -->
+        <OutputType>Exe</OutputType>
+        <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="xunit.v3.mtp-v2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Portfolio.Infrastructure\Portfolio.Infrastructure.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="Xunit" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- The answers of the plugin the tests replay, next to the test assembly. -->
+        <None Include="Recorded\*.headers;Recorded\*.json;Recorded\*.html" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
+</Project>
