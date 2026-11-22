@@ -5,7 +5,9 @@ type: "page"
 lang: "en"
 translation_key: "accueil"
 date: 2026-11-08
-seo_description: "Morgan Voltz, full-stack developer in training at UHA: projects in C#, Rust, PHP and React, from electrician to developer, an internship from January 2027."
+headline: "From wiring cabinets to code that holds up."
+subtitle: "Full-stack developer · Rust, C#, PHP · looking for an internship from January 2027"
+seo_description: "Morgan Voltz, electrician turned full-stack developer (Rust, C#, PHP), in training at UHA: projects, background, an internship from January 2027."
 ---
 
 My name is Morgan Voltz. After some fifteen years as an electrician and then an automation technician, I am now a full-stack developer in training at the Université de Haute-Alsace, and I run Kovelt, where I build Vefta, a productivity suite written in Rust. This site gathers what I build and what I learn from it.
