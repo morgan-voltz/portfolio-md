@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+        The implementations of the ports that Portfolio.Application declares:
+        the client of the WordPress plugin (lot 3) and the Markdown renderer
+        (lot 4). It depends on the core, never the other way round.
+    -->
+    <ItemGroup>
+        <ProjectReference Include="..\Portfolio.Application\Portfolio.Application.csproj" />
+    </ItemGroup>
+
+</Project>

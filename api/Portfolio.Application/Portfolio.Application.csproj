@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+        The core of the API (ADR-003, ADR-026 point 6): models, ports and use
+        cases. It references no package and no other project, and uses no
+        Microsoft.Extensions type although .NET 11 ships nine of those libraries
+        in the base framework. DependencyRuleTests, in Portfolio.Application.Tests,
+        fails the build of the tests if that ever changes.
+    -->
+
+</Project>

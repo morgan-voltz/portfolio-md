@@ -4,10 +4,10 @@
 # Two stages: the SDK builds and publishes the API, the ASP.NET runtime image
 # runs it as a non-root user, the public API on port 8080 behind the Traefik of
 # the VPS and the Prometheus metrics on port 9090, which Traefik never routes.
-# To be wired once the solution of phase 6 exists in api/ with the three projects
-# of 02-api-csharp.md; until then this file documents the intent and is not built
-# by any workflow. Build context: the api/ folder (api/.dockerignore keeps the
-# host's bin/ and obj/ out of it).
+# It builds the solution of phase 6 since its first lot (ADR-026, point 11); no
+# workflow builds it yet, the release workflow comes with lot 8. Build context:
+# the api/ folder (api/.dockerignore keeps the host's bin/ and obj/ and the test
+# projects out of it).
 #
 #   podman build -f deploy/Dockerfile -t portfolio-api:dev .
 #   podman run --rm -p 8080:8080 \
@@ -22,8 +22,10 @@ WORKDIR /src
 
 # Restore first, on the project files alone, so that a change of code does not
 # invalidate the restore layer. The restore of Portfolio.Api.csproj follows its
-# ProjectReferences, so the solution file is not needed here.
-COPY global.json ./
+# ProjectReferences, so the solution file is not needed here; the two
+# Directory.*.props files are, because every project imports them (the target
+# framework, and the version of each package).
+COPY global.json Directory.Build.props Directory.Packages.props ./
 COPY Portfolio.Api/Portfolio.Api.csproj Portfolio.Api/
 COPY Portfolio.Application/Portfolio.Application.csproj Portfolio.Application/
 COPY Portfolio.Infrastructure/Portfolio.Infrastructure.csproj Portfolio.Infrastructure/

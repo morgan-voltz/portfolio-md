@@ -2,7 +2,7 @@
 
 One Markdown source, two distinct portfolios. This project publishes a single body of content through two independent web interfaces: a standard WordPress site (for SEO and academic requirements) and a modern technical portfolio built on a C# API and a React frontend.
 
-> **Status**: implementation in progress. The WordPress plugin is complete on the WordPress side of the roadmap (phases 1 to 5): content model, Markdown pipeline and WP-CLI import, admin editor with a server-rendered preview, native pages, a public read-only JSON API (`/wp-json/portfolio/v1/{articles,projects,pages,sitemap}`), and a Git door (`POST /wp-json/portfolio/v1/sync`) that a GitHub Actions workflow will feed once the site is online. Next: the image import, then the C# API. See the [roadmap](docs/architecture/00-overview.md#7-feuille-de-route) for the detailed plan.
+> **Status**: implementation in progress. The WordPress plugin is complete on the WordPress side of the roadmap (phases 1 to 5): content model, Markdown pipeline and WP-CLI import, admin editor with a server-rendered preview, native pages, a public read-only JSON API (`/wp-json/portfolio/v1/{articles,projects,pages,sitemap}`), and a Git door (`POST /wp-json/portfolio/v1/sync`) that a GitHub Actions workflow feeds after each merge that touches the content. The WordPress site is online at [morganvoltz.dev](https://morganvoltz.dev) since November 2026. The C# API is under way (phase 6, ADR-026: lot 1 of 8, the solution and its continuous integration). See the [roadmap](docs/architecture/00-overview.md#7-feuille-de-route) for the detailed plan.
 
 ## Why
 
@@ -127,17 +127,15 @@ The plugin source is mounted into the WordPress container via the bind mount dec
 ```bash
 cd api
 
-# Restore dependencies
-dotnet restore
+# Build (warnings are errors) and run the test suites
+dotnet build Portfolio.slnx
+dotnet test --solution Portfolio.slnx
 
 # Run the API in watch mode (hot reload on file change)
 dotnet watch --project Portfolio.Api
-
-# Run the test suite
-dotnet test
 ```
 
-The API listens on `http://localhost:5000` by default (see `Portfolio.Api/Properties/launchSettings.json` once scaffolded).
+In development the API listens on `http://localhost:5000` (`Portfolio.Api/Properties/launchSettings.json`); `GET /health/live` answers as soon as it runs. See [`api/api-README.md`](api/api-README.md) for the layout of the solution and the container image.
 
 ### React frontend
 

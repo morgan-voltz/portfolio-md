@@ -1,0 +1,18 @@
+<Project>
+
+    <!--
+        Central package management (ADR-026, point 10): the version of each
+        package is written here once, and a project names the package without
+        a version. Two projects can never drift onto two versions of one package.
+    -->
+    <PropertyGroup>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Tests -->
+        <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="11.0.0" />
+        <PackageVersion Include="xunit.v3.mtp-v2" Version="4.0.3" />
+    </ItemGroup>
+
+</Project>

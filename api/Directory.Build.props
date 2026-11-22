@@ -1,0 +1,16 @@
+<Project>
+
+    <!--
+        Settings shared by every project of the solution (ADR-026, point 10).
+        MSBuild imports this file into each .csproj below this folder, so the
+        target framework is written once: changing it is a one-line change
+        (ADR-025, point 4).
+    -->
+    <PropertyGroup>
+        <TargetFramework>net11.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    </PropertyGroup>
+
+</Project>
