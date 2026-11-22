@@ -5,7 +5,7 @@
 **Prérequis** : avoir lu [`00-overview.md`](00-overview.md)
 **Lectorat** : contributeur .NET, Morgan en phase d'implémentation, relecteur technique
 **Temps de lecture** : environ vingt-cinq minutes
-**Dernière mise à jour** : 8 novembre 2026 (ADR-023 : .NET 10, en-têtes transmis, HTTPS par Traefik, santé et observation, configuration par l'environnement ; libellés dans la langue demandée et clé `official` des compétences, ADR-020 lot 4 ; la langue dans les routes du plugin et dans les clés de cache, ADR-021 ; contrat réel des routes du plugin le 29 octobre, phase 5 ; version d'origine du 22 avril 2026)
+**Dernière mise à jour** : 22 novembre 2026 (ADR-025 : .NET 11 et C# 15 à la place de .NET 10 ; le 8 novembre, ADR-023 : .NET 10, en-têtes transmis, HTTPS par Traefik, santé et observation, configuration par l'environnement ; libellés dans la langue demandée et clé `official` des compétences, ADR-020 lot 4 ; la langue dans les routes du plugin et dans les clés de cache, ADR-021 ; contrat réel des routes du plugin le 29 octobre, phase 5 ; version d'origine du 22 avril 2026)
 
 ---
 
@@ -35,7 +35,7 @@ Elle peut aussi calculer des champs dérivés à la volée : articles connexes b
 
 ### 1.3. Laboratoire d'apprentissage .NET
 
-Le troisième rôle est personnel et il teinte les choix techniques qui suivent. L'API est l'endroit où Morgan apprend .NET 10 moderne : Minimal APIs, injection de dépendances native, HttpClient typé, tests en xUnit, patterns de Clean Architecture. Certaines décisions qu'on prend ici — utiliser Minimal APIs plutôt que des Controllers classiques, par exemple — sont motivées par cette dimension d'apprentissage plutôt que par une supériorité technique absolue.
+Le troisième rôle est personnel et il teinte les choix techniques qui suivent. L'API est l'endroit où Morgan apprend .NET 11 moderne : Minimal APIs, injection de dépendances native, HttpClient typé, tests en xUnit, patterns de Clean Architecture. Certaines décisions qu'on prend ici — utiliser Minimal APIs plutôt que des Controllers classiques, par exemple — sont motivées par cette dimension d'apprentissage plutôt que par une supériorité technique absolue.
 
 ---
 
@@ -333,7 +333,7 @@ Les packages nécessaires pour l'API restent peu nombreux.
 
 `Markdig` est la seule dépendance externe majeure de `Portfolio.Infrastructure`. Version actuellement stable de la 0.x série, à vérifier au moment de l'implémentation.
 
-`Microsoft.Extensions.Caching.Memory` est incluse par défaut dans .NET 10 pour `IMemoryCache`.
+`Microsoft.Extensions.Caching.Memory` est incluse par défaut dans .NET 11 pour `IMemoryCache`.
 
 En dépendances de test : `xunit` pour les tests, `Microsoft.NET.Test.Sdk` comme runner, `FluentAssertions` pour l'expressivité des assertions, et `NSubstitute` pour les doubles de test (préférable à Moq, plus simple et plus moderne).
 
