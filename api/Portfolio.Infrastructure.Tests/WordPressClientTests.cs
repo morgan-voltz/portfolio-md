@@ -96,6 +96,22 @@ public sealed class WordPressClientTests
     }
 
     [Fact]
+    public async Task A_page_keeps_its_headline_and_subtitle_and_null_when_its_front_matter_has_none()
+    {
+        var client = FakePlugin.Recorded().Client();
+
+        var pages = (await client.ListAsync(CollectionKind.Page, Language.En, Token)).AssertFetched();
+
+        var home = Assert.IsType<Page>(pages.Single(page => page.Slug == "home"));
+        Assert.Equal("Home", home.Title);
+        Assert.Equal("From wiring cabinets to code that holds up.", home.Headline);
+        Assert.Equal("Full-stack developer · Rust, C#, PHP · looking for an internship from January 2027", home.Subtitle);
+        var about = Assert.IsType<Page>(pages.Single(page => page.Slug == "about"));
+        Assert.Null(about.Headline);
+        Assert.Null(about.Subtitle);
+    }
+
+    [Fact]
     public async Task The_client_asks_with_language_page_and_per_page_only_and_says_who_it_is()
     {
         var plugin = FakePlugin.Recorded();
@@ -236,14 +252,20 @@ public sealed class WordPressClientTests
         Assert.Equal("the plugin answered text/html instead of JSON, HTTP 200 (GET sitemap)", reason);
     }
 
-    [Fact]
-    public async Task A_document_missing_a_key_of_the_contract_is_unexpected()
+    [Theory]
+    [InlineData("seo_description")]
+    [InlineData("headline")]
+    [InlineData("subtitle")]
+    public async Task A_document_missing_a_key_of_the_contract_is_unexpected(string key)
     {
-        // A key renamed by a later plugin must fail the reading, not become null everywhere.
-        var reason = await ReasonForPagesWhere(page => page.Remove("seo_description"));
+        // A key renamed by a later plugin must fail the reading, not become
+        // null everywhere. The same goes for the two keys of ADR-027, which
+        // are null when the front matter has none: their absence means a
+        // plugin older than ADR-027, which this client no longer reads.
+        var reason = await ReasonForPagesWhere(page => page.Remove(key));
 
         Assert.StartsWith("unexpected answer from the plugin (GET pages?language=fr&page=1&per_page=100): ", reason);
-        Assert.Contains("seo_description", reason);
+        Assert.Contains(key, reason);
     }
 
     [Fact]
