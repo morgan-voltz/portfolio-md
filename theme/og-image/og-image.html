@@ -1,12 +1,18 @@
 <!doctype html>
 <!--
   The source of theme/portfolio-md-child/assets/og-image.png, the default image of the social
-  cards (ADR-027). Not deployed: deploy-o2switch.sh ships theme/portfolio-md-child/ only.
+  cards (ADR-027): the brand's logo for dark backgrounds (theme/logos/), then a line and the
+  address of the site. Not deployed: deploy-o2switch.sh ships theme/portfolio-md-child/ only.
   Language-neutral on purpose: one image serves the three languages of the site.
-  To regenerate it, from the root of the repository:
+  To regenerate it, from the root of the repository (the second command recompresses the PNG
+  without changing a pixel, to about a third of its size):
     chromium-browser --headless=new --disable-gpu --hide-scrollbars --virtual-time-budget=3000 \
-      --window-size=1200,630 --screenshot=theme/portfolio-md-child/assets/og-image.png \
+      --allow-file-access-from-files --window-size=1200,630 \
+      --screenshot=theme/portfolio-md-child/assets/og-image.png \
       "file://$PWD/theme/og-image/og-image.html"
+    magick theme/portfolio-md-child/assets/og-image.png -strip -define png:compression-level=9 \
+      -define png:compression-filter=5 -define png:compression-strategy=1 \
+      theme/portfolio-md-child/assets/og-image.png
 -->
 <html lang="fr">
 <head>
@@ -31,60 +37,36 @@
 	}
 	body {
 		display: flex;
-		align-items: center;
-		gap: 64px;
+		flex-direction: column;
+		justify-content: center;
 		box-sizing: border-box;
 		padding: 0 96px;
 		background: linear-gradient(135deg, #0b1f3a 0%, #12305a 100%);
-		color: #ffffff;
-		font-family: "Inter Variable", sans-serif;
 	}
 	img {
-		width: 208px;
-		height: 208px;
-		flex: none;
-	}
-	.line {
-		width: 64px;
-		height: 6px;
-		margin-bottom: 28px;
-		border-radius: 999px;
-		background: #22d3ee;
-	}
-	h1 {
-		margin: 0;
-		font-size: 96px;
-		font-weight: 700;
-		line-height: 1;
-		letter-spacing: -0.02em;
-	}
-	h1 span {
-		font-weight: 300;
-		color: #22d3ee;
+		display: block;
+		width: 784px;
+		height: auto;
 	}
 	p {
-		margin: 28px 0 0;
+		margin: 40px 0 0;
 		font-family: "Space Grotesk Variable", sans-serif;
-		font-size: 40px;
+		font-size: 44px;
 		font-weight: 500;
 		color: #cbd5e1;
 	}
 	p.site {
-		margin-top: 36px;
+		margin-top: 20px;
 		font-family: "Inter Variable", sans-serif;
-		font-size: 28px;
+		font-size: 30px;
 		font-weight: 600;
 		color: #22d3ee;
 	}
 </style>
 </head>
 <body>
-	<img src="icone-signal-512.png" alt="">
-	<div>
-		<div class="line"></div>
-		<h1>Morgan <span>Voltz</span></h1>
-		<p>Full-stack · Rust · C# · PHP</p>
-		<p class="site">morganvoltz.dev</p>
-	</div>
+	<img src="../logos/logo-morgan-voltz-fond-sombre.svg" alt="">
+	<p>Full-stack · Rust · C# · PHP</p>
+	<p class="site">morganvoltz.dev</p>
 </body>
 </html>
