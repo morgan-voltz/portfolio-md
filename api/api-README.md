@@ -8,7 +8,7 @@ The solution follows Clean Architecture, in three projects:
 - `Portfolio.Application` — the core: the documents, the in-memory catalog, the ports and the use cases; it references no package and no other project, which a test checks
 - `Portfolio.Infrastructure` — the implementations of the ports: the client of the plugin and the Markdown renderer
 
-**Current status**: lot 2 of 8 (ADR-026, point 11). Lot 1 brought the solution, its continuous integration (`.github/workflows/api-ci.yml`), `GET /health/live`, the test of the dependency rule and the container image. Lot 2 brings the core: the documents, the in-memory catalog and the two read use cases, `GetDocumentBySlug` and `ListDocuments`. The client of the plugin, the Markdown rendering and the public routes come with lots 3 to 5.
+**Current status**: lot 3 of 8 (ADR-026, point 11). Lot 1 brought the solution, its continuous integration (`.github/workflows/api-ci.yml`), `GET /health/live`, the test of the dependency rule and the container image. Lot 2 brought the core: the documents, the in-memory catalog and the two read use cases, `GetDocumentBySlug` and `ListDocuments`. Lot 3 brings the client of the plugin, `WordPressClient`, tested against answers recorded from the plugin in production. The Markdown rendering and the public routes come with lots 4 and 5.
 
 ## Layout
 
@@ -20,13 +20,12 @@ api/
 ├── Directory.Packages.props        one version per package for the whole solution
 ├── Portfolio.Api/
 ├── Portfolio.Application/          the core: Documents/, the catalog, Ports/, UseCases/
-├── Portfolio.Infrastructure/       empty until lot 3
+├── Portfolio.Infrastructure/       WordPress/, the client of the plugin
 ├── Portfolio.Api.Tests/            the API started in memory (WebApplicationFactory)
 ├── Portfolio.Application.Tests/    the core, and the dependency rule
+├── Portfolio.Infrastructure.Tests/ the client, against recorded answers of the plugin (Recorded/)
 └── deploy/                         container image and production compose (ADR-023)
 ```
-
-`Portfolio.Infrastructure.Tests` arrives with the client of the plugin (lot 3).
 
 ## Commands
 
