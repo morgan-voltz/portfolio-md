@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+        What the test projects share (ADR-026, point 10): doubles written by
+        hand (the plugin in memory, a renderer, a clock the test moves) and
+        the documents the tests build. A plain library, not a test project:
+        it holds no test and references no test framework, so that a test
+        project can depend on it without depending on another test project.
+    -->
+    <ItemGroup>
+        <ProjectReference Include="..\Portfolio.Application\Portfolio.Application.csproj" />
+    </ItemGroup>
+
+</Project>

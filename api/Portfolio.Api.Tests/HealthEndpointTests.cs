@@ -1,8 +1,8 @@
 using System.Net;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Portfolio.Api.Tests.Support;
 
 namespace Portfolio.Api.Tests;
 
@@ -10,7 +10,7 @@ namespace Portfolio.Api.Tests;
 /// GET /health/live (ADR-023 point 5): the API is started in memory, with its
 /// real composition root, and called without any network.
 /// </summary>
-public sealed class HealthEndpointTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+public sealed class HealthEndpointTests(PortfolioApiFactory factory) : IClassFixture<PortfolioApiFactory>
 {
     [Fact]
     public async Task The_live_route_answers_healthy_as_soon_as_the_process_runs()
@@ -26,8 +26,8 @@ public sealed class HealthEndpointTests(WebApplicationFactory<Program> factory) 
     [Fact]
     public async Task The_live_route_ignores_a_failing_check()
     {
-        // Stands for the readiness check of lot 5, which fails until the first
-        // catalog is loaded: the process is alive all the same.
+        // Any failing check, such as the readiness of the catalog before the first
+        // catalog: the process is alive all the same.
         using var withFailingCheck = factory.WithWebHostBuilder(host => host.ConfigureServices(services =>
             services.AddHealthChecks().AddCheck("failing", () => HealthCheckResult.Unhealthy())));
         using var client = withFailingCheck.CreateClient();
